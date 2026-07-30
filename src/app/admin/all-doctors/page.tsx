@@ -1,9 +1,15 @@
 import prisma from "@/lib/prisma"
-import type { user as User } from "@prisma/client"
 import { columns, DoctorRow } from "./columns"
 import { AllDoctorsContent } from "./content"
 
-type DoctorResult = Pick<User, "id" | "name" | "email" | "employeeNumber" | "designations" | "status">
+type DoctorResult = {
+  id: string
+  name: string
+  email: string
+  employeeNumber: string | null
+  designations: string | null
+  status: string | null
+}
 
 export default async function Page() {
   const doctors: DoctorResult[] = await prisma.user.findMany({
@@ -19,7 +25,7 @@ export default async function Page() {
     orderBy: { name: "asc" },
   })
 
-  const rows: DoctorRow[] = doctors.map((user: any) => ({
+  const rows: DoctorRow[] = doctors.map((user: DoctorResult) => ({
     id: user.id,
     name: user.name,
     email: user.email,
