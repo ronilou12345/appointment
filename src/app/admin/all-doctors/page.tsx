@@ -1,9 +1,12 @@
 import prisma from "@/lib/prisma"
+import type { user as User } from "@prisma/client"
 import { columns, DoctorRow } from "./columns"
 import { AllDoctorsContent } from "./content"
 
+type DoctorResult = Pick<User, "id" | "name" | "email" | "employeeNumber" | "designations" | "status">
+
 export default async function Page() {
-  const doctors = await prisma.user.findMany({
+  const doctors: DoctorResult[] = await prisma.user.findMany({
     where: { role: "NURSE" },
     select: {
       id: true,
