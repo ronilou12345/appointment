@@ -44,6 +44,7 @@ export function LoginForm({
 
     const response = await fetch("/api/auth/login", {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -53,6 +54,11 @@ export function LoginForm({
     const result = await response.json()
     setLoading(false)
 
+    if (!response.ok) {
+      setError(result.error || "Login failed.")
+      return
+    }
+
     if (!result.success) {
       setError(result.error || "Login failed.")
       return
@@ -60,7 +66,8 @@ export function LoginForm({
 
     const email = body.email
     const role = result.role ?? getRoleFromEmail(email)
-    router.push(getDashboardPath(role))
+    const dashboardPath = getDashboardPath(role)
+    window.location.href = dashboardPath
   }
 
   return (

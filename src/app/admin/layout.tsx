@@ -1,41 +1,20 @@
-"use client"
-
-import { usePathname } from "next/navigation"
+import { redirect } from "next/navigation"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { getUserByRole } from "@/lib/user-role"
+import { getUserByRole, normalizeUserRole } from "@/lib/user-role"
+import { getSession } from "@/lib/auth-utils"
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  
-  let role: "DOCTOR" | "ADMIN" | "CLIENT" = "CLIENT"
-  
-  // Determine role based on pathname
-  if (
-    pathname.includes("/admin/doctor") ||
-    pathname.includes("/admin/doctor/add-session") ||
-    pathname.includes("/admin/doctor/appointments")
-  ) {
-    role = "DOCTOR"
-  } else if (
-    pathname.includes("/admin/dashboard") || 
-    pathname.includes("/admin/inventory") || 
-    pathname.includes("/admin/reports") ||
-    pathname.includes("/admin/all-doctors") ||
-    pathname.includes("/admin/all-appointments") ||
-    pathname.includes("/admin/add-specialties") ||
-    pathname.includes("/admin/manage-users")
-  ) {
-    role = "ADMIN"
-  } else if (
-    pathname.includes("/admin/client")
-  ) {
-    role = "CLIENT"
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSession()
+
+  if (!session || session.status !== "ACTIVE") {
+    redirect("/login")
   }
 
-  const user = getUserByRole(role)
+  const role = normalizeUserRole(session.role)
+  const user = getUserByRole(session.role)
 
   return (
     <SidebarProvider

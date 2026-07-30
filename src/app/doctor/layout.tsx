@@ -1,13 +1,20 @@
-"use client"
+import { redirect } from "next/navigation"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { getUserByRole } from "@/lib/user-role"
+import { getUserByRole, normalizeUserRole } from "@/lib/user-role"
+import { getSession } from "@/lib/auth-utils"
 
-export default function DoctorLayout({ children }: { children: React.ReactNode }) {
-  const role = "DOCTOR"
-  const user = getUserByRole(role)
+export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSession()
+
+  if (!session || session.status !== "ACTIVE") {
+    redirect("/login")
+  }
+
+  const role = normalizeUserRole(session.role)
+  const user = getUserByRole(session.role)
 
   return (
     <SidebarProvider
