@@ -16,7 +16,7 @@ export default async function Page() {
     orderBy: { name: "asc" },
   })
 
-  const rows: DoctorRow[] = doctors.map((user) => ({
+  const rows: DoctorRow[] = doctors.map((user: any) => ({
     id: user.id,
     name: user.name,
     email: user.email,
