@@ -1,0 +1,2 @@
+src/lib/prisma.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.
+src/lib/prisma.ts(2,10): error TS2724: '"@prisma/adapter-mariadb"' has no exported member named 'PrismaMariadb'. Did you mean 'PrismaMariaDb'?

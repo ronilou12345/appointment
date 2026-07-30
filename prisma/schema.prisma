@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model billing {
+  id          String   @id
+  amount      Float
+  status      String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  user        user     @relation(fields: [userId], references: [id], map: "Billing_userId_fkey")
+
+  @@index([userId], map: "Billing_userId_fkey")
+}
+
+model dashboardmetric {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique(map: "DashboardMetric_key_key")
+  value     String
+  updatedAt DateTime
+}
+
+model user {
+  id             String      @id
+  email          String      @unique(map: "User_email_key")
+  name           String
+  avatar         String?
+  role           user_role   @default(PATIENT)
+  status         user_status @default(ACTIVE)
+  studentNumber  String?
+  employeeNumber String?
+  employmentType String?
+  hireDate       DateTime?
+  designations   String?     @db.LongText
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime
+  password       String
+  billing        billing[]
+}
+
+enum user_role {
+  ADMIN
+  NURSE
+  STAFF
+  PATIENT
+}
+
+enum user_status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
