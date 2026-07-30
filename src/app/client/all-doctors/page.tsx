@@ -2,8 +2,17 @@ import prisma from "@/lib/prisma"
 import { DataTable } from "@/components/data-table"
 import { columns, DoctorRow } from "./columns"
 
+type DoctorResult = {
+  id: string
+  name: string
+  email: string
+  employeeNumber: string | null
+  designations: string | null
+  status: string | null
+}
+
 export default async function ClientAllDoctorsPage() {
-  const doctors = await prisma.user.findMany({
+  const doctors: DoctorResult[] = await prisma.user.findMany({
     where: { role: "NURSE" },
     select: {
       id: true,
@@ -16,7 +25,7 @@ export default async function ClientAllDoctorsPage() {
     orderBy: { name: "asc" },
   })
 
-  const rows: DoctorRow[] = doctors.map((user) => ({
+  const rows: DoctorRow[] = doctors.map((user: DoctorResult) => ({
     id: user.id,
     name: user.name,
     email: user.email,
