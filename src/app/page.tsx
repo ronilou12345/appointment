@@ -177,11 +177,11 @@ export default function LandingPage() {
         </Badge>
 
         <h1 className="max-w-4xl text-5xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-7xl lg:text-8xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-          Streamline healthcare with an <span className="bg-gradient-to-r from-primary to-foreground bg-clip-text text-transparent">Intelligent C2M Clinic System</span>
+          Where Innovation Meets<span className="bg-gradient-to-r from-primary to-foreground bg-clip-text text-transparent"> Quality Healthcare</span>
         </h1>
 
         <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl lg:text-2xl animate-in fade-in slide-in-from-bottom-12 duration-500">
-          Revolutionizing patient care with a fast, deeply secure, and highly intuitive <span className="font-semibold text-foreground">patient and staff management</span> network.
+          Simplify appointments and manage patient records with one <span className="font-semibold text-foreground">intelligent healthcare</span> platforn.
         </p>
 
         <div className="mt-12 flex flex-col gap-4 sm:flex-row animate-in fade-in slide-in-from-bottom-16 duration-300">
