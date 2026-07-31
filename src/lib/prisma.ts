@@ -14,10 +14,18 @@ const globalForPrisma = globalThis as typeof globalThis & {
   prismaGlobal?: ReturnType<typeof prismaClientSingleton>
 }
 
-const prisma = globalForPrisma.prismaGlobal ?? prismaClientSingleton()
+const getPrismaClient = () => {
+  if (!globalForPrisma.prismaGlobal) {
+    globalForPrisma.prismaGlobal = prismaClientSingleton()
+  }
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prismaGlobal = prisma
+  return globalForPrisma.prismaGlobal
 }
+
+const prisma = new Proxy({} as PrismaClient, {
+  get(_target, property, receiver) {
+    return Reflect.get(getPrismaClient(), property, receiver)
+  },
+})
 
 export default prisma
