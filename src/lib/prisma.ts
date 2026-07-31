@@ -1,12 +1,12 @@
 import { PrismaClient } from '@prisma/client'
-import { PrismaMariaDb } from '@prisma/adapter-mariadb'
+import { PrismaPg } from '@prisma/adapter-pg'
 
 const prismaClientSingleton = () => {
   if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = 'mysql://root@127.0.0.1:3306/next_db'
+    throw new Error('DATABASE_URL is not configured')
   }
 
-  const adapter = new PrismaMariaDb(process.env.DATABASE_URL)
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
   return new PrismaClient({ adapter })
 }
 

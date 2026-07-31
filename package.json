@@ -13,15 +13,19 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@prisma/adapter-mariadb": "^7.5.0",
+    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.111.0",
     "@tanstack/react-table": "^8.21.3",
+    "@types/pg": "^8.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
     "mariadb": "^3.5.2",
     "next": "^16.2.12",
     "next-themes": "^0.4.6",
+    "pg": "^8.22.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -47,5 +51,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
-  }
+  },
+  "DATABASE_URL": "postgresql://postgres:ClinicDb2026Secure@db.kkjfsbpsycysdnrwxdis.supabase.co:5432/postgres?sslmode=require",
+  "DIRECT_URL": "postgresql://postgres:ClinicDb2026Secure@db.kkjfsbpsycysdnrwxdis.supabase.co:5432/postgres?sslmode=require"
 }
