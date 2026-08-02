@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 
 const fontVariables = {
   "--font-geist-sans": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -35,6 +36,7 @@ export default function RootLayout({
           <ThemeApplier />
           <TooltipProvider>
             {children}
+            <Toaster richColors closeButton position="bottom-right" />
           </TooltipProvider>
         </ThemeProvider>
       </body>

@@ -75,6 +75,12 @@ const doctorNavMain = [
   },
 ]
 
+const settingsNavItems = [
+  { title: "Settings", url: "/admin/settings", icon: <Settings2Icon /> },
+  { title: "Settings", url: "/doctor/settings", icon: <Settings2Icon /> },
+  { title: "Settings", url: "/client/settings", icon: <Settings2Icon /> },
+]
+
 const clientNavMain = [
   {
     title: "Dashboard",
@@ -137,7 +143,7 @@ const data = {
     },
   ],
   navSecondary: [
-    { title: "Settings", url: "/dashboard/settings", icon: <Settings2Icon /> },
+    { title: "Settings", url: "/admin/settings", icon: <Settings2Icon /> },
     { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
   ],
   documents: [
@@ -150,6 +156,14 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   // Determine navigation based on user role
   const navMain = user?.role === "DOCTOR" ? doctorNavMain : user?.role === "CLIENT" ? clientNavMain : adminNavMain
   const showDocuments = user?.role === "ADMIN" // Only show Inventory and Reports for admin users
+  const secondaryItems = [
+    {
+      title: "Settings",
+      url: user?.role === "DOCTOR" ? "/doctor/settings" : user?.role === "CLIENT" ? "/client/settings" : "/admin/settings",
+      icon: <Settings2Icon />,
+    },
+    { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
+  ]
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -171,7 +185,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       <SidebarContent>
         <NavMain items={navMain} />
         {showDocuments && <NavDocuments items={data.documents} />}
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavSecondary items={secondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user ?? data.user} />

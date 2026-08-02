@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { toast } from "sonner"
 import { MailIcon, UserIcon, LockIcon, HashIcon, BriefcaseIcon, CheckIcon, XIcon } from "lucide-react"
 
 export type CreateUserForm = {
@@ -24,8 +25,9 @@ export type CreateUserForm = {
   suffix: string
   credentials: string
   password: string
-  studentNumber: string
-  employeeNumber: string
+  licenseNumber: string
+  yearsofexperience: string
+  address: string
 }
 
 function CreateUserModal({
@@ -51,12 +53,32 @@ function CreateUserModal({
     suffix: "",
     credentials: "",
     password: "",
-    studentNumber: "",
-    employeeNumber: "",
+    licenseNumber: "",
+    yearsofexperience: "",
+    address: "",
   })
 
   const handleChange = (field: keyof CreateUserForm, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }))
+
+  const resetForm = React.useCallback(() => {
+    setForm({
+      userType: "PATIENT",
+      email: "",
+      status: "Active",
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      prefix: "",
+      suffix: "",
+      credentials: "",
+      password: "",
+      licenseNumber: "",
+      yearsofexperience: "",
+      address: "",
+    })
+    setErrorMsg("")
+  }, [])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -75,11 +97,15 @@ function CreateUserModal({
     setLoading(false)
 
     if (result.success) {
+      toast.success("User account created successfully")
       onSuccess("User account created successfully.")
+      resetForm()
       onOpenChange(false)
       setTimeout(() => router.refresh(), 100)
     } else {
-      setErrorMsg(result.error || "Unable to create user.")
+      const errorMessage = result.error || "Unable to create user."
+      setErrorMsg(errorMessage)
+      toast.error(errorMessage)
     }
   }
 
@@ -130,7 +156,6 @@ function CreateUserModal({
                         <SelectGroup>
                           <SelectItem value="ADMIN">Admin</SelectItem>
                           <SelectItem value="DOCTOR">Doctor</SelectItem>
-                          <SelectItem value="STAFF">Staff</SelectItem>
                           <SelectItem value="PATIENT">Patient</SelectItem>
                         </SelectGroup>
                       </SelectContent>
@@ -170,7 +195,6 @@ function CreateUserModal({
                     <SelectContent>
                       <SelectGroup>
                         <SelectItem value="Active">Active</SelectItem>
-                        <SelectItem value="Applicant">Applicant</SelectItem>
                         <SelectItem value="Suspended">Suspended</SelectItem>
                       </SelectGroup>
                     </SelectContent>
@@ -228,7 +252,7 @@ function CreateUserModal({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="prefix" className="text-xs font-medium">
-                    Prefix
+                    Prefix<span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="prefix"
@@ -240,7 +264,7 @@ function CreateUserModal({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="suffix" className="text-xs font-medium">
-                    Suffix
+                    Suffix<span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="suffix"
@@ -252,10 +276,23 @@ function CreateUserModal({
                 </div>
               </div>
 
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="address" className="text-xs font-medium">
+                  Address<span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="address"
+                  placeholder="Enter full address"
+                  className="h-10 text-sm"
+                  value={form.address}
+                  onChange={(e) => handleChange("address", e.target.value)}
+                />
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="credentials" className="text-xs font-medium">
-                    Credentials
+                    Credentials<span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="credentials"
@@ -267,7 +304,7 @@ function CreateUserModal({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="password" className="text-xs font-medium">
-                    Password
+                    Password<span className="text-destructive">*</span>
                   </Label>
                   <div className="relative">
                     <LockIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
@@ -283,38 +320,47 @@ function CreateUserModal({
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="studentNumber" className="text-xs font-medium">
-                    Student Number
-                  </Label>
-                  <div className="relative">
-                    <HashIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
-                    <Input
-                      id="studentNumber"
-                      placeholder="Official student ID number"
-                      className="h-10 pl-10 text-sm font-mono"
-                      value={form.studentNumber}
-                      onChange={(e) => handleChange("studentNumber", e.target.value)}
-                    />
+              {form.userType === "DOCTOR" ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="licenseNumber" className="text-xs font-medium">
+                      License Number<span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative">
+                      <HashIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
+                      <Input
+                        id="licenseNumber"
+                        placeholder="Official license ID number"
+                        className="h-10 pl-10 text-sm font-mono"
+                        value={form.licenseNumber}
+                        onChange={(e) => handleChange("licenseNumber", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="yearsofexperience" className="text-xs font-medium">
+                      Years of Experience<span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={form.yearsofexperience}
+                      onValueChange={(value) => handleChange("yearsofexperience", value)}
+                    >
+                      <SelectTrigger id="yearsofexperience" className="h-10 text-sm">
+                        <SelectValue placeholder="Select years" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {Array.from({ length: 100 }, (_, index) => (
+                            <SelectItem key={index + 1} value={(index + 1).toString()}>
+                              {index + 1} {index + 1 === 1 ? "year" : "years"}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="employeeNumber" className="text-xs font-medium">
-                    Employee Number
-                  </Label>
-                  <div className="relative">
-                    <BriefcaseIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
-                    <Input
-                      id="employeeNumber"
-                      placeholder="Official employee ID number"
-                      className="h-10 pl-10 text-sm font-mono"
-                      value={form.employeeNumber}
-                      onChange={(e) => handleChange("employeeNumber", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
+              ) : null}
             </div>
           </div>
 
@@ -353,7 +399,7 @@ export default function ManageUsersClient({ users }: { users: UserRow[] }) {
             <p className="text-sm text-muted-foreground">Manage user information and profiles.</p>
           </div>
           <Button className="w-full sm:w-auto" variant="secondary" onClick={() => setCreateOpen(true)}>
-            ADD USER
+             + Add
           </Button>
         </div>
 

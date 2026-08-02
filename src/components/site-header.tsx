@@ -1,8 +1,17 @@
 "use client"
 
 import * as React from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,9 +23,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { logoutUser } from "@/lib/actions/auth"
-import { BellIcon, InboxIcon, Settings2Icon, LogOutIcon, PaletteIcon, SunIcon, MoonIcon, MonitorIcon, CheckIcon } from "lucide-react"
+import { BellIcon, InboxIcon, Settings2Icon, LogOutIcon, SunIcon, MoonIcon, MonitorIcon, CheckIcon } from "lucide-react"
 
 export function SiteHeader({
   user,
@@ -28,13 +46,81 @@ export function SiteHeader({
   }
 }) {
   const { theme: currentTheme, setTheme } = useTheme()
+  const pathname = usePathname()
+  const router = useRouter()
   const [mounted, setMounted] = React.useState(false)
+  const [searchOpen, setSearchOpen] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
   const theme = mounted ? (currentTheme === "system" ? "system" : currentTheme) : "system"
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  const breadcrumbs = React.useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean)
+    const labelMap: Record<string, string> = {
+      admin: "Admin",
+      client: "Client",
+      doctor: "Doctor",
+      dashboard: "Dashboard",
+      appointments: "Appointments",
+      patients: "Patients",
+      doctors: "Doctors",
+      inventory: "Inventory",
+      reports: "Reports",
+      users: "Users",
+      "manage-users": "Manage Users",
+      "add-specialties": "Add Specialties",
+      "book-appointment": "Book Appointment",
+      "all-appointments": "All Appointments",
+      "all-doctors": "All Doctors",
+      login: "Login",
+      signup: "Sign Up",
+    }
+
+    const crumbs = segments.map((segment, index) => {
+      const href = `/${segments.slice(0, index + 1).join("/")}`
+      const label = labelMap[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
+      return { label, href }
+    })
+
+    return [{ label: "Home", href: "/" }, ...crumbs]
+  }, [pathname])
+
+  const searchCommands = React.useMemo(
+    () => [
+      { label: "Admin Dashboard", href: "/admin/dashboard" },
+      { label: "Manage Users", href: "/admin/manage-users" },
+      { label: "All Appointments", href: "/admin/all-appointments" },
+      { label: "Client Dashboard", href: "/client/dashboard" },
+      { label: "Doctor Dashboard", href: "/doctor/dashboard" },
+      { label: "Book Appointment", href: "/client/book-appointment" },
+      { label: "Login", href: "/login" },
+      { label: "Sign Up", href: "/signup" },
+    ],
+    []
+  )
+
+  const handleNavigate = React.useCallback(
+    (href: string) => {
+      setSearchOpen(false)
+      router.push(href)
+    },
+    [router]
+  )
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/70 px-4 backdrop-blur-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -43,7 +129,49 @@ export function SiteHeader({
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mx-2 h-6" />
         </div>
+        <div className="flex min-w-0 flex-1 items-center">
+          <div className="hidden rounded-full border border-border/60 bg-background/80 px-3 py-2 shadow-sm md:flex">
+            <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbs.map((crumb, index) => {
+                  const isLast = index === breadcrumbs.length - 1
+                  return (
+                    <React.Fragment key={crumb.href}>
+                      <BreadcrumbItem>
+                        {isLast ? (
+                          <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                      {!isLast ? <BreadcrumbSeparator /> : null}
+                    </React.Fragment>
+                  )
+                })}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </div>
         <div className="ml-auto flex items-center gap-2">
+          <CommandDialog open={searchOpen} onOpenChange={setSearchOpen} title="Search pages" description="Find a page to navigate to.">
+            <Command>
+              <CommandInput placeholder="Type a page name..." />
+              <CommandList>
+                <CommandEmpty>No results found.</CommandEmpty>
+                <CommandGroup heading="Pages">
+                  {searchCommands.map((command) => (
+                    <CommandItem
+                      key={command.href}
+                      value={command.label}
+                      onSelect={() => handleNavigate(command.href)}
+                    >
+                      <span>{command.label}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </CommandDialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" aria-label="Notifications">

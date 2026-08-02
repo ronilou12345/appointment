@@ -65,7 +65,12 @@ export function BookAppointmentContent() {
     date: "",
     time: "",
     reason: "",
+    age: "",
+    gender: "",
+    contactNumber: "",
     symptoms: "",
+    durationOfSymptoms: "",
+    painLevel: "",
     notes: "",
   })
 
@@ -204,26 +209,28 @@ export function BookAppointmentContent() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Calendar Column */}
-              <div>
-                <div className="bg-transparent text-foreground rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
+              <div className="w-full">
+                <div className="rounded-xl border border-border/60 bg-background/70 p-4 shadow-sm">
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm text-muted-foreground">{displayedMonth.toLocaleString(undefined,{month:'long', year:'numeric'})}</div>
+                      <div className="text-sm font-medium text-foreground">
+                        {displayedMonth.toLocaleString(undefined, { month: "long", year: "numeric" })}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 pt-0.5">
                       <button
                         aria-label="Previous month"
                         onClick={() => changeMonth(-1)}
-                        className="p-2 rounded-md hover:bg-muted"
+                        className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-lg transition hover:bg-muted"
                       >
                         ‹
                       </button>
                       <button
                         aria-label="Next month"
                         onClick={() => changeMonth(1)}
-                        className="p-2 rounded-md hover:bg-muted"
+                        className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-lg transition hover:bg-muted"
                       >
                         ›
                       </button>
@@ -265,14 +272,14 @@ export function BookAppointmentContent() {
               </div>
 
               {/* Time Slots Column */}
-              <div>
+              <div className="w-full">
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-lg font-medium">Available Times</h3>
                     <div className="text-sm text-muted-foreground">12h 24h</div>
                   </div>
 
-                  <div className="space-y-3 max-h-[420px] overflow-auto pr-2">
+                  <div className="max-h-[420px] space-y-3 overflow-auto pr-2">
                     {timeSlots.map((t) => {
                       const selected = formData.time === t
                       return (
@@ -316,8 +323,54 @@ export function BookAppointmentContent() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="age">Age</Label>
+                  <input
+                    id="age"
+                    name="age"
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 32"
+                    value={formData.age}
+                    onChange={handleInputChange}
+                    className="mt-2 h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="gender">Gender</Label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                    className="mt-2 h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="contactNumber">Contact Number</Label>
+                  <input
+                    id="contactNumber"
+                    name="contactNumber"
+                    type="tel"
+                    placeholder="e.g. 0917 123 4567"
+                    value={formData.contactNumber}
+                    onChange={handleInputChange}
+                    className="mt-2 h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="symptoms">Current Symptoms (if any)</Label>
+                <Label htmlFor="symptoms">Symptoms (Optional)</Label>
                 <textarea
                   id="symptoms"
                   name="symptoms"
@@ -327,6 +380,44 @@ export function BookAppointmentContent() {
                   className="mt-2 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
                   rows={4}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="durationOfSymptoms">Duration of Symptoms</Label>
+                  <input
+                    id="durationOfSymptoms"
+                    name="durationOfSymptoms"
+                    placeholder="e.g. 3 days"
+                    value={formData.durationOfSymptoms}
+                    onChange={handleInputChange}
+                    className="mt-2 h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="painLevel">Pain Level (Optional)</Label>
+                  <select
+                    id="painLevel"
+                    name="painLevel"
+                    value={formData.painLevel}
+                    onChange={handleInputChange}
+                    className="mt-2 h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <option value="">Select</option>
+                    <option value="0">0 - No pain</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10 - Severe pain</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -384,10 +475,36 @@ export function BookAppointmentContent() {
                 <p className="font-semibold">{formData.reason || "Not provided"}</p>
               </div>
 
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">Age</p>
+                  <p className="font-semibold">{formData.age || "Not provided"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Gender</p>
+                  <p className="font-semibold">{formData.gender || "Not provided"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Contact Number</p>
+                  <p className="font-semibold">{formData.contactNumber || "Not provided"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pain Level</p>
+                  <p className="font-semibold">{formData.painLevel ? `Level ${formData.painLevel}` : "Not provided"}</p>
+                </div>
+              </div>
+
               {formData.symptoms && (
                 <div>
                   <p className="text-sm text-muted-foreground">Symptoms</p>
                   <p className="font-semibold">{formData.symptoms}</p>
+                </div>
+              )}
+
+              {formData.durationOfSymptoms && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Duration of Symptoms</p>
+                  <p className="font-semibold">{formData.durationOfSymptoms}</p>
                 </div>
               )}
 

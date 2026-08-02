@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 import Link from "next/link"
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -21,6 +22,7 @@ export type DoctorRow = {
   employeeNumber?: string
   designations?: string
   status?: string
+  avatar?: string | null
 }
 
 export const columns: ColumnDef<DoctorRow>[] = [
@@ -29,11 +31,27 @@ export const columns: ColumnDef<DoctorRow>[] = [
     header: "Name",
     cell: ({ row }) => {
       const doctor = row.original
+      const name = String(row.getValue("name") ?? "")
+      const initials = name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase() || "U"
+
       return (
-        <div className="font-medium">
-          <Link href={`/admin/all-doctors/${doctor.id}`} className="text-primary hover:underline">
-            {row.getValue("name")}
-          </Link>
+        <div className="flex items-center gap-3">
+          <Avatar size="sm">
+            {doctor.avatar ? <AvatarImage src={doctor.avatar} alt={name} /> : null}
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-col">
+            <Link href={`/admin/all-doctors/${doctor.id}`} className="font-medium text-primary hover:underline">
+              {name}
+            </Link>
+            {doctor.email ? <span className="text-sm text-muted-foreground">{doctor.email}</span> : null}
+          </div>
         </div>
       )
     },

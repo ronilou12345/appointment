@@ -9,6 +9,7 @@ type DoctorResult = {
   employeeNumber: string | null
   designations: string | null
   status: string | null
+  avatar: string | null
 }
 
 export default async function ClientAllDoctorsPage() {
@@ -21,6 +22,7 @@ export default async function ClientAllDoctorsPage() {
       employeeNumber: true,
       designations: true,
       status: true,
+      avatar: true,
     },
     orderBy: { name: "asc" },
   })
@@ -32,6 +34,7 @@ export default async function ClientAllDoctorsPage() {
     employeeNumber: user.employeeNumber ?? "",
     designations: user.designations ? JSON.parse(user.designations).join(", ") : "",
     status: user.status ?? "",
+    avatar: user.avatar ?? null,
   }))
 
   return (

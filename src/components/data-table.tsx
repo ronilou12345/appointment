@@ -31,6 +31,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 
 interface DataTableProps<TData, TValue> {
   columns?: ColumnDef<TData, TValue>[]
@@ -123,35 +132,9 @@ export function DataTable<TData, TValue>({
         </DropdownMenu>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => table.setPageIndex(0)}>
-            First
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Prev
-          </Button>
-          <div className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-          >
-            Last
-          </Button>
+          </span>
         </div>
       </div>
 
@@ -195,7 +178,7 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           Showing {table.getRowModel().rows.length} of {table.getFilteredRowModel().rows.length} results
         </div>
@@ -211,6 +194,80 @@ export function DataTable<TData, TValue>({
               </option>
             ))}
           </select>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    table.previousPage()
+                  }}
+                  aria-disabled={!table.getCanPreviousPage()}
+                  className={!table.getCanPreviousPage() ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+              {Array.from({ length: Math.max(1, table.getPageCount()) }, (_, index) => {
+                const pageIndex = index
+                const isCurrentPage = table.getState().pagination.pageIndex === pageIndex
+
+                if (table.getPageCount() > 5 && (index === 0 || index === table.getPageCount() - 1 || (index >= table.getState().pagination.pageIndex - 1 && index <= table.getState().pagination.pageIndex + 1))) {
+                  return (
+                    <PaginationItem key={pageIndex}>
+                      <PaginationLink
+                        href="#"
+                        isActive={isCurrentPage}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          table.setPageIndex(pageIndex)
+                        }}
+                      >
+                        {pageIndex + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                }
+
+                if (table.getPageCount() > 5 && index === 1 && table.getState().pagination.pageIndex > 2) {
+                  return <PaginationEllipsis key="ellipsis-start" />
+                }
+
+                if (table.getPageCount() > 5 && index === table.getPageCount() - 2 && table.getState().pagination.pageIndex < table.getPageCount() - 3) {
+                  return <PaginationEllipsis key="ellipsis-end" />
+                }
+
+                if (table.getPageCount() <= 5) {
+                  return (
+                    <PaginationItem key={pageIndex}>
+                      <PaginationLink
+                        href="#"
+                        isActive={isCurrentPage}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          table.setPageIndex(pageIndex)
+                        }}
+                      >
+                        {pageIndex + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                }
+
+                return null
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    table.nextPage()
+                  }}
+                  aria-disabled={!table.getCanNextPage()}
+                  className={!table.getCanNextPage() ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       </div>
     </div>

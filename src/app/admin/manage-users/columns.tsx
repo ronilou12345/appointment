@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -20,6 +21,7 @@ export type UserRow = {
   studentNumber?: string
   employeeNumber?: string
   status?: string
+  avatar?: string | null
 }
 
 export const columns: ColumnDef<UserRow>[] = [
@@ -27,7 +29,28 @@ export const columns: ColumnDef<UserRow>[] = [
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => {
-      return <div className="font-medium">{row.getValue("name")}</div>
+      const user = row.original
+      const name = String(row.getValue("name") ?? "")
+      const initials = name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase() || "U"
+
+      return (
+        <div className="flex items-center gap-3">
+          <Avatar size="sm">
+            {user.avatar ? <AvatarImage src={user.avatar} alt={name} /> : null}
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-col">
+            <span className="font-medium">{name}</span>
+            {user.email ? <span className="text-sm text-muted-foreground">{user.email}</span> : null}
+          </div>
+        </div>
+      )
     },
   },
   {

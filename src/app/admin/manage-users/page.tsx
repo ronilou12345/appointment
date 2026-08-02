@@ -9,6 +9,7 @@ type UserResult = {
   studentNumber: string | null
   employeeNumber: string | null
   status: string | null
+  avatar: string | null
 }
 
 export default async function Page() {
@@ -20,6 +21,7 @@ export default async function Page() {
       studentNumber: true,
       employeeNumber: true,
       status: true,
+      avatar: true,
     },
     orderBy: {
       createdAt: "desc",
@@ -33,6 +35,7 @@ export default async function Page() {
     studentNumber: user.studentNumber ?? "",
     employeeNumber: user.employeeNumber ?? "",
     status: user.status ?? "",
+    avatar: user.avatar ?? null,
   }))
 
   return <ManageUsersClient users={rows} />

@@ -1,6 +1,8 @@
 "use server"
 
 import { randomUUID } from "crypto"
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
 
 function normalizeRole(value: string | null) {
@@ -19,6 +21,42 @@ function normalizeStatus(value: string | null) {
   if (status === "SUSPENDED") return "SUSPENDED"
   if (status === "INACTIVE" || status === "APPLICANT") return "INACTIVE"
   return "ACTIVE"
+}
+
+export async function updateUserProfileAction(formData: FormData) {
+  const userId = formData.get("userId")?.toString().trim()
+  const name = formData.get("name")?.toString().trim() ?? ""
+  const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
+  const password = formData.get("password")?.toString() ?? ""
+  const studentNumber = formData.get("studentNumber")?.toString().trim() ?? ""
+  const employeeNumber = formData.get("employeeNumber")?.toString().trim() ?? ""
+  const designations = formData.get("designations")?.toString().trim() ?? ""
+  const redirectPath = formData.get("redirectPath")?.toString() ?? "/"
+
+  if (!userId || !name || !email) {
+    throw new Error("User ID, name, and email are required.")
+  }
+
+  const updateData: Record<string, unknown> = {
+    name,
+    email,
+    studentNumber: studentNumber || null,
+    employeeNumber: employeeNumber || null,
+    designations: designations || null,
+    updatedAt: new Date(),
+  }
+
+  if (password) {
+    updateData.password = password
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: updateData,
+  })
+
+  revalidatePath(redirectPath)
+  redirect(redirectPath)
 }
 
 export async function createUserAction(formData: FormData) {
