@@ -181,9 +181,13 @@ export function SiteHeader({
             <DropdownMenuContent className="w-80 p-0" align="end" sideOffset={8}>
               <div className="border-b px-4 py-3">
                 <Tabs defaultValue="inbox">
-                  <TabsList className="gap-2">
-                    <TabsTrigger value="inbox">Inbox</TabsTrigger>
-                    <TabsTrigger value="archive">Archive</TabsTrigger>
+                  <TabsList className="gap-2 bg-transparent p-0">
+                    <TabsTrigger value="inbox" className="bg-transparent text-white data-[state=active]:bg-transparent data-[state=active]:text-white">
+                      Inbox
+                    </TabsTrigger>
+                    <TabsTrigger value="archive" className="bg-transparent text-white data-[state=active]:bg-transparent data-[state=active]:text-white">
+                      Archive
+                    </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>

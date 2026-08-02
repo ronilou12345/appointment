@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import Link from "next/link"
 import {
   Triangle,
@@ -64,10 +65,10 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
           <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-foreground text-background">
-              <Triangle className="size-5 fill-current" />
+            <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-900">
+              <Image src="/logo.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-cover" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-black">C2M Family Clinic & Pharmacy</span>
+            <span className="text-xl font-bold tracking-tight text-foreground dark:text-white">C2M Family Clinic & Pharmacy</span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex">
@@ -177,11 +178,11 @@ export default function LandingPage() {
         </Badge>
 
         <h1 className="max-w-4xl text-5xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-7xl lg:text-8xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-          Where Innovation Meets<span className="bg-gradient-to-r from-primary to-foreground bg-clip-text text-transparent"> Quality Healthcare</span>
+          Quality healthcare with <span className="bg-gradient-to-r from-primary to-foreground bg-clip-text text-transparent">compassion and care.</span>
         </h1>
 
         <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl lg:text-2xl animate-in fade-in slide-in-from-bottom-12 duration-500">
-          Simplify appointments and manage patient records with one <span className="font-semibold text-foreground">intelligent healthcare</span> platforn.
+          Trusted <span className="font-semibold text-foreground">medical services</span> for the whole family
         </p>
 
         <div className="mt-12 flex flex-col gap-4 sm:flex-row animate-in fade-in slide-in-from-bottom-16 duration-300">
@@ -226,9 +227,9 @@ export default function LandingPage() {
       <section id="about" className="relative z-10 py-24 bg-muted/20 border-y">
         <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">About PMIS</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">About C2M Family Clinic & Pharmacy</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Our Patient Management Information System is designed to alleviate the administrative burdens of healthcare professionals, giving them more time to focus on what matters most: patient care.
+              Our platform is designed to ease the administrative load for healthcare professionals, giving them more time to focus on what matters most: patient care.
             </p>
           </div>
           
@@ -240,7 +241,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg text-foreground">Real-Time Dashboards</h3>
-                  <p className="text-muted-foreground leading-relaxed mt-1">Nurses, Doctors, and Staff get their own specialized toolsets and metrics at a glance, allowing efficient triage and workflow.</p>
+                  <p className="text-muted-foreground leading-relaxed mt-1">Nurses, Doctors, and administrators get their own specialized toolsets and metrics at a glance, allowing efficient triage and workflow.</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -249,7 +250,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg text-foreground">Encrypted Patient Data</h3>
-                  <p className="text-muted-foreground leading-relaxed mt-1">Medical records, billing information, and user authentications are heavily secured ensuring top-tier compliance and safety.</p>
+                  <p className="text-muted-foreground leading-relaxed mt-1">Medical records, prescriptions, and appointments are securely managed to support safe, efficient care.</p>
                 </div>
               </div>
             </div>
@@ -259,7 +260,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-2xl font-bold mb-4">Our Mission</h3>
               <p className="text-muted-foreground leading-relaxed">
-                We believe that modern healthcare deserves modern technology. PMIS bridges the gap between chaotic filing systems and beautiful interactive workspaces. We strive to bring simplicity and speed to clinics and hospitals worldwide.
+                We believe that modern healthcare deserves modern technology. C2M Family Clinic & Pharmacy brings simplicity and clarity to medical records, prescriptions, and appointments in one connected workflow.
               </p>
             </div>
           </div>
@@ -271,7 +272,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 lg:px-8 max-w-4xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">Get In Touch</h2>
           <p className="text-lg text-muted-foreground mb-12">
-            Have questions about integrating PMIS into your facility? Our support team is available around the clock.
+            Have questions about integrating C2M Family Clinic & Pharmacy into your facility? Our support team is available around the clock.
           </p>
 
           <div className="grid sm:grid-cols-2 gap-8 items-stretch">
@@ -279,18 +280,18 @@ export default function LandingPage() {
               <Headset className="size-8 text-primary mb-4" />
               <h3 className="font-semibold text-lg mb-2">Technical Support</h3>
               <p className="text-sm text-muted-foreground mb-4">Stuck on something? Let us help you out.</p>
-              <Button variant="outline" className="mt-auto">support@pmis.com</Button>
+              <Button variant="outline" className="mt-auto">support@c2mclinic.com</Button>
             </div>
             <div className="flex flex-col text-left p-8 rounded-2xl border bg-card text-card-foreground shadow-sm">
               <h3 className="font-semibold text-xl mb-6">Drop us a line</h3>
               <form className="flex flex-col gap-4" onSubmit={e => e.preventDefault()}>
                 <div className="flex flex-col gap-2">
                   <label htmlFor="name" className="text-xs font-medium">Name</label>
-                  <Input id="name" placeholder="John Doe" />
+                  <Input id="name" placeholder="Your Name" />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label htmlFor="emailMessage" className="text-xs font-medium">Email</label>
-                  <Input id="emailMessage" type="email" placeholder="john@hospital.org" />
+                  <Input id="emailMessage" type="email" placeholder="juandelacruz@hospital.org" />
                 </div>
                 <Button className="mt-2" type="submit">Send Message</Button>
               </form>

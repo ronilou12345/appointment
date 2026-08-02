@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -16,7 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon, CalendarDays } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CalendarDays } from "lucide-react"
 
 interface AppSidebarUser {
   name: string
@@ -147,7 +148,7 @@ const data = {
     { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
   ],
   documents: [
-    { name: "Inventory", url: "/admin/inventory", icon: <DatabaseIcon /> },
+    { name: "Medicine", url: "/admin/inventory", icon: <DatabaseIcon /> },
     { name: "Reports", url: "/admin/reports", icon: <FileChartColumnIcon /> },
   ],
 }
@@ -172,7 +173,9 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
               <a href="#" title="Empowered Health and Wellness Clinic" className="flex items-center gap-2">
-                <CommandIcon className="size-5 shrink-0" />
+                <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-900">
+                  <Image src="/logo.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-cover" />
+                </div>
                 <span className="flex flex-col items-start">
                   <span className="text-sm font-semibold leading-tight">C2M Family Clinic & Pharmacy</span>
                   <span className="text-[11px] text-muted-foreground leading-tight">Doctor ng Bawat Pamilyang Pilipino</span>
