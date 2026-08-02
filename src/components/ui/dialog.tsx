@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 export interface DialogProps extends React.HTMLAttributes<HTMLDivElement> {
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  showCloseButton?: boolean
 }
 
 export function Dialog({ children, open, onOpenChange, className, ...props }: DialogProps) {
@@ -28,7 +29,7 @@ export function Dialog({ children, open, onOpenChange, className, ...props }: Di
   )
 }
 
-export function DialogContent({ className, ...props }: DialogProps) {
+export function DialogContent({ className, showCloseButton: _showCloseButton, ...props }: DialogProps) {
   return <div className={cn("rounded-3xl border border-border bg-background p-6 shadow-lg", className)} {...props} />
 }
 

@@ -2,19 +2,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
-
-model billing {
-  id          String   @id
-  amount      Float
-  status      String
-  description String?
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime
-  user        user     @relation(fields: [userId], references: [id])
-
-  @@index([userId])
+datasource db {
+  provider = "postgresql"
 }
 
 model dashboardmetric {
@@ -39,7 +28,6 @@ model user {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime
   password       String
-  billing        billing[]
 }
 
 enum user_role {
