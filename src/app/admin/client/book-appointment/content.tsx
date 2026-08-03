@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -8,37 +8,23 @@ import { Stepper, type StepperItem } from "@/components/ui/stepper"
 import { User, Calendar as CalendarIcon, FileText, CheckCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 
-// Mock doctor data
-const mockDoctors = [
-  {
-    id: 1,
-    name: "Dr. Sarah Johnson",
-    credential: "RN",
-    specialty: "General Practice",
-    experience: "5 years",
-  },
-  {
-    id: 2,
-    name: "Dr. Michael Chen",
-    credential: "RMT",
-    specialty: "Cardiology",
-    experience: "8 years",
-  },
-  {
-    id: 3,
-    name: "Dr. Emma Williams",
-    credential: "BSN",
-    specialty: "Pediatrics",
-    experience: "6 years",
-  },
-  {
-    id: 4,
-    name: "Dr. David Brown",
-    credential: "RN",
-    specialty: "Orthopedics",
-    experience: "10 years",
-  },
-]
+type DoctorOption = {
+  id: number
+  name: string
+  credential: string
+  specialty: string
+  experience: string
+}
+
+type SessionOption = {
+  id: string
+  doctorId: string
+  date: string
+  startTime: string
+  endTime: string
+  slots: number
+  appointmentType: string
+}
 
 const steps: StepperItem[] = [
   {
@@ -65,6 +51,12 @@ const steps: StepperItem[] = [
 
 export function BookAppointmentContent() {
   const [currentStep, setCurrentStep] = useState(0)
+  const [doctors, setDoctors] = useState<DoctorOption[]>([])
+  const [loadingDoctors, setLoadingDoctors] = useState(true)
+  const [doctorError, setDoctorError] = useState("")
+  const [sessions, setSessions] = useState<SessionOption[]>([])
+  const [loadingSessions, setLoadingSessions] = useState(true)
+  const [sessionError, setSessionError] = useState("")
   const [formData, setFormData] = useState({
     doctorId: "",
     date: "",
@@ -80,6 +72,47 @@ export function BookAppointmentContent() {
     painLevel: "",
     notes: "",
   })
+
+  useEffect(() => {
+    const loadDoctors = async () => {
+      try {
+        const response = await fetch("/api/doctors")
+        const result = await response.json()
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Unable to load doctors")
+        }
+
+        setDoctors(result.doctors ?? [])
+        setDoctorError("")
+      } catch (error) {
+        setDoctorError(error instanceof Error ? error.message : "Unable to load doctors")
+      } finally {
+        setLoadingDoctors(false)
+      }
+    }
+
+    const loadSessions = async () => {
+      try {
+        const response = await fetch("/api/sessions")
+        const result = await response.json()
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Unable to load sessions")
+        }
+
+        setSessions(result.sessions ?? [])
+        setSessionError("")
+      } catch (error) {
+        setSessionError(error instanceof Error ? error.message : "Unable to load sessions")
+      } finally {
+        setLoadingSessions(false)
+      }
+    }
+
+    loadDoctors()
+    loadSessions()
+  }, [])
 
   // Calendar state and helpers for custom UI
   const [displayedMonth, setDisplayedMonth] = useState(() => {
@@ -105,6 +138,13 @@ export function BookAppointmentContent() {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
 
+  const formatLocalDateValue = (date: Date) => {
+    const year = date.getFullYear()
+    const month = `${date.getMonth() + 1}`.padStart(2, "0")
+    const day = `${date.getDate()}`.padStart(2, "0")
+    return `${year}-${month}-${day}`
+  }
+
   const monthMatrix = (monthDate: Date) => {
     const firstOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
     const start = new Date(firstOfMonth)
@@ -113,7 +153,7 @@ export function BookAppointmentContent() {
     for (let i = 0; i < 42; i++) {
       const d = new Date(start)
       d.setDate(start.getDate() + i)
-      days.push({ iso: d.toISOString().split("T")[0], day: d.getDate(), inMonth: d.getMonth() === monthDate.getMonth() })
+      days.push({ iso: formatLocalDateValue(d), day: d.getDate(), inMonth: d.getMonth() === monthDate.getMonth() })
     }
     return days
   }
@@ -135,6 +175,57 @@ export function BookAppointmentContent() {
     const h12 = hh % 12 === 0 ? 12 : hh % 12
     return `${h12}:${String(mm).padStart(2, "0")} ${suffix}`
   }
+
+  const parseTimeToMinutes = (time: string) => {
+    const [hh, mm] = time.split(":").map(Number)
+    return hh * 60 + mm
+  }
+
+  const formatLocalDateLabel = (iso: string) => {
+    const [year, month, day] = iso.split("-").map(Number)
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  const selectedDoctorId = formData.doctorId
+  const selectedDateSessions = sessions.filter(
+    (session) => session.doctorId === selectedDoctorId && session.date === formData.date,
+  )
+
+  const selectedDateTimeSlotAvailability = selectedDateSessions.reduce<Record<string, number>>((acc, session) => {
+    const start = parseTimeToMinutes(session.startTime)
+    const end = parseTimeToMinutes(session.endTime)
+    for (let minutes = start; minutes < end; minutes += 20) {
+      const hh = Math.floor(minutes / 60)
+      const mm = minutes % 60
+      const key = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+      acc[key] = Math.max(acc[key] ?? 0, session.slots)
+    }
+    return acc
+  }, {})
+
+  const selectedDateTimeSlots = Object.keys(selectedDateTimeSlotAvailability).sort(
+    (a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b),
+  )
+
+  const hasActiveSessionOnDate = (dateValue: string) =>
+    sessions.some((session) => session.doctorId === selectedDoctorId && session.date === dateValue)
+
+  const selectedDateSessionRanges = selectedDateSessions
+    .map((session) => `${formatTimeLabel(session.startTime)} - ${formatTimeLabel(session.endTime)}`)
+
+  const selectedDateSessionSummary = selectedDateSessionRanges.length
+    ? selectedDateSessionRanges.length === 1
+      ? `Available ${selectedDateSessionRanges[0]}`
+      : `Available ranges: ${selectedDateSessionRanges.join(", ")}`
+    : ""
+
+  const selectedDateTimeSummary = selectedDateTimeSlots.length
+    ? `Showing ${selectedDateTimeSlots.length} times every 20 minutes for ${formatLocalDateLabel(formData.date)}`
+    : ""
 
   const handleInputChange = (e: any) => {
     const { name, value } = e.target
@@ -179,42 +270,52 @@ export function BookAppointmentContent() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {mockDoctors.map((doctor) => (
-                <div
-                  key={doctor.id}
-                  onClick={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      doctorId: doctor.id.toString(),
-                    }))
-                  }
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    formData.doctorId === doctor.id.toString()
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      {doctor.name
-                        .split(" ")
-                        .slice(1)
-                        .map((part) => part[0])
-                        .join("")}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">
-                        {doctor.name}, {doctor.credential}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {doctor.specialty} · {doctor.experience} of experience
-                      </p>
+            {loadingDoctors ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                Loading doctors...
+              </div>
+            ) : doctorError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+                {doctorError}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {doctors.map((doctor) => (
+                  <div
+                    key={doctor.id}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        doctorId: doctor.id.toString(),
+                      }))
+                    }
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      formData.doctorId === doctor.id.toString()
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        {doctor.name
+                          .split(" ")
+                          .slice(1)
+                          .map((part) => part[0])
+                          .join("")}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {doctor.name}, {doctor.credential}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {doctor.specialty} · {doctor.experience} of experience
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -264,15 +365,15 @@ export function BookAppointmentContent() {
 
                   <div className="grid grid-cols-7 gap-2">
                     {monthMatrix(displayedMonth).map((dayObj) => {
-                      const isPast = new Date(dayObj.iso) < startOfDay(new Date())
+                      const isPast = new Date(`${dayObj.iso}T00:00:00`) < startOfDay(new Date())
                       const isSelected = formData.date === dayObj.iso
-                      const isToday = isSameDay(new Date(dayObj.iso), new Date())
+                      const isToday = isSameDay(new Date(`${dayObj.iso}T00:00:00`), new Date())
                       return (
                         <button
                           key={dayObj.iso}
                           onClick={() => {
                             if (!isPast) {
-                              setFormData((prev) => ({ ...prev, date: dayObj.iso }))
+                              setFormData((prev) => ({ ...prev, date: dayObj.iso, time: "" }))
                             }
                           }}
                           className={`h-12 flex items-center justify-center rounded-lg transition-all ${isSelected ? 'bg-white text-black font-semibold' : dayObj.inMonth ? 'bg-transparent hover:bg-muted' : 'text-muted-foreground'} ${isPast ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
@@ -280,6 +381,9 @@ export function BookAppointmentContent() {
                           <div className="relative w-full h-full flex items-center justify-center">
                             <span>{dayObj.day}</span>
                             {isToday && <span className="absolute bottom-1 left-1 w-1 h-1 rounded-full bg-white/70" />}
+                            {selectedDoctorId && hasActiveSessionOnDate(dayObj.iso) && (
+                              <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-emerald-500" />
+                            )}
                           </div>
                         </button>
                       )
@@ -295,24 +399,58 @@ export function BookAppointmentContent() {
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-lg font-medium">Available Times</h3>
-                    <div className="text-sm text-muted-foreground">12h 24h</div>
+                    <div className="text-sm text-muted-foreground">
+                      {selectedDoctorId ? "Available sessions for this doctor are loaded from the database" : "Select a doctor first"}
+                    </div>
                   </div>
 
-                  <div className="max-h-[420px] space-y-3 overflow-auto pr-2">
-                    {timeSlots.map((t) => {
-                      const selected = formData.time === t
-                      return (
-                        <button
-                          key={t}
-                          onClick={() => setFormData((prev) => ({ ...prev, time: t }))}
-                          className={`w-full text-left flex items-center gap-4 p-3 rounded-xl border transition ${selected ? 'bg-primary text-white border-primary' : 'bg-transparent border-border hover:border-primary'}`}
-                        >
-                          <div className={`w-3 h-3 rounded-full ${selected ? 'bg-white' : 'bg-emerald-400'}`} />
-                          <div className="flex-1">{formatTimeLabel(t)}</div>
-                        </button>
-                      )
-                    })}
-                  </div>
+                  {!selectedDoctorId ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      Choose a doctor to see available session times.
+                    </div>
+                  ) : loadingSessions ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      Loading available sessions...
+                    </div>
+                  ) : sessionError ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+                      {sessionError}
+                    </div>
+                  ) : !formData.date ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      Select a highlighted date to view available session times.
+                    </div>
+                  ) : selectedDateSessions.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      No active sessions for this date.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                        <div>{selectedDateSessionSummary}</div>
+                        <div className="text-[0.9rem] text-foreground/80 mt-1">{selectedDateTimeSummary}</div>
+                      </div>
+                      <div className="max-h-[420px] space-y-3 overflow-auto pr-2">
+                      {selectedDateTimeSlots.map((slot) => {
+                        const selected = formData.time === slot
+                        const remaining = selectedDateTimeSlotAvailability[slot] ?? 0
+                        return (
+                          <button
+                            key={slot}
+                            onClick={() => setFormData((prev) => ({ ...prev, time: slot }))}
+                            className={`w-full text-left flex items-center gap-4 p-3 rounded-xl border transition ${selected ? 'bg-primary text-white border-primary' : 'bg-transparent border-border hover:border-primary'}`}
+                          >
+                            <div className={`w-3 h-3 rounded-full ${selected ? 'bg-white' : 'bg-emerald-400'}`} />
+                            <div className="flex-1">
+                              <div className="font-medium">{formatTimeLabel(slot)}</div>
+                              <div className="text-sm opacity-80">{remaining} slot{remaining === 1 ? '' : 's'} remaining</div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -501,8 +639,7 @@ export function BookAppointmentContent() {
               <div>
                 <p className="text-sm text-muted-foreground">Doctor</p>
                 <p className="font-semibold">
-                  {mockDoctors.find((d) => d.id.toString() === formData.doctorId)
-                    ?.name || "Not selected"}
+                  {doctors.find((d) => d.id.toString() === formData.doctorId)?.name || "Not selected"}
                 </p>
               </div>
 

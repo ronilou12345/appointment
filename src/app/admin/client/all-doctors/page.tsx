@@ -6,7 +6,6 @@ type DoctorResult = {
   id: string
   name: string
   email: string
-  employeeNumber: string | null
   designations: string | null
   status: string | null
 }
@@ -18,7 +17,6 @@ export default async function AllDoctorsPage() {
       id: true,
       name: true,
       email: true,
-      employeeNumber: true,
       designations: true,
       status: true,
     },
@@ -29,7 +27,6 @@ export default async function AllDoctorsPage() {
     id: user.id,
     name: user.name,
     email: user.email,
-    employeeNumber: user.employeeNumber ?? "",
     designations: user.designations ? JSON.parse(user.designations).join(", ") : "",
     status: user.status ?? "",
   }))

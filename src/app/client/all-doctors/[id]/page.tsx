@@ -107,7 +107,6 @@ export default async function ClientDoctorPage({ params }: Props) {
       id: true,
       name: true,
       email: true,
-      employeeNumber: true,
       designations: true,
       status: true,
       createdAt: true,

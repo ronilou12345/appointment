@@ -22,28 +22,92 @@ export type SessionRow = {
   duration: string
   slots: number
   status: string
+  appointmentTypes: string[]
+}
+
+const formatDisplayDate = (value: unknown) => {
+  if (value == null || value === "") return "—"
+
+  const text = String(value).trim()
+  if (!text) return "—"
+
+  const dateOnlyMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day))
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    })
+  }
+
+  const parsed = new Date(text)
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    })
+  }
+
+  return text
+}
+
+const formatDisplayTime = (value: unknown) => {
+  if (value == null || value === "") return "—"
+
+  const text = String(value).trim()
+  if (!text) return "—"
+
+  const timeMatch = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+  if (timeMatch) {
+    const hour = Number(timeMatch[1])
+    const minute = Number(timeMatch[2])
+    const parsed = new Date()
+    parsed.setHours(hour, minute, 0, 0)
+    return parsed.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
+
+  const parsed = new Date(text)
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
+
+  return text
 }
 
 export const columns: ColumnDef<SessionRow>[] = [
   {
+    accessorKey: "appointmentTypes",
+    header: "Appointment Type",
+    cell: ({ row }) => {
+      const value = row.getValue("appointmentTypes") as string[] | undefined
+      return <span className="text-sm">{value && value.length > 0 ? value.join(", ") : "Not selected"}</span>
+    },
+  },
+  {
     accessorKey: "date",
     header: "Date",
-    cell: ({ row }) => row.getValue("date"),
+    cell: ({ row }) => <span className="text-sm">{formatDisplayDate(row.getValue("date"))}</span>,
   },
   {
     accessorKey: "startTime",
     header: "Start",
-    cell: ({ row }) => row.getValue("startTime"),
+    cell: ({ row }) => <span className="text-sm">{formatDisplayTime(row.getValue("startTime"))}</span>,
   },
   {
     accessorKey: "endTime",
     header: "End",
-    cell: ({ row }) => row.getValue("endTime"),
-  },
-  {
-    accessorKey: "duration",
-    header: "Duration",
-    cell: ({ row }) => row.getValue("duration"),
+    cell: ({ row }) => <span className="text-sm">{formatDisplayTime(row.getValue("endTime"))}</span>,
   },
   {
     accessorKey: "slots",

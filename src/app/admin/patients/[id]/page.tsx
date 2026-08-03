@@ -10,13 +10,13 @@ export default async function PatientPage({ params }: Props) {
   // Using prisma if available
   let patient: any = null
   try {
-    patient = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, studentNumber: true, employeeNumber: true, status: true, createdAt: true } })
+    patient = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, status: true, createdAt: true } })
   } catch (e) {
     // ignore
   }
 
   if (!patient) {
-    patient = { id, name: "Unknown Patient", email: "-", studentNumber: "-", employeeNumber: "-", status: "-", createdAt: new Date() }
+    patient = { id, name: "Unknown Patient", email: "-", status: "-", createdAt: new Date() }
   }
 
   return (
@@ -36,14 +36,6 @@ export default async function PatientPage({ params }: Props) {
           <div>
             <p className="text-sm text-muted-foreground">Email</p>
             <p className="font-medium">{patient.email || "—"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Student #</p>
-            <p className="font-medium">{patient.studentNumber || "—"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Employee #</p>
-            <p className="font-medium">{patient.employeeNumber || "—"}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Status</p>

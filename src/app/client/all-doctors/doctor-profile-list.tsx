@@ -10,7 +10,6 @@ export type DoctorProfile = {
   id: string
   name: string
   email: string
-  employeeNumber?: string | null
   designations?: string | null
   status?: string | null
   avatar?: string | null
@@ -271,7 +270,7 @@ export default function DoctorProfileList({ doctors }: { doctors: DoctorProfile[
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Employee #</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {selectedDoctor.employeeNumber || "—"}
+                  —
                 </p>
               </div>
               <div>

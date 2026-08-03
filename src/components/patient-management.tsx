@@ -47,7 +47,6 @@ export type Patient = {
   name: string
   email: string
   avatar?: string
-  studentNumber?: string
   status: "Active" | "Inactive" | "Suspended"
   createdAt: string
 }
@@ -72,7 +71,6 @@ function RegisterPatientModal({
     lastName: "",
     middleName: "",
     email: "",
-    studentNumber: "",
     password: "",
   })
 
@@ -88,7 +86,6 @@ function RegisterPatientModal({
     formData.set("middleName", form.middleName)
     formData.set("email", form.email)
     formData.set("password", form.password)
-    formData.set("studentNumber", form.studentNumber)
     formData.set("role", "PATIENT")
     formData.set("status", "ACTIVE")
 
@@ -145,10 +142,6 @@ function RegisterPatientModal({
               <Label htmlFor="password" className="text-xs">Password *</Label>
               <Input id="password" type="password" className="h-8" value={form.password} onChange={e => handleChange("password", e.target.value)} required />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="studentNumber" className="text-xs">Student Number (Optional)</Label>
-              <Input id="studentNumber" className="h-8" value={form.studentNumber} onChange={e => handleChange("studentNumber", e.target.value)} />
-            </div>
           </div>
 
           <DialogFooter>
@@ -172,8 +165,7 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
 
   const filteredPatients = patients.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.email.toLowerCase().includes(search.toLowerCase()) ||
-    p.studentNumber?.includes(search)
+    p.email.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -210,7 +202,7 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead>Patient</TableHead>
-              <TableHead>Student ID</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date Added</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -241,7 +233,7 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
                     </div>
                   </TableCell>
                   <TableCell className="font-medium text-muted-foreground text-sm">
-                    {patient.studentNumber || "N/A"}
+                    {patient.email}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-xs font-medium">
@@ -304,7 +296,7 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
                   <div className="grid grid-cols-2 gap-4 text-sm bg-muted/30 p-4 rounded-xl border border-border/50">
                     <div className="flex flex-col gap-1">
                       <span className="text-muted-foreground/70 text-[10px] font-bold uppercase tracking-wider">Student ID</span>
-                      <span className="font-medium text-foreground">{selectedPatient.studentNumber || "N/A"}</span>
+                      <span className="font-medium text-foreground">{selectedPatient.email || "N/A"}</span>
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-muted-foreground/70 text-[10px] font-bold uppercase tracking-wider">Status</span>

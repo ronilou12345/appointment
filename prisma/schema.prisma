@@ -6,32 +6,96 @@ datasource db {
   provider = "postgresql"
 }
 
-model dashboardmetric {
-  id        Int      @id @default(autoincrement())
-  key       String   @unique(map: "DashboardMetric_key_key")
-  value     String
-  updatedAt DateTime
+model user {
+  id           String        @id
+  email        String        @unique(map: "User_email_key")
+  name         String
+  avatar       String?
+  role         user_role     @default(PATIENT)
+  status       user_status   @default(ACTIVE)
+  designations String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  password     String
+  appointment  appointment[]
+  doctor       doctor?
 }
 
-model user {
-  id             String      @id
-  email          String      @unique(map: "User_email_key")
-  name           String
-  avatar         String?
-  role           user_role   @default(PATIENT)
-  status         user_status @default(ACTIVE)
-  studentNumber  String?
-  employeeNumber String?
-  employmentType String?
-  hireDate       DateTime?
-  designations   String?     @db.Text
-  address        String?
-  prefix         String?
-  suffix         String?
-  credentials    String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime
-  password       String
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model appointment {
+  appointment_id       Int         @id @default(autoincrement())
+  user_id              String
+  doctor_id            Int
+  session_id           Int
+  reason_for_visit     String
+  relationship         String?     @db.VarChar(100)
+  age                  Int?
+  gender               String?     @db.VarChar(20)
+  contact_number       String?     @db.VarChar(20)
+  symptoms             String?
+  duration_of_symptoms String?     @db.VarChar(100)
+  pain_level           Int?
+  additional_notes     String?
+  appointment_status   String?     @default("Pending") @db.VarChar(30)
+  created_at           DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?   @default(now()) @db.Timestamp(6)
+  doctor               doctor      @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_doctor")
+  session_tbl          session_tbl @relation(fields: [session_id], references: [session_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_session")
+  user                 user        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_user")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model doctor {
+  doctor_id           Int           @id @default(autoincrement())
+  user_id             String        @unique
+  first_name          String        @db.VarChar(100)
+  middle_name         String?       @db.VarChar(100)
+  last_name           String        @db.VarChar(100)
+  prefix              String?       @db.VarChar(20)
+  suffix              String?       @db.VarChar(20)
+  address             String?
+  credentials         String?
+  license_number      String        @unique @db.VarChar(100)
+  years_of_experience Int?          @default(0)
+  board_certification String?
+  created_at          DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?     @default(now()) @db.Timestamp(6)
+  appointment         appointment[]
+  user                user          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_doctor_user")
+  session_tbl         session_tbl[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model medicine_inventory {
+  medicine_id   Int       @id @default(autoincrement())
+  medicine_name String    @db.VarChar(150)
+  category      String    @db.VarChar(100)
+  quantity      Int       @default(0)
+  reorder_level Int       @default(10)
+  expiry_date   DateTime  @db.Date
+  unit_price    Decimal   @db.Decimal(10, 2)
+  status        String    @default("Available") @db.VarChar(30)
+  supplier      String    @db.VarChar(150)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model session_tbl {
+  session_id       Int           @id @default(autoincrement())
+  doctor_id        Int
+  session_date     DateTime      @db.Date
+  start_time       DateTime      @db.Time(6)
+  end_time         DateTime      @db.Time(6)
+  slots            Int
+  appointment_type String        @db.VarChar(50)
+  created_at       DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?     @default(now()) @db.Timestamp(6)
+  appointment      appointment[]
+  doctor           doctor        @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_session_doctor")
 }
 
 enum user_role {

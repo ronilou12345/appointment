@@ -31,9 +31,27 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const formData = new FormData()
+    const allowedFields = [
+      "firstName",
+      "middleName",
+      "lastName",
+      "email",
+      "password",
+      "userType",
+      "status",
+      "prefix",
+      "suffix",
+      "credentials",
+      "boardCertifications",
+      "licenseNumber",
+      "yearsofexperience",
+      "address",
+    ]
 
     Object.entries(body).forEach(([key, value]) => {
-      formData.set(key, String(value ?? ""))
+      if (allowedFields.includes(key)) {
+        formData.set(key, String(value ?? ""))
+      }
     })
 
     const result = await createUserAction(formData)

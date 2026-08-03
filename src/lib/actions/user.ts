@@ -5,17 +5,19 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
 
-function normalizeRole(value: string | null) {
+type UserRole = "ADMIN" | "NURSE" | "PATIENT"
+type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED"
+
+function normalizeRole(value: string | null): UserRole {
   const role = (value ?? "PATIENT").toString().trim().toUpperCase()
 
   if (role === "ADMIN") return "ADMIN"
   if (role === "DOCTOR") return "NURSE"
-  if (role === "STAFF") return "STAFF"
   if (role === "NURSE") return "NURSE"
   return "PATIENT"
 }
 
-function normalizeStatus(value: string | null) {
+function normalizeStatus(value: string | null): UserStatus {
   const status = (value ?? "ACTIVE").toString().trim().toUpperCase()
 
   if (status === "SUSPENDED") return "SUSPENDED"
@@ -28,8 +30,6 @@ export async function updateUserProfileAction(formData: FormData) {
   const name = formData.get("name")?.toString().trim() ?? ""
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
   const password = formData.get("password")?.toString() ?? ""
-  const studentNumber = formData.get("studentNumber")?.toString().trim() ?? ""
-  const employeeNumber = formData.get("employeeNumber")?.toString().trim() ?? ""
   const designations = formData.get("designations")?.toString().trim() ?? ""
   const redirectPath = formData.get("redirectPath")?.toString() ?? "/"
 
@@ -40,8 +40,6 @@ export async function updateUserProfileAction(formData: FormData) {
   const updateData: Record<string, unknown> = {
     name,
     email,
-    studentNumber: studentNumber || null,
-    employeeNumber: employeeNumber || null,
     designations: designations || null,
     updatedAt: new Date(),
   }
@@ -67,12 +65,12 @@ export async function createUserAction(formData: FormData) {
   const password = formData.get("password")?.toString() ?? ""
   const userType = formData.get("userType")?.toString() ?? "PATIENT"
   const status = formData.get("status")?.toString() ?? "ACTIVE"
-  const studentNumber = formData.get("studentNumber")?.toString().trim() ?? ""
-  const employeeNumber = formData.get("employeeNumber")?.toString().trim() ?? ""
-  const credentials = formData.get("credentials")?.toString().trim() ?? ""
-  const boardCertifications = formData.get("boardCertifications")?.toString().trim() ?? ""
   const prefix = formData.get("prefix")?.toString().trim() ?? ""
   const suffix = formData.get("suffix")?.toString().trim() ?? ""
+  const credentials = formData.get("credentials")?.toString().trim() ?? ""
+  const boardCertifications = formData.get("boardCertifications")?.toString().trim() ?? ""
+  const licenseNumber = formData.get("licenseNumber")?.toString().trim() ?? ""
+  const yearsOfExperience = formData.get("yearsofexperience")?.toString().trim() ?? ""
   const address = formData.get("address")?.toString().trim() ?? ""
 
   if (!firstName || !lastName || !email || !password) {
@@ -83,41 +81,55 @@ export async function createUserAction(formData: FormData) {
     return { success: false, error: "Password must be at least 8 characters long." }
   }
 
-  const fullName = [prefix, firstName, middleName, lastName, suffix]
+  const normalizedUserType = userType.toUpperCase()
+  const isDoctorAccount = normalizedUserType === "DOCTOR"
+
+  if (isDoctorAccount && !licenseNumber) {
+    return { success: false, error: "License number is required for doctor accounts." }
+  }
+
+  const fullName = [firstName, middleName, lastName]
     .filter(Boolean)
     .join(" ")
     .trim()
 
-  const designationValues = [credentials, boardCertifications]
-    .flatMap((value) =>
-      value
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter(Boolean)
-    )
-
   try {
-    await prisma.user.create({
-      data: {
-        id: randomUUID(),
-        email,
-        name: fullName || email,
-        role: normalizeRole(userType),
-        status: normalizeStatus(status),
-        studentNumber: studentNumber || null,
-        employeeNumber: employeeNumber || null,
-        employmentType: normalizeRole(userType),
-        designations: designationValues.length
-          ? JSON.stringify(designationValues)
-          : null,
-        address: address || null,
-        prefix: prefix || null,
-        suffix: suffix || null,
-        credentials: credentials || null,
-        password,
-        avatar: "",
-        updatedAt: new Date(),
-      },
+    const userId = randomUUID()
+    const role = normalizeRole(userType)
+    const normalizedStatus = normalizeStatus(status)
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.create({
+        data: {
+          id: userId,
+          email,
+          name: fullName || email,
+          role,
+          status: normalizedStatus,
+          designations: null,
+          password,
+          avatar: "",
+          updatedAt: new Date(),
+        },
+      })
+
+      if (isDoctorAccount) {
+        await tx.doctor.create({
+          data: {
+            user_id: userId,
+            first_name: firstName,
+            middle_name: middleName || null,
+            last_name: lastName,
+            prefix: prefix || null,
+            suffix: suffix || null,
+            address: address || null,
+            credentials: credentials || null,
+            license_number: licenseNumber,
+            years_of_experience: yearsOfExperience ? Number.parseInt(yearsOfExperience, 10) : 0,
+            board_certification: boardCertifications || null,
+          },
+        })
+      }
     })
 
     return { success: true, error: "" }

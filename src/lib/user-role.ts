@@ -34,7 +34,6 @@ export function normalizeUserRole(role?: string | null): UserRole {
       return "ADMIN"
     case "DOCTOR":
     case "NURSE":
-    case "STAFF":
       return "DOCTOR"
     case "CLIENT":
     case "PATIENT":

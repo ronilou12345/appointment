@@ -27,7 +27,6 @@ import {
   ChevronsRightIcon,
   UserIcon,
   MailIcon,
-  HashIcon,
   BriefcaseIcon,
   ShieldCheckIcon,
   PencilIcon,
@@ -87,12 +86,9 @@ export type User = {
   name: string
   email: string
   avatar?: string
-  studentNumber?: string
-  employeeNumber?: string
   status: "Active" | "Inactive" | "Suspended"
   designations: string[]
-  employmentType: string
-  hireDate: string
+
 }
 
 // Removed Sample Data
@@ -217,32 +213,6 @@ const columns: ColumnDef<User>[] = [
     ),
   },
   {
-    accessorKey: "studentNumber",
-    header: ({ column }) => (
-      <SortableHeader column={column}>Student Number</SortableHeader>
-    ),
-    cell: ({ row }) => (
-      <span className="text-sm font-mono tabular-nums">
-        {row.original.studentNumber ?? (
-          <span className="text-muted-foreground/40">—</span>
-        )}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "employeeNumber",
-    header: ({ column }) => (
-      <SortableHeader column={column}>Employee Number</SortableHeader>
-    ),
-    cell: ({ row }) => (
-      <span className="text-sm font-mono tabular-nums">
-        {row.original.employeeNumber ?? (
-          <span className="text-muted-foreground/40">—</span>
-        )}
-      </span>
-    ),
-  },
-  {
     accessorKey: "status",
     header: ({ column }) => (
       <SortableHeader column={column}>Status</SortableHeader>
@@ -311,9 +281,6 @@ function CreateUserModal({
     lastName: "",
     middleName: "",
     email: "",
-    studentNumber: "",
-    employeeNumber: "",
-    employmentType: "",
     status: "Active",
     role: "",
     password: "",
@@ -327,7 +294,11 @@ function CreateUserModal({
     setLoading(true)
     setErrorMsg("")
     const formData = new FormData()
-    Object.entries(form).forEach(([key, val]) => formData.set(key, String(val)))
+    Object.entries(form).forEach(([key, val]) => {
+      if (key !== "") {
+        formData.set(key, String(val))
+      }
+    })
     const result = await createUserAction(formData)
     setLoading(false)
     if (result.success) {
@@ -448,42 +419,6 @@ function CreateUserModal({
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {form.role === "PATIENT" && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="studentNumber" className="text-xs font-medium">
-                    Student Number
-                  </Label>
-                  <div className="relative">
-                    <HashIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60" />
-                    <Input
-                      id="studentNumber"
-                      placeholder="e.g. 252522"
-                      className="h-9 pl-8 text-sm font-mono"
-                      value={form.studentNumber}
-                      onChange={(e) => handleChange("studentNumber", e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-              {form.role !== "PATIENT" && form.role !== "" && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="employeeNumber" className="text-xs font-medium">
-                    Employee Number
-                  </Label>
-                  <div className="relative">
-                    <BriefcaseIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60" />
-                    <Input
-                      id="employeeNumber"
-                      placeholder="e.g. EMP-001"
-                      className="h-9 pl-8 text-sm font-mono"
-                      value={form.employeeNumber}
-                      onChange={(e) => handleChange("employeeNumber", e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Role & Status Section */}
@@ -502,36 +437,12 @@ function CreateUserModal({
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="ADMIN">Admin</SelectItem>
-                    <SelectItem value="STAFF">Staff</SelectItem>
                     <SelectItem value="NURSE">Doctor / Nurse</SelectItem>
                     <SelectItem value="PATIENT">Patient</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
-            {form.role !== "PATIENT" && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="employmentType" className="text-xs font-medium">
-                  Employment Type
-                </Label>
-                <Select
-                  value={form.employmentType}
-                  onValueChange={(v) => handleChange("employmentType", v)}
-                >
-                  <SelectTrigger id="employmentType" className="h-9 text-sm">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="Full Time">Full Time</SelectItem>
-                      <SelectItem value="Part Time">Part Time</SelectItem>
-                      <SelectItem value="Contractual">Contractual</SelectItem>
-                      <SelectItem value="Probationary">Probationary</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="status" className="text-xs font-medium">
                 Status
@@ -706,11 +617,7 @@ export function UserManagement({ initialUsers }: { initialUsers: User[] }) {
                     checked={col.getIsVisible()}
                     onCheckedChange={(value) => col.toggleVisibility(!!value)}
                   >
-                    {col.id === "studentNumber"
-                      ? "Student Number"
-                      : col.id === "employeeNumber"
-                        ? "Employee Number"
-                        : col.id.charAt(0).toUpperCase() + col.id.slice(1)}
+                    {col.id.charAt(0).toUpperCase() + col.id.slice(1)}
                   </DropdownMenuCheckboxItem>
                 ))}
             </DropdownMenuContent>

@@ -11,8 +11,6 @@ interface AccountSettingsFormProps {
     email: string
     role?: string | null
     status?: string | null
-    studentNumber?: string | null
-    employeeNumber?: string | null
     designations?: string | null
   }
   redirectPath: string
@@ -43,14 +41,6 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
             <div className="space-y-2">
               <Label htmlFor="password">New password</Label>
               <Input id="password" name="password" type="password" placeholder="Leave blank to keep current password" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="studentNumber">Student number</Label>
-              <Input id="studentNumber" name="studentNumber" defaultValue={user.studentNumber ?? ""} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="employeeNumber">Employee number</Label>
-              <Input id="employeeNumber" name="employeeNumber" defaultValue={user.employeeNumber ?? ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="designations">Designations</Label>
