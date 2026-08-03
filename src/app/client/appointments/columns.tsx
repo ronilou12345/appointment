@@ -2,12 +2,15 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 
 export type ClientAppointmentRow = {
   id: string
   doctorId: string
   doctorName: string
+  doctorAvatar?: string
   specialty: string
   date: string
   time: string
@@ -21,9 +24,14 @@ export const columns: ColumnDef<ClientAppointmentRow>[] = [
     cell: ({ row }) => {
       const appointment = row.original
       const doctorName = String(row.getValue("doctorName"))
+      const avatar = appointment.doctorAvatar
+
       return (
-        <Link href={`/client/appointments/${appointment.id}`} className="text-primary hover:underline">
-          {doctorName}
+        <Link href={`/client/appointments/${appointment.id}`} className="flex items-center gap-3 text-primary hover:underline">
+          <Avatar size="sm">
+            {avatar ? <AvatarImage src={avatar} alt={doctorName} /> : <AvatarFallback>{doctorName.split(" ").slice(0, 2).map((part) => part[0]).join("")}</AvatarFallback>}
+          </Avatar>
+          <span>{doctorName}</span>
         </Link>
       )
     },

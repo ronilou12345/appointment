@@ -16,8 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { PlusIcon } from "lucide-react"
 
 export function CreateSpecialtyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -28,7 +28,7 @@ export function CreateSpecialtyDialog({ open, onOpenChange }: { open: boolean; o
         New
       </Button>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto sm:w-[90vw] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Specialty</DialogTitle>
             <DialogDescription>
@@ -36,19 +36,18 @@ export function CreateSpecialtyDialog({ open, onOpenChange }: { open: boolean; o
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-6">
-            {/* Specialty Name and Status */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="specialtyName">Specialty Name</Label>
+            <FieldGroup className="grid-cols-1 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="specialtyName">Specialty Name</FieldLabel>
                 <Input
                   id="specialtyName"
                   name="specialtyName"
                   placeholder="e.g., Cardiology"
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="status">Status</FieldLabel>
                 <Select name="status" defaultValue="active">
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Select status" />
@@ -58,60 +57,34 @@ export function CreateSpecialtyDialog({ open, onOpenChange }: { open: boolean; o
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              </Field>
+            </FieldGroup>
 
-            {/* Category and Available Doctors */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select name="category">
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="surgical">Surgical</SelectItem>
-                    <SelectItem value="medical">Medical</SelectItem>
-                    <SelectItem value="diagnostic">Diagnostic</SelectItem>
-                    <SelectItem value="therapeutic">Therapeutic</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="availableDoctors">Available Doctors</Label>
-                <Input
-                  id="availableDoctors"
-                  name="availableDoctors"
-                  type="number"
-                  placeholder="Number of doctors"
-                  min="0"
-                />
-              </div>
-            </div>
-
-            {/* Required Certifications */}
-            <div className="space-y-2">
-              <Label htmlFor="certifications">Required Certifications</Label>
+            <Field>
+              <FieldLabel htmlFor="availableDoctors">Available Doctors</FieldLabel>
               <Input
-                id="certifications"
-                name="certifications"
-                placeholder="e.g., Board Certified"
+                id="availableDoctors"
+                name="availableDoctors"
+                type="number"
+                placeholder="Number of doctors"
+                min="0"
               />
-            </div>
+            </Field>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+            <Field>
+              <FieldLabel htmlFor="description">Description</FieldLabel>
+              <FieldDescription>
+                Provide a short summary of the specialty and its scope.
+              </FieldDescription>
               <Textarea
                 id="description"
                 name="description"
                 placeholder="Describe the specialty and its focus areas..."
                 className="min-h-24"
               />
-            </div>
+            </Field>
 
-            {/* Submit Button */}
-            <div className="flex justify-end gap-3">
+            <Field className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -120,9 +93,9 @@ export function CreateSpecialtyDialog({ open, onOpenChange }: { open: boolean; o
                 Cancel
               </Button>
               <Button className="bg-orange-500 hover:bg-orange-600">
-                Add Specialty
+                Add
               </Button>
-            </div>
+            </Field>
           </form>
         </DialogContent>
       </Dialog>

@@ -18,8 +18,10 @@ export type UserRow = {
   id: string
   name: string
   email?: string
-  studentNumber?: string
-  employeeNumber?: string
+  address?: string
+  prefix?: string | null
+  suffix?: string | null
+  credentials?: string | null
   status?: string
   avatar?: string | null
 }
@@ -31,13 +33,15 @@ export const columns: ColumnDef<UserRow>[] = [
     cell: ({ row }) => {
       const user = row.original
       const name = String(row.getValue("name") ?? "")
-      const initials = name
-        .split(" ")
+      const displayName = [user.prefix, name, user.suffix]
         .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase() || "U"
+        .join(" ")
+        .trim()
+      const credentialText = user.credentials?.trim()
+      const nameParts = name.split(" ").filter(Boolean)
+      const firstName = nameParts[0] ?? ""
+      const lastName = nameParts[nameParts.length - 1] ?? ""
+      const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase() || "U"
 
       return (
         <div className="flex items-center gap-3">
@@ -46,37 +50,25 @@ export const columns: ColumnDef<UserRow>[] = [
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-col">
-            <span className="font-medium">{name}</span>
-            {user.email ? <span className="text-sm text-muted-foreground">{user.email}</span> : null}
+            <span className="font-medium">{displayName || name}</span>
+            <div className="flex flex-col gap-0.5">
+              {credentialText ? <span className="text-sm text-muted-foreground">{credentialText}</span> : null}
+              {user.email ? <span className="text-sm text-muted-foreground">{user.email}</span> : null}
+            </div>
           </div>
         </div>
       )
     },
   },
   {
-    accessorKey: "email",
-    header: "Institutional Email",
-    cell: ({ row }) => row.getValue("email") || "—",
-  },
-  {
-    accessorKey: "studentNumber",
-    header: "Student Number",
-    cell: ({ row }) => row.getValue("studentNumber") || "—",
-  },
-  {
-    accessorKey: "employeeNumber",
-    header: "Employee Number",
-    cell: ({ row }) => row.getValue("employeeNumber") || "—",
+    accessorKey: "address",
+    header: "Address",
+    cell: ({ row }) => row.getValue("address") || "—",
   },
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => <span className="text-sm">{row.getValue("status") || "—"}</span>,
-  },
-  {
-    id: "apps",
-    header: "Apps",
-    cell: () => <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 text-xs">G</span>,
   },
   {
     id: "actions",

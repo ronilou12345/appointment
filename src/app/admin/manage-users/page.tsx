@@ -6,8 +6,6 @@ type UserResult = {
   id: string
   name: string
   email: string
-  studentNumber: string | null
-  employeeNumber: string | null
   status: string | null
   avatar: string | null
 }
@@ -18,8 +16,6 @@ export default async function Page() {
       id: true,
       name: true,
       email: true,
-      studentNumber: true,
-      employeeNumber: true,
       status: true,
       avatar: true,
     },
@@ -32,8 +28,6 @@ export default async function Page() {
     id: user.id,
     name: user.name,
     email: user.email,
-    studentNumber: user.studentNumber ?? "",
-    employeeNumber: user.employeeNumber ?? "",
     status: user.status ?? "",
     avatar: user.avatar ?? null,
   }))

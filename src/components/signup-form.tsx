@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ComponentProps, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -18,20 +18,32 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import { registerUser } from "@/lib/actions/auth"
 import { Eye, EyeOff } from "lucide-react"
 
 export function SignupForm({
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: ComponentProps<'div'>) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordValue, setPasswordValue] = useState("")
   const router = useRouter()
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const passwordProgressValue = Math.min(100, Math.round((passwordValue.length / 16) * 100))
+  const passwordProgressVariant = passwordValue.length === 0
+    ? "default"
+    : passwordValue.length < 8
+    ? "danger"
+    : passwordValue.length < 12
+    ? "warning"
+    : "success"
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true)
     setError(null)
@@ -49,11 +61,11 @@ export function SignupForm({
   }
 
   return (
-    <div className={cn("flex flex-col gap-6 bg-white", className)} {...props}>
-      <Card>
+    <div className={cn("flex flex-col gap-6 bg-black px-4 py-6 text-white sm:px-6", className)} {...props}>
+      <Card className="border-white/10 bg-zinc-950/95 text-white shadow-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Create your account</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl text-white">Create your account</CardTitle>
+          <CardDescription className="text-white/70">
             Enter your email below to create your account
           </CardDescription>
         </CardHeader>
@@ -67,7 +79,7 @@ export function SignupForm({
               )}
               <Field>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
-                <Input id="name" name="name" type="text" placeholder="John Doe" required />
+                <Input id="name" name="name" type="text" placeholder="Juan Dela Cruz" required />
               </Field>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -84,11 +96,13 @@ export function SignupForm({
                   <Field>
                     <FieldLabel htmlFor="password">Password</FieldLabel>
                     <div className="relative">
-                      <Input 
-                        id="password" 
-                        name="password" 
-                        type={showPassword ? "text" : "password"} 
-                        required 
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        value={passwordValue}
+                        onChange={(event) => setPasswordValue(event.target.value)}
+                        required
                       />
                       <button
                         type="button"
@@ -101,6 +115,9 @@ export function SignupForm({
                           <Eye className="size-5" />
                         )}
                       </button>
+                    </div>
+                    <div className="mt-2">
+                      <Progress value={passwordProgressValue} variant={passwordProgressVariant} />
                     </div>
                   </Field>
                   <Field>
@@ -136,18 +153,25 @@ export function SignupForm({
                 <Button type="submit" disabled={loading}>
                   {loading ? "Creating Account..." : "Create Account"}
                 </Button>
-                <FieldDescription className="text-center">
-                  Already have an account? <a href="/login">Sign in</a>
+                <FieldDescription className="text-center text-white/70">
+                  Already have an account? <a href="/login" className="font-medium text-white underline-offset-4 hover:underline">Sign in</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>
           </form>
         </CardContent>
       </Card>
-      <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
-      </FieldDescription>
+      <Label className="flex-wrap justify-center gap-1 px-6 text-center text-sm font-normal leading-6 text-white/70">
+        By clicking continue, you agree to our{" "}
+        <a href="#" className="font-medium text-white underline-offset-4 hover:underline">
+          Terms of Service
+        </a>{" "}
+        and{" "}
+        <a href="#" className="font-medium text-white underline-offset-4 hover:underline">
+          Privacy Policy
+        </a>
+        .
+      </Label>
     </div>
   )
 }

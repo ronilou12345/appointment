@@ -70,8 +70,10 @@ export async function createUserAction(formData: FormData) {
   const studentNumber = formData.get("studentNumber")?.toString().trim() ?? ""
   const employeeNumber = formData.get("employeeNumber")?.toString().trim() ?? ""
   const credentials = formData.get("credentials")?.toString().trim() ?? ""
+  const boardCertifications = formData.get("boardCertifications")?.toString().trim() ?? ""
   const prefix = formData.get("prefix")?.toString().trim() ?? ""
   const suffix = formData.get("suffix")?.toString().trim() ?? ""
+  const address = formData.get("address")?.toString().trim() ?? ""
 
   if (!firstName || !lastName || !email || !password) {
     return { success: false, error: "First name, last name, email, and password are required." }
@@ -86,6 +88,14 @@ export async function createUserAction(formData: FormData) {
     .join(" ")
     .trim()
 
+  const designationValues = [credentials, boardCertifications]
+    .flatMap((value) =>
+      value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    )
+
   try {
     await prisma.user.create({
       data: {
@@ -97,14 +107,13 @@ export async function createUserAction(formData: FormData) {
         studentNumber: studentNumber || null,
         employeeNumber: employeeNumber || null,
         employmentType: normalizeRole(userType),
-        designations: credentials
-          ? JSON.stringify(
-              credentials
-                .split(",")
-                .map((value) => value.trim())
-                .filter(Boolean)
-            )
+        designations: designationValues.length
+          ? JSON.stringify(designationValues)
           : null,
+        address: address || null,
+        prefix: prefix || null,
+        suffix: suffix || null,
+        credentials: credentials || null,
         password,
         avatar: "",
         updatedAt: new Date(),

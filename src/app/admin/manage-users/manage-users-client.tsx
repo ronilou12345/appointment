@@ -7,10 +7,10 @@ import { DataTable } from "@/components/data-table"
 import { createUserAction } from "@/lib/actions/user"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { toast } from "sonner"
 import { MailIcon, UserIcon, LockIcon, HashIcon, BriefcaseIcon, CheckIcon, XIcon } from "lucide-react"
 
@@ -24,6 +24,7 @@ export type CreateUserForm = {
   prefix: string
   suffix: string
   credentials: string
+  boardCertifications: string
   password: string
   licenseNumber: string
   yearsofexperience: string
@@ -52,6 +53,7 @@ function CreateUserModal({
     prefix: "",
     suffix: "",
     credentials: "",
+    boardCertifications: "",
     password: "",
     licenseNumber: "",
     yearsofexperience: "",
@@ -72,6 +74,7 @@ function CreateUserModal({
       prefix: "",
       suffix: "",
       credentials: "",
+      boardCertifications: "",
       password: "",
       licenseNumber: "",
       yearsofexperience: "",
@@ -111,7 +114,7 @@ function CreateUserModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[720px]">
+      <DialogContent className="w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto sm:max-w-[720px] sm:w-[90vw]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <div className="flex items-center gap-3">
@@ -140,11 +143,9 @@ function CreateUserModal({
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground/80">
                   User Account
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="userType" className="text-xs font-medium">
-                      User
-                    </Label>
+                <FieldGroup className="grid-cols-1 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="userType">User</FieldLabel>
                     <Select
                       value={form.userType}
                       onValueChange={(value) => handleChange("userType", value)}
@@ -160,11 +161,9 @@ function CreateUserModal({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="email" className="text-xs font-medium">
-                      Personal Email
-                    </Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="email">Personal Email</FieldLabel>
                     <div className="relative">
                       <MailIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                       <Input
@@ -176,15 +175,13 @@ function CreateUserModal({
                         onChange={(e) => handleChange("email", e.target.value)}
                       />
                     </div>
-                  </div>
-                </div>
+                  </Field>
+                </FieldGroup>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="status" className="text-xs font-medium">
-                    Status
-                  </Label>
+              <FieldGroup className="grid-cols-1 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="status">Status</FieldLabel>
                   <Select
                     value={form.status}
                     onValueChange={(value) => handleChange("status", value)}
@@ -199,9 +196,9 @@ function CreateUserModal({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="flex items-end justify-end"></div>
-              </div>
+                </Field>
+                <Field className="sm:pt-6" />
+              </FieldGroup>
             </div>
 
             <div className="grid gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
@@ -209,11 +206,11 @@ function CreateUserModal({
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground/80">
                   Basic Information
                 </p>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="firstName" className="text-xs font-medium">
+                <FieldGroup className="grid-cols-1 sm:grid-cols-3">
+                  <Field>
+                    <FieldLabel htmlFor="firstName">
                       First Name <span className="text-destructive">*</span>
-                    </Label>
+                    </FieldLabel>
                     <Input
                       id="firstName"
                       placeholder="First name"
@@ -221,11 +218,9 @@ function CreateUserModal({
                       value={form.firstName}
                       onChange={(e) => handleChange("firstName", e.target.value)}
                     />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="middleName" className="text-xs font-medium">
-                      Middle Name
-                    </Label>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="middleName">Middle Name</FieldLabel>
                     <Input
                       id="middleName"
                       placeholder="Middle name"
@@ -233,11 +228,11 @@ function CreateUserModal({
                       value={form.middleName}
                       onChange={(e) => handleChange("middleName", e.target.value)}
                     />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="lastName" className="text-xs font-medium">
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="lastName">
                       Last Name <span className="text-destructive">*</span>
-                    </Label>
+                    </FieldLabel>
                     <Input
                       id="lastName"
                       placeholder="Last name"
@@ -245,15 +240,15 @@ function CreateUserModal({
                       value={form.lastName}
                       onChange={(e) => handleChange("lastName", e.target.value)}
                     />
-                  </div>
-                </div>
+                  </Field>
+                </FieldGroup>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="prefix" className="text-xs font-medium">
+              <FieldGroup className="grid-cols-1 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="prefix">
                     Prefix<span className="text-destructive">*</span>
-                  </Label>
+                  </FieldLabel>
                   <Input
                     id="prefix"
                     placeholder="e.g. Mr., Ms., Dr."
@@ -261,11 +256,11 @@ function CreateUserModal({
                     value={form.prefix}
                     onChange={(e) => handleChange("prefix", e.target.value)}
                   />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="suffix" className="text-xs font-medium">
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="suffix">
                     Suffix<span className="text-destructive">*</span>
-                  </Label>
+                  </FieldLabel>
                   <Input
                     id="suffix"
                     placeholder="e.g. Jr., Sr., III"
@@ -273,13 +268,13 @@ function CreateUserModal({
                     value={form.suffix}
                     onChange={(e) => handleChange("suffix", e.target.value)}
                   />
-                </div>
-              </div>
+                </Field>
+              </FieldGroup>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="address" className="text-xs font-medium">
+              <Field>
+                <FieldLabel htmlFor="address">
                   Address<span className="text-destructive">*</span>
-                </Label>
+                </FieldLabel>
                 <Input
                   id="address"
                   placeholder="Enter full address"
@@ -287,13 +282,13 @@ function CreateUserModal({
                   value={form.address}
                   onChange={(e) => handleChange("address", e.target.value)}
                 />
-              </div>
+              </Field>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="credentials" className="text-xs font-medium">
+              <FieldGroup className="grid-cols-1 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="credentials">
                     Credentials<span className="text-destructive">*</span>
-                  </Label>
+                  </FieldLabel>
                   <Input
                     id="credentials"
                     placeholder="e.g. PhD, MD, RN"
@@ -301,11 +296,11 @@ function CreateUserModal({
                     value={form.credentials}
                     onChange={(e) => handleChange("credentials", e.target.value)}
                   />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="password" className="text-xs font-medium">
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="password">
                     Password<span className="text-destructive">*</span>
-                  </Label>
+                  </FieldLabel>
                   <div className="relative">
                     <LockIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                     <Input
@@ -317,15 +312,15 @@ function CreateUserModal({
                       onChange={(e) => handleChange("password", e.target.value)}
                     />
                   </div>
-                </div>
-              </div>
+                </Field>
+              </FieldGroup>
 
               {form.userType === "DOCTOR" ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="licenseNumber" className="text-xs font-medium">
+                <FieldGroup className="grid-cols-1 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="licenseNumber">
                       License Number<span className="text-destructive">*</span>
-                    </Label>
+                    </FieldLabel>
                     <div className="relative">
                       <HashIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                       <Input
@@ -336,11 +331,11 @@ function CreateUserModal({
                         onChange={(e) => handleChange("licenseNumber", e.target.value)}
                       />
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="yearsofexperience" className="text-xs font-medium">
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="yearsofexperience">
                       Years of Experience<span className="text-destructive">*</span>
-                    </Label>
+                    </FieldLabel>
                     <Select
                       value={form.yearsofexperience}
                       onValueChange={(value) => handleChange("yearsofexperience", value)}
@@ -358,8 +353,21 @@ function CreateUserModal({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
+                  </Field>
+                  <Field className="sm:col-span-2">
+                    <FieldLabel htmlFor="boardCertifications">Board Certifications</FieldLabel>
+                    <Input
+                      id="boardCertifications"
+                      placeholder="e.g. Cardiology, Family Medicine"
+                      className="h-10 text-sm"
+                      value={form.boardCertifications}
+                      onChange={(e) => handleChange("boardCertifications", e.target.value)}
+                    />
+                    <FieldDescription>
+                      Add multiple certifications separated by commas.
+                    </FieldDescription>
+                  </Field>
+                </FieldGroup>
               ) : null}
             </div>
           </div>

@@ -24,7 +24,6 @@ export default function DoctorAppointmentEditor({ notes, prescription, followUp 
     <div className="rounded-[32px] border border-border bg-card p-8 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold">Doctor Notes & Plan</h2>
           <p className="text-sm text-muted-foreground">Update the patient record with observations, prescriptions, and next follow-up details.</p>
         </div>
         <div className="rounded-full bg-background px-4 py-2 text-sm font-medium text-muted-foreground">

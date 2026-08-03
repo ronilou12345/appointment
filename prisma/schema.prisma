@@ -25,6 +25,10 @@ model user {
   employmentType String?
   hireDate       DateTime?
   designations   String?     @db.Text
+  address        String?
+  prefix         String?
+  suffix         String?
+  credentials    String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime
   password       String
