@@ -12,24 +12,28 @@ const mockDoctors = [
   {
     id: 1,
     name: "Dr. Sarah Johnson",
+    credential: "RN",
     specialty: "General Practice",
     experience: "5 years",
   },
   {
     id: 2,
     name: "Dr. Michael Chen",
+    credential: "RMT",
     specialty: "Cardiology",
     experience: "8 years",
   },
   {
     id: 3,
     name: "Dr. Emma Williams",
+    credential: "BSN",
     specialty: "Pediatrics",
     experience: "6 years",
   },
   {
     id: 4,
     name: "Dr. David Brown",
+    credential: "RN",
     specialty: "Orthopedics",
     experience: "10 years",
   },
@@ -65,6 +69,8 @@ export function BookAppointmentContent() {
     date: "",
     time: "",
     reason: "",
+    patientRelationship: "",
+    patientRelationshipOther: "",
     age: "",
     gender: "",
     contactNumber: "",
@@ -188,11 +194,23 @@ export function BookAppointmentContent() {
                       : "border-border hover:border-primary"
                   }`}
                 >
-                  <h3 className="font-semibold text-foreground">{doctor.name}</h3>
-                  <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {doctor.experience}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      {doctor.name
+                        .split(" ")
+                        .slice(1)
+                        .map((part) => part[0])
+                        .join("")}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">
+                        {doctor.name}, {doctor.credential}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {doctor.specialty} · {doctor.experience} of experience
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -323,6 +341,38 @@ export function BookAppointmentContent() {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="patientRelationship">Who is the Patient?</Label>
+                <select
+                  id="patientRelationship"
+                  name="patientRelationship"
+                  value={formData.patientRelationship}
+                  onChange={handleInputChange}
+                  className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <option value="">Select relationship</option>
+                  <option value="Myself">Myself</option>
+                  <option value="My Child">My Child</option>
+                  <option value="My Father">My Father</option>
+                  <option value="My Mother">My Mother</option>
+                  <option value="My Spouse">My Spouse</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {formData.patientRelationship === "Other" && (
+                <div>
+                  <Label htmlFor="patientRelationshipOther">Relationship</Label>
+                  <input
+                    id="patientRelationshipOther"
+                    name="patientRelationshipOther"
+                    placeholder="Enter relationship"
+                    value={formData.patientRelationshipOther || ""}
+                    onChange={handleInputChange}
+                    className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <Label htmlFor="age">Age</Label>
@@ -473,6 +523,11 @@ export function BookAppointmentContent() {
               <div>
                 <p className="text-sm text-muted-foreground">Reason for Visit</p>
                 <p className="font-semibold">{formData.reason || "Not provided"}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Who is the Patient?</p>
+                <p className="font-semibold">{formData.patientRelationship || "Not selected"}</p>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
