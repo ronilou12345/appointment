@@ -52,7 +52,7 @@ export function NavUser({
                   {user.email}
                 </span>
                 <span className="mt-1 inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
-                  v1.0.0-beta.1
+                  v1.0.0-beta.2
                 </span>
               </div>
               <EllipsisVerticalIcon className="ml-auto size-4" />
