@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useConfig, themes, grays } from "@/hooks/use-config"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"

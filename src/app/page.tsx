@@ -20,7 +20,7 @@ import {
   HeartPulse,
   Monitor,
 } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"

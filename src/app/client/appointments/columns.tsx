@@ -11,6 +11,7 @@ export type ClientAppointmentRow = {
   doctorId: string
   doctorName: string
   doctorAvatar?: string
+  doctorEmail: string
   specialty: string
   date: string
   time: string
@@ -31,14 +32,17 @@ export const columns: ColumnDef<ClientAppointmentRow>[] = [
           <Avatar size="sm">
             {avatar ? <AvatarImage src={avatar} alt={doctorName} /> : <AvatarFallback>{doctorName.split(" ").slice(0, 2).map((part) => part[0]).join("")}</AvatarFallback>}
           </Avatar>
-          <span>{doctorName}</span>
+          <div>
+            <p>{doctorName}</p>
+            <p className="text-sm text-muted-foreground">{appointment.doctorEmail}</p>
+          </div>
         </Link>
       )
     },
   },
   {
     accessorKey: "specialty",
-    header: "Specialty",
+    header: "Appointment type",
     cell: ({ row }) => row.getValue("specialty"),
   },
   {

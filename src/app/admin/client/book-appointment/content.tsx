@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Stepper, type StepperItem } from "@/components/ui/stepper"
@@ -158,7 +159,7 @@ export function BookAppointmentContent() {
   const handleSubmit = () => {
     // TODO: Submit appointment to backend
     console.log("Appointment booked:", formData)
-    alert("Appointment booked successfully!")
+    toast.success("Appointment booked successfully!")
   }
 
   return (
