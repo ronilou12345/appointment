@@ -134,12 +134,8 @@ export const columns: ColumnDef<SessionRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Session actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(session.id)}>
-              Copy session ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Edit session</DropdownMenuItem>
-            <DropdownMenuItem>Delete session</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('edit-session', { detail: session }))}>Edit session</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('delete-session', { detail: session }))}>Delete session</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
 import { columns, type SessionRow } from "./columns"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
 import { Calendar } from "@/components/ui/calendar"
 
 const appointmentTypeOptions = [
@@ -30,6 +32,14 @@ const parseDateValue = (value: string) => {
   return new Date(year, month - 1, day)
 }
 
+const sanitizeSlotCount = (value: unknown) => {
+  const parsed = typeof value === "string" ? Number(value.trim()) : Number(value)
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+    return 1
+  }
+  return parsed
+}
+
 export default function AddSessionPage() {
   const [data, setData] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,7 +52,7 @@ export default function AddSessionPage() {
       startTime: "",
       endTime: "",
       duration: "",
-      slots: 0,
+      slots: 1,
       status: "Active",
       appointmentTypes: [],
     },
@@ -85,7 +95,7 @@ export default function AddSessionPage() {
         startTime: "",
         endTime: "",
         duration: "",
-        slots: 0,
+        slots: 1,
         status: "Active",
         appointmentTypes: [],
       },
@@ -98,7 +108,8 @@ export default function AddSessionPage() {
   }
 
   const updateDraft = (tempId: string, field: keyof SessionDraft, value: any) => {
-    setDrafts((d) => d.map((x) => (x.tempId === tempId ? { ...x, [field]: value } : x)))
+    const nextValue = field === "slots" ? sanitizeSlotCount(value) : value
+    setDrafts((d) => d.map((x) => (x.tempId === tempId ? { ...x, [field]: nextValue } : x)))
   }
 
   const toggleAppointmentType = (tempId: string, option: string) => {
@@ -143,7 +154,7 @@ export default function AddSessionPage() {
         startTime: "",
         endTime: "",
         duration: "",
-        slots: 0,
+        slots: 1,
         status: "Active",
         appointmentTypes: [],
       },
@@ -159,12 +170,68 @@ export default function AddSessionPage() {
     setOpen(nextOpen)
   }
 
+  // Edit sheet state
+  const [editOpen, setEditOpen] = useState(false)
+  const [editSession, setEditSession] = useState<SessionRow | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<SessionRow | null>(null)
+
+  useEffect(() => {
+    const onEdit = (e: Event) => {
+      const detail = (e as CustomEvent).detail as SessionRow
+      if (detail) {
+        setEditSession(detail)
+        setEditOpen(true)
+      }
+    }
+
+    const onDelete = (e: Event) => {
+      const detail = (e as CustomEvent).detail as SessionRow
+      if (!detail) return
+      // open confirmation modal
+      setDeleteTarget(detail)
+      setDeleteOpen(true)
+    }
+
+    window.addEventListener('edit-session', onEdit)
+    window.addEventListener('delete-session', onDelete)
+    return () => {
+      window.removeEventListener('edit-session', onEdit)
+      window.removeEventListener('delete-session', onDelete)
+    }
+  }, [])
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    const id = deleteTarget.id
+    // optimistic
+    setData((d) => d.filter((s) => s.id !== id))
+    setDeleteOpen(false)
+    setDeleteTarget(null)
+
+    try {
+      const resp = await fetch('/api/sessions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      const result = await resp.json()
+      if (!resp.ok || !result.success) {
+        throw new Error(result.error || 'Failed to delete')
+      }
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to delete session')
+      // rollback: refetch sessions
+      try {
+        const r = await fetch('/api/sessions?mine=true')
+        const j = await r.json()
+        if (r.ok && j.success) setData(j.sessions ?? [])
+      } catch {}
+    }
+  }
+
   const confirmAdd = async () => {
     const incompleteDrafts = drafts.filter((draft) => {
       const hasDate = Boolean(draft.date?.trim())
       const hasStartTime = Boolean(draft.startTime?.trim())
       const hasEndTime = Boolean(draft.endTime?.trim())
-      const hasSlots = Number(draft.slots) > 0
+      const hasSlots = sanitizeSlotCount(draft.slots) > 0
 
       return !hasDate || !hasStartTime || !hasEndTime || !hasSlots
     })
@@ -199,7 +266,7 @@ export default function AddSessionPage() {
       startTime: d.startTime,
       endTime: d.endTime,
       duration: d.duration,
-      slots: Number(d.slots),
+      slots: sanitizeSlotCount(d.slots),
       status: d.status,
       appointmentTypes: d.appointmentTypes ?? [],
     }))
@@ -213,8 +280,8 @@ export default function AddSessionPage() {
             date: draft.date,
             startTime: draft.startTime,
             endTime: draft.endTime,
-            slots: Number(draft.slots),
-            appointmentType: (draft.appointmentTypes ?? []).find(Boolean) || "General Consultation",
+            slots: sanitizeSlotCount(draft.slots),
+            appointmentTypes: (draft.appointmentTypes ?? []).length ? draft.appointmentTypes : ["General Consultation"],
           })),
         }),
       })
@@ -227,8 +294,35 @@ export default function AddSessionPage() {
       setData((prev) => [...nextRows, ...prev])
       setOpen(false)
       resetDrafts()
+      toast.success("Session successfully added")
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to save sessions")
+    }
+  }
+
+  const handleEditSave = async () => {
+    if (!editSession) return
+    try {
+      const response = await fetch('/api/sessions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editSession.id,
+          date: editSession.date,
+          startTime: editSession.startTime,
+          endTime: editSession.endTime,
+          slots: sanitizeSlotCount(editSession.slots),
+          appointmentType: (editSession.appointmentTypes ?? [])[0] || undefined,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || 'Failed to update')
+
+      setData((d) => d.map((s) => (s.id === editSession.id ? editSession : s)))
+      setEditOpen(false)
+      setEditSession(null)
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update session')
     }
   }
 
@@ -353,6 +447,77 @@ export default function AddSessionPage() {
               <Button onClick={confirmAdd} className="bg-primary">Confirm add</Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Sheet open={editOpen} onOpenChange={(o) => { if (!o) setEditSession(null); setEditOpen(o) }}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>Edit Session</SheetTitle>
+            <SheetDescription>Modify session details and save.</SheetDescription>
+          </SheetHeader>
+
+          {editSession ? (
+            <div className="space-y-4 p-4">
+              <div>
+                <label className="text-sm text-muted-foreground">Date</label>
+                <input value={editSession.date} readOnly className="mt-1 w-full rounded-lg border px-2 py-1" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-sm text-muted-foreground">Start</label>
+                  <input type="time" value={editSession.startTime} onChange={(e) => setEditSession({ ...editSession, startTime: e.target.value })} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">End</label>
+                  <input type="time" value={editSession.endTime} onChange={(e) => setEditSession({ ...editSession, endTime: e.target.value })} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground">Slots</label>
+                <input type="number" min={1} value={editSession.slots} onChange={(e) => setEditSession({ ...editSession, slots: sanitizeSlotCount(e.target.value) })} className="mt-1 w-full rounded-lg border px-2 py-1" />
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground">Appointment Types</label>
+                <div className="mt-1 space-y-2 rounded-lg border px-2 py-2">
+                  {appointmentTypeOptions.map((option) => (
+                    <label key={option} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={(editSession.appointmentTypes ?? []).includes(option)} onChange={(e) => {
+                        const current = editSession.appointmentTypes ?? []
+                        const next = e.currentTarget.checked ? [...current, option] : current.filter((it) => it !== option)
+                        setEditSession({ ...editSession, appointmentTypes: next })
+                      }} />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <SheetFooter>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => { setEditOpen(false); setEditSession(null) }}>Cancel</Button>
+                  <Button className="bg-primary" onClick={handleEditSave}>Save changes</Button>
+                </div>
+              </SheetFooter>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={deleteOpen} onOpenChange={(o) => { if (!o) setDeleteTarget(null); setDeleteOpen(o) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold">Delete session</DialogTitle>
+            <DialogDescription className="text-lg">Are you sure you want to delete this session?</DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeleteTarget(null) }}>Cancel</Button>
+            <Button className="bg-red-600 text-white" onClick={handleConfirmDelete}>Delete</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

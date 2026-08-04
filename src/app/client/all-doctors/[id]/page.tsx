@@ -88,9 +88,8 @@ const getBoardCertificates = (designations: string[]) =>
 const getSpecialties = (designations: string[]) =>
   designations.filter((item) => !/board/i.test(item) && !/^(MD|PhD|DO|RN|RMT|BSN|DDS)$/i.test(item))
 
-const formatExperience = (createdAt?: Date) => {
-  if (!createdAt) return "—"
-  const years = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 365))
+const formatExperience = (years?: number | null) => {
+  if (typeof years !== "number" || Number.isNaN(years)) return "Not available"
   return years <= 0 ? "< 1 year" : `${years} year${years > 1 ? "s" : ""}`
 }
 
@@ -101,20 +100,24 @@ export default async function ClientDoctorPage({ params }: Props) {
     notFound()
   }
 
-  const doctor = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      designations: true,
-      status: true,
-      createdAt: true,
-      avatar: true,
+  const doctor = await prisma.doctor.findFirst({
+    where: { user_id: id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          designations: true,
+          status: true,
+          avatar: true,
+          createdAt: true,
+        },
+      },
     },
   })
 
-  if (!doctor) {
+  if (!doctor?.user) {
     return (
       <div className="min-h-screen p-6">
         <div className="mx-auto max-w-4xl">
@@ -130,13 +133,33 @@ export default async function ClientDoctorPage({ params }: Props) {
     )
   }
 
-  const nameDetails = parseName(doctor.name)
-  const credentials = parseDesignations(doctor.designations)
-  const boardCertificates = getBoardCertificates(credentials)
+  const profileUser = doctor.user
+  const nameDetails = parseName(profileUser.name)
+  const credentials = parseDesignations(profileUser.designations ?? doctor.credentials)
+  const boardCertificates = doctor.board_certification
+    ? parseDesignations(doctor.board_certification)
+    : getBoardCertificates(credentials)
   const specialties = getSpecialties(credentials)
-  const yearsOfExperience = formatExperience(doctor.createdAt)
-  const memberSince = doctor.createdAt
-    ? new Date(doctor.createdAt).toLocaleDateString("en-US", {
+  const yearsOfExperience = formatExperience(doctor.years_of_experience)
+  const sessions = await prisma.session_tbl.findMany({
+    where: {
+      doctor_id: doctor.doctor_id,
+      session_date: {
+        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+      },
+    },
+    orderBy: [{ session_date: "asc" }, { start_time: "asc" }],
+    select: {
+      session_id: true,
+      session_date: true,
+      start_time: true,
+      end_time: true,
+      slots: true,
+      appointment_type: true,
+    },
+  })
+  const memberSince = profileUser.createdAt
+    ? new Date(profileUser.createdAt).toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
         year: "numeric",
@@ -165,14 +188,20 @@ export default async function ClientDoctorPage({ params }: Props) {
             <div className="rounded-3xl border border-border bg-background p-6 text-center">
               <div className="flex flex-col items-center justify-center gap-5">
                 <Avatar size="lg">
-                  <AvatarFallback>{getInitials(doctor.name)}</AvatarFallback>
+                  <AvatarFallback>{getInitials(profileUser.name)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-lg font-semibold text-foreground">{doctor.name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{doctor.email || "No email provided"}</p>
+                  <p className="text-lg font-semibold text-foreground">{profileUser.name}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{profileUser.email || "No email provided"}</p>
                 </div>
-                <Badge variant={getStatusVariant(doctor.status)} className="capitalize">
-                  {doctor.status || "Unknown"}
+                <div className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  <p className="font-medium">Session available</p>
+                  <p className="mt-1 text-xs text-emerald-600">
+                    {sessions.length ? `${sessions.length} upcoming session${sessions.length > 1 ? "s" : ""}` : "No upcoming sessions"}
+                  </p>
+                </div>
+                <Badge variant={getStatusVariant(profileUser.status)} className="capitalize">
+                  {profileUser.status || "Unknown"}
                 </Badge>
               </div>
             </div>
@@ -182,11 +211,11 @@ export default async function ClientDoctorPage({ params }: Props) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2 border-b border-border pb-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Email</p>
-                    <p className="text-base font-medium text-foreground">{doctor.email || "—"}</p>
+                    <p className="text-base font-medium text-foreground">{profileUser.email || "—"}</p>
                   </div>
                   <div className="space-y-2 border-b border-border pb-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Prefix</p>
-                    <p className="text-base font-medium text-foreground">{nameDetails.prefix || "—"}</p>
+                    <p className="text-base font-medium text-foreground">{doctor.prefix || nameDetails.prefix || "—"}</p>
                   </div>
                   <div className="space-y-2 border-b border-border pb-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">First name</p>
@@ -202,11 +231,11 @@ export default async function ClientDoctorPage({ params }: Props) {
                   </div>
                   <div className="space-y-2 pb-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Suffix</p>
-                    <p className="text-base font-medium text-foreground">{nameDetails.suffix || "—"}</p>
+                    <p className="text-base font-medium text-foreground">{doctor.suffix || nameDetails.suffix || "—"}</p>
                   </div>
                   <div className="space-y-2 pb-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Address</p>
-                    <p className="text-base font-medium text-foreground">—</p>
+                    <p className="text-base font-medium text-foreground">{doctor.address || "—"}</p>
                   </div>
                   <div className="space-y-2 pb-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Years of experience</p>

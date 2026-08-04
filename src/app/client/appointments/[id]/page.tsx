@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { getClientAppointment } from "../data"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { getSession } from "@/lib/auth-utils"
+import prisma from "@/lib/prisma"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -16,7 +17,40 @@ const getInitials = (name: string) =>
 
 export default async function AppointmentDetailPage({ params }: Props) {
   const { id } = await params
-  const appointment = getClientAppointment(id)
+  const user = await getSession()
+
+  if (!user?.id) {
+    return (
+      <div className="min-h-screen bg-background p-6 text-foreground">
+        <div className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-8 shadow-sm">
+          <p>Please sign in to view this appointment.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const rows = await prisma.$queryRawUnsafe<any[]>(`
+    SELECT
+      a.appointment_id AS id,
+      a.appointment_status AS status,
+      COALESCE(a.appointment_type, s.appointment_type) AS specialty,
+      to_char(s.session_date, 'YYYY-MM-DD') AS date,
+      to_char(s.start_time, 'HH24:MI') AS time,
+      CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
+      u.email AS doctor_email,
+      a.reason_for_visit,
+      a.relationship,
+      a.symptoms,
+      a.additional_notes
+    FROM "appointment" a
+    JOIN "session_tbl" s ON s.session_id = a.session_id
+    JOIN "doctor" d ON d.doctor_id = a.doctor_id
+    JOIN "user" u ON u.id = d.user_id
+    WHERE a.appointment_id = $1 AND a.user_id = $2
+    LIMIT 1
+  `, Number(id), user.id)
+
+  const appointment = rows[0]
 
   if (!appointment) {
     return (
@@ -40,17 +74,19 @@ export default async function AppointmentDetailPage({ params }: Props) {
     )
   }
 
+  const doctorName = String(appointment.doctor_name || "Doctor")
+
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
       <div className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-8 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between mb-6">
           <div className="flex items-center gap-4">
             <Avatar size="lg">
-              <AvatarFallback>{getInitials(appointment.patientName)}</AvatarFallback>
+              <AvatarFallback>{getInitials(doctorName)}</AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-3xl font-semibold">{appointment.patientName}</h1>
-              <p className="text-sm text-muted-foreground">Patient profile</p>
+              <h1 className="text-3xl font-semibold">{doctorName}</h1>
+              <p className="text-sm text-muted-foreground">Doctor profile</p>
             </div>
           </div>
           <Link href="/client/appointments" className="text-sm text-muted-foreground hover:underline">
@@ -61,35 +97,27 @@ export default async function AppointmentDetailPage({ params }: Props) {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
             <p className="text-sm text-muted-foreground">Doctor</p>
-            <p className="font-medium">{appointment.doctorName}</p>
+            <p className="font-medium">{doctorName}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Specialty</p>
-            <p className="font-medium">{appointment.specialty}</p>
+            <p className="font-medium">{String(appointment.specialty || "General Consultation")}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Date</p>
-            <p className="font-medium">{appointment.date}</p>
+            <p className="font-medium">{String(appointment.date || "")}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Time</p>
-            <p className="font-medium">{appointment.time}</p>
+            <p className="font-medium">{String(appointment.time || "")}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Status</p>
-            <p className="font-medium">{appointment.status}</p>
+            <p className="font-medium">{String(appointment.status || "Pending")}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Record ID</p>
-            <p className="font-medium">{appointment.recordId}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">External ID</p>
-            <p className="font-medium">{appointment.externalId || "N/A"}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Patient Status</p>
-            <p className="font-medium">{appointment.patientStatus}</p>
+            <p className="text-sm text-muted-foreground">Relationship</p>
+            <p className="font-medium">{String(appointment.relationship || "N/A")}</p>
           </div>
         </div>
 
@@ -99,30 +127,19 @@ export default async function AppointmentDetailPage({ params }: Props) {
             <p className="mt-2 text-sm text-muted-foreground">Summary of the visit and doctor recommendations.</p>
           </div>
 
-          <div className="flex flex-col gap-4 px-0 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Last checkup</p>
-              <p className="mt-2 font-semibold">{appointment.lastCheckup}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Next follow-up</p>
-              <p className="mt-2 font-semibold">{appointment.followUp}</p>
-            </div>
+          <div className="px-0 py-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Reason for visit</p>
+            <p className="mt-3 text-base font-medium">{String(appointment.reason_for_visit || "N/A")}</p>
           </div>
 
           <div className="px-0 py-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Doctor notes</p>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">Key findings from the appointment.</p>
-            <p className="mt-4 text-base font-medium">{appointment.notes}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Symptoms</p>
+            <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.symptoms || "No symptoms recorded.")}</p>
           </div>
 
           <div className="px-0 py-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>
-            <div className="mt-3 space-y-2">
-              {appointment.prescription.map((item) => (
-                <p key={item} className="text-sm font-medium">{item}</p>
-              ))}
-            </div>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Additional notes</p>
+            <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.additional_notes || "No additional notes.")}</p>
           </div>
         </div>
       </div>

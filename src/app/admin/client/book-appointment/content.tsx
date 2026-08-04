@@ -23,7 +23,8 @@ type SessionOption = {
   startTime: string
   endTime: string
   slots: number
-  appointmentType: string
+  appointmentType?: string
+  appointmentTypes?: string[]
 }
 
 const steps: StepperItem[] = [
@@ -57,10 +58,14 @@ export function BookAppointmentContent() {
   const [sessions, setSessions] = useState<SessionOption[]>([])
   const [loadingSessions, setLoadingSessions] = useState(true)
   const [sessionError, setSessionError] = useState("")
+  const [dateConflictMessage, setDateConflictMessage] = useState("")
+  const [checkingDateConflict, setCheckingDateConflict] = useState(false)
   const [formData, setFormData] = useState({
     doctorId: "",
+    sessionId: "",
     date: "",
     time: "",
+    appointmentType: "",
     reason: "",
     patientRelationship: "",
     patientRelationshipOther: "",
@@ -72,6 +77,30 @@ export function BookAppointmentContent() {
     painLevel: "",
     notes: "",
   })
+
+  const loadSessions = async (showLoading = true) => {
+    if (showLoading) {
+      setLoadingSessions(true)
+    }
+
+    try {
+      const response = await fetch("/api/sessions")
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to load sessions")
+      }
+
+      setSessions(result.sessions ?? [])
+      setSessionError("")
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : "Unable to load sessions")
+    } finally {
+      if (showLoading) {
+        setLoadingSessions(false)
+      }
+    }
+  }
 
   useEffect(() => {
     const loadDoctors = async () => {
@@ -92,26 +121,16 @@ export function BookAppointmentContent() {
       }
     }
 
-    const loadSessions = async () => {
-      try {
-        const response = await fetch("/api/sessions")
-        const result = await response.json()
+    void loadDoctors()
+    void loadSessions(true)
+  }, [])
 
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || "Unable to load sessions")
-        }
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void loadSessions(false)
+    }, 10000)
 
-        setSessions(result.sessions ?? [])
-        setSessionError("")
-      } catch (error) {
-        setSessionError(error instanceof Error ? error.message : "Unable to load sessions")
-      } finally {
-        setLoadingSessions(false)
-      }
-    }
-
-    loadDoctors()
-    loadSessions()
+    return () => window.clearInterval(intervalId)
   }, [])
 
   // Calendar state and helpers for custom UI
@@ -181,6 +200,36 @@ export function BookAppointmentContent() {
     return hh * 60 + mm
   }
 
+  const isSlotInFuture = (isoDate: string, time: string) => {
+    if (!isoDate || !time) return false
+    const [year, month, day] = isoDate.split("-").map(Number)
+    const [hh, mm] = time.split(":").map(Number)
+    const dt = new Date(year, month - 1, day, hh, mm, 0)
+    return dt.getTime() > Date.now()
+  }
+
+  const getDayIndicatorColor = (isoDate: string) => {
+    if (!selectedDoctorId) return null
+    const daySessions = sessions.filter((s) => s.doctorId === selectedDoctorId && s.date === isoDate)
+    if (!daySessions.length) return null
+
+    // If any slot in the day is in the future and has remaining slots -> green
+    for (const s of daySessions) {
+      const start = parseTimeToMinutes(s.startTime)
+      const end = parseTimeToMinutes(s.endTime)
+      for (let minutes = start; minutes < end; minutes += 20) {
+        const hh = Math.floor(minutes / 60)
+        const mm = minutes % 60
+        const key = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+        const remaining = s.slots ?? 0
+        if (remaining > 0 && isSlotInFuture(isoDate, key)) return "green"
+      }
+    }
+
+    // Sessions exist but none available (either full or all past) -> red
+    return "red"
+  }
+
   const formatLocalDateLabel = (iso: string) => {
     const [year, month, day] = iso.split("-").map(Number)
     return new Date(year, month - 1, day).toLocaleDateString(undefined, {
@@ -211,6 +260,15 @@ export function BookAppointmentContent() {
     (a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b),
   )
 
+  const getSessionForSlot = (slot: string) => {
+    const minutes = parseTimeToMinutes(slot)
+    return selectedDateSessions.find((session) => {
+      const start = parseTimeToMinutes(session.startTime)
+      const end = parseTimeToMinutes(session.endTime)
+      return minutes >= start && minutes < end && (session.slots ?? 0) > 0
+    })
+  }
+
   const hasActiveSessionOnDate = (dateValue: string) =>
     sessions.some((session) => session.doctorId === selectedDoctorId && session.date === dateValue)
 
@@ -227,6 +285,33 @@ export function BookAppointmentContent() {
     ? `Showing ${selectedDateTimeSlots.length} times every 20 minutes for ${formatLocalDateLabel(formData.date)}`
     : ""
 
+  const checkDateConflict = async (doctorId: string, selectedDate: string) => {
+    if (!doctorId || !selectedDate) {
+      setDateConflictMessage("")
+      return
+    }
+
+    setCheckingDateConflict(true)
+    try {
+      const response = await fetch(`/api/appointments?doctorId=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(selectedDate)}`)
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to check appointment availability")
+      }
+
+      if (result.hasAppointment) {
+        setDateConflictMessage("You already have an appointment for this date")
+      } else {
+        setDateConflictMessage("")
+      }
+    } catch {
+      setDateConflictMessage("")
+    } finally {
+      setCheckingDateConflict(false)
+    }
+  }
+
   const handleInputChange = (e: any) => {
     const { name, value } = e.target
     setFormData((prev) => ({
@@ -235,7 +320,27 @@ export function BookAppointmentContent() {
     }))
   }
 
+  const doctorAppointmentTypes = Array.from(
+    new Set(
+      sessions
+        .filter((s) => String(s.doctorId) === String(selectedDoctorId))
+        .flatMap((s) => {
+          const single = (s as any).appointmentType
+          const arr = (s as any).appointmentTypes
+          if (single) return [single]
+          if (Array.isArray(arr)) return arr.filter(Boolean)
+          return []
+        }),
+    ),
+  )
+
   const handleNext = () => {
+    const ok = canAdvance(currentStep)
+    if (!ok.success) {
+      toast.error(ok.message)
+      return
+    }
+
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1)
     }
@@ -247,16 +352,111 @@ export function BookAppointmentContent() {
     }
   }
 
-  const handleSubmit = () => {
-    // TODO: Submit appointment to backend
-    console.log("Appointment booked:", formData)
-    toast.success("Appointment booked successfully!")
+  const canAdvance = (stepIndex: number): { success: true } | { success: false; message: string } => {
+    if (stepIndex === 0) {
+      if (!formData.doctorId) return { success: false, message: "Please select a doctor before continuing." }
+      return { success: true }
+    }
+
+    if (stepIndex === 1) {
+      if (!formData.date) return { success: false, message: "Please choose a date before continuing." }
+      if (!formData.time) return { success: false, message: "Please choose a time before continuing." }
+      return { success: true }
+    }
+
+    if (stepIndex === 2) {
+      // Basic required fields in Add Details
+      if (!formData.patientRelationship) return { success: false, message: "Please select who the patient is." }
+      if (formData.patientRelationship === "Other" && !formData.patientRelationshipOther)
+        return { success: false, message: "Please enter the patient's relationship." }
+      if (!formData.reason) return { success: false, message: "Please enter the reason for the visit." }
+      return { success: true }
+    }
+
+    return { success: true }
+  }
+
+  const handleStepClick = (index: number) => {
+    if (index === currentStep) return
+    if (index < currentStep) {
+      setCurrentStep(index)
+      return
+    }
+
+    // moving forward: ensure each intermediate step is valid
+    for (let i = currentStep; i < index; i++) {
+      const ok = canAdvance(i)
+      if (!ok.success) {
+        toast.error(ok.message)
+        return
+      }
+    }
+
+    setCurrentStep(index)
+  }
+
+  const handleSubmit = async () => {
+    if (!formData.sessionId) {
+      toast.error("Please select a valid session time.")
+      return
+    }
+
+    const payload = {
+      doctorId: Number(formData.doctorId),
+      sessionId: Number(formData.sessionId),
+      appointmentType: formData.appointmentType || "General Consultation",
+      reasonForVisit: formData.reason,
+      relationship: formData.patientRelationship === "Other" ? formData.patientRelationshipOther || "Other" : formData.patientRelationship,
+      age: formData.age ? Number(formData.age) : undefined,
+      gender: formData.gender || undefined,
+      contactNumber: formData.contactNumber || undefined,
+      symptoms: formData.symptoms || undefined,
+      durationOfSymptoms: formData.durationOfSymptoms || undefined,
+      painLevel: formData.painLevel ? Number(formData.painLevel) : undefined,
+      additionalNotes: formData.notes || undefined,
+    }
+
+    try {
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to book appointment")
+      }
+
+      toast.success("Appointment booked successfully!")
+      await loadSessions(false)
+      setCurrentStep(0)
+      setFormData({
+        doctorId: "",
+        sessionId: "",
+        date: "",
+        time: "",
+        appointmentType: "",
+        reason: "",
+        patientRelationship: "",
+        patientRelationshipOther: "",
+        age: "",
+        gender: "",
+        contactNumber: "",
+        symptoms: "",
+        durationOfSymptoms: "",
+        painLevel: "",
+        notes: "",
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to book appointment"
+      toast.error(message.includes("already have an appointment") ? "Appointment conflict\nYou already have an appointment for this date" : message)
+    }
   }
 
   return (
     <div className="space-y-8">
       {/* Stepper */}
-      <Stepper items={steps} currentStep={currentStep} onStepClick={setCurrentStep} />
+      <Stepper items={steps} currentStep={currentStep} onStepClick={handleStepClick} />
 
       {/* Step Content */}
       <Card className="p-8">
@@ -287,6 +487,9 @@ export function BookAppointmentContent() {
                       setFormData((prev) => ({
                         ...prev,
                         doctorId: doctor.id.toString(),
+                        date: "",
+                        time: "",
+                        sessionId: "",
                       }))
                     }
                     className={`p-4 border rounded-lg cursor-pointer transition-all ${
@@ -373,7 +576,9 @@ export function BookAppointmentContent() {
                           key={dayObj.iso}
                           onClick={() => {
                             if (!isPast) {
-                              setFormData((prev) => ({ ...prev, date: dayObj.iso, time: "" }))
+                              const nextDate = dayObj.iso
+                              setFormData((prev) => ({ ...prev, date: nextDate, time: "", sessionId: "" }))
+                              void checkDateConflict(selectedDoctorId, nextDate)
                             }
                           }}
                           className={`h-12 flex items-center justify-center rounded-lg transition-all ${isSelected ? 'bg-white text-black font-semibold' : dayObj.inMonth ? 'bg-transparent hover:bg-muted' : 'text-muted-foreground'} ${isPast ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
@@ -381,8 +586,11 @@ export function BookAppointmentContent() {
                           <div className="relative w-full h-full flex items-center justify-center">
                             <span>{dayObj.day}</span>
                             {isToday && <span className="absolute bottom-1 left-1 w-1 h-1 rounded-full bg-white/70" />}
-                            {selectedDoctorId && hasActiveSessionOnDate(dayObj.iso) && (
+                            {selectedDoctorId && getDayIndicatorColor(dayObj.iso) === "green" && (
                               <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-emerald-500" />
+                            )}
+                            {selectedDoctorId && getDayIndicatorColor(dayObj.iso) === "red" && (
+                              <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-red-500" />
                             )}
                           </div>
                         </button>
@@ -403,6 +611,13 @@ export function BookAppointmentContent() {
                       {selectedDoctorId ? "Available sessions for this doctor are loaded from the database" : "Select a doctor first"}
                     </div>
                   </div>
+
+                  {dateConflictMessage ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 shadow-sm">
+                      <div className="font-medium">Appointment conflict</div>
+                      <div className="mt-1">{dateConflictMessage}</div>
+                    </div>
+                  ) : null}
 
                   {!selectedDoctorId ? (
                     <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -428,22 +643,35 @@ export function BookAppointmentContent() {
                     <div className="space-y-3">
                       <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
                         <div>{selectedDateSessionSummary}</div>
-                        <div className="text-[0.9rem] text-foreground/80 mt-1">{selectedDateTimeSummary}</div>
+                        <div className="mt-1 text-[0.9rem] text-foreground/80 dark:text-black">{selectedDateTimeSummary}</div>
                       </div>
                       <div className="max-h-[420px] space-y-3 overflow-auto pr-2">
                       {selectedDateTimeSlots.map((slot) => {
                         const selected = formData.time === slot
                         const remaining = selectedDateTimeSlotAvailability[slot] ?? 0
+                        const isPast = !isSlotInFuture(formData.date, slot)
+                        const available = remaining > 0 && !isPast
+                        const baseClass = selected ? 'bg-primary text-white border-primary' : available ? 'bg-transparent border-border hover:border-primary' : 'bg-red-50 text-red-600 border-red-100 cursor-not-allowed'
+
                         return (
                           <button
                             key={slot}
-                            onClick={() => setFormData((prev) => ({ ...prev, time: slot }))}
-                            className={`w-full text-left flex items-center gap-4 p-3 rounded-xl border transition ${selected ? 'bg-primary text-white border-primary' : 'bg-transparent border-border hover:border-primary'}`}
+                            onClick={() => {
+                              if (!available) return
+                              const session = getSessionForSlot(slot)
+                              setFormData((prev) => ({
+                                ...prev,
+                                time: slot,
+                                sessionId: session?.id ?? "",
+                              }))
+                            }}
+                            disabled={!available}
+                            className={`w-full text-left flex items-center gap-4 p-3 rounded-xl border transition ${baseClass}`}
                           >
-                            <div className={`w-3 h-3 rounded-full ${selected ? 'bg-white' : 'bg-emerald-400'}`} />
+                            <div className={`w-3 h-3 rounded-full ${selected ? 'bg-white' : available ? 'bg-emerald-400' : 'bg-red-400'}`} />
                             <div className="flex-1">
                               <div className="font-medium">{formatTimeLabel(slot)}</div>
-                              <div className="text-sm opacity-80">{remaining} slot{remaining === 1 ? '' : 's'} remaining</div>
+                              <div className="text-sm opacity-80">{isPast ? 'Time passed' : remaining === 0 ? 'Full' : `${remaining} slot${remaining === 1 ? '' : 's'} remaining`}</div>
                             </div>
                           </button>
                         )
@@ -468,18 +696,25 @@ export function BookAppointmentContent() {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="reason">Reason for Visit</Label>
-                <input
-                  id="reason"
-                  name="reason"
-                  placeholder="e.g., Check-up, Follow-up, New concern"
-                  value={formData.reason}
-                  onChange={handleInputChange}
-                  className="mt-2 h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
-                />
-              </div>
-
+                <div>
+                  <Label htmlFor="appointmentType">Appointment Type</Label>
+                  <select
+                    id="appointmentType"
+                    name="appointmentType"
+                    value={formData.appointmentType}
+                    onChange={handleInputChange}
+                    className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <option value="">Select appointment type</option>
+                    {doctorAppointmentTypes.length === 0 ? (
+                      <option value="General Consultation">General Consultation</option>
+                    ) : (
+                      doctorAppointmentTypes.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
               <div>
                 <Label htmlFor="patientRelationship">Who is the Patient?</Label>
                 <select
@@ -512,6 +747,18 @@ export function BookAppointmentContent() {
                   />
                 </div>
               )}
+
+              <div>
+                <Label htmlFor="reason">Reason for Visit</Label>
+                <input
+                  id="reason"
+                  name="reason"
+                  placeholder="e.g., Check-up, Follow-up, New concern"
+                  value={formData.reason}
+                  onChange={handleInputChange}
+                  className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <Label htmlFor="age">Age</Label>
@@ -640,6 +887,13 @@ export function BookAppointmentContent() {
                 <p className="text-sm text-muted-foreground">Doctor</p>
                 <p className="font-semibold">
                   {doctors.find((d) => d.id.toString() === formData.doctorId)?.name || "Not selected"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Appointment Type</p>
+                <p className="font-semibold">
+                  {formData.appointmentType || "Not selected"}
                 </p>
               </div>
 

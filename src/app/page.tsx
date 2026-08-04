@@ -20,7 +20,7 @@ import {
   HeartPulse,
   Monitor,
 } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export default function LandingPage() {
-  const { theme: activeTheme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
 
@@ -41,7 +41,7 @@ export default function LandingPage() {
     setMounted(true)
   }, [])
 
-  const theme = mounted ? activeTheme || "system" : "system"
+  const isDark = mounted ? resolvedTheme === "dark" : false
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background font-sans text-foreground transition-colors duration-500">
@@ -96,11 +96,11 @@ export default function LandingPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                onClick={() => setTheme(isDark ? "light" : "dark")}
                 className="size-8 rounded-full"
               >
                 {mounted ? (
-                  theme === "dark" ? (
+                  isDark ? (
                     <Sun className="h-[1.2rem] w-[1.2rem] transition-all" />
                   ) : (
                     <Moon className="h-[1.2rem] w-[1.2rem] transition-all" />
@@ -147,15 +147,15 @@ export default function LandingPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    onClick={() => setTheme(isDark ? "light" : "dark")}
                     className="rounded-full"
                   >
                     {mounted ? (
-                      theme === "dark" ? <Sun className="mr-2 size-4" /> : <Moon className="mr-2 size-4" />
+                      isDark ? <Sun className="mr-2 size-4" /> : <Moon className="mr-2 size-4" />
                     ) : (
                       <Monitor className="mr-2 size-4" />
                     )}
-                    {mounted ? (theme === "dark" ? "Light" : "Dark") : "Theme"}
+                    {mounted ? (isDark ? "Light" : "Dark") : "Theme"}
                   </Button>
                 </div>
                 <Link href="/login">
