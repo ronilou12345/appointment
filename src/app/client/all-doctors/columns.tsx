@@ -67,11 +67,6 @@ export const columns: ColumnDef<DoctorRow>[] = [
     cell: ({ row }) => row.getValue("employeeNumber") || "—",
   },
   {
-    accessorKey: "designations",
-    header: "Credentials",
-    cell: ({ row }) => row.getValue("designations") || "—",
-  },
-  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => <span className="text-sm">{row.getValue("status") || "—"}</span>,
@@ -91,10 +86,6 @@ export const columns: ColumnDef<DoctorRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Doctor actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(doctor.id)}>
-              Copy doctor ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem>
               <Link href={`/client/all-doctors/${doctor.id}`}>View profile</Link>
             </DropdownMenuItem>

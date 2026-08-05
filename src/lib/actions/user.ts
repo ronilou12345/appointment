@@ -12,8 +12,7 @@ function normalizeRole(value: string | null): UserRole {
   const role = (value ?? "PATIENT").toString().trim().toUpperCase()
 
   if (role === "ADMIN") return "ADMIN"
-  if (role === "DOCTOR") return "NURSE"
-  if (role === "NURSE") return "NURSE"
+  if (role === "DOCTOR" || role === "NURSE") return "NURSE"
   return "PATIENT"
 }
 
@@ -82,7 +81,7 @@ export async function createUserAction(formData: FormData) {
   }
 
   const normalizedUserType = userType.toUpperCase()
-  const isDoctorAccount = normalizedUserType === "DOCTOR"
+  const isDoctorAccount = normalizedUserType === "DOCTOR" || normalizedUserType === "NURSE"
 
   if (isDoctorAccount && !licenseNumber) {
     return { success: false, error: "License number is required for doctor accounts." }

@@ -1,6 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +23,56 @@ import { Label } from "@/components/ui/label"
 import { PlusIcon } from "lucide-react"
 
 export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const router = useRouter()
+  const [loading, setLoading] = React.useState(false)
+  const [form, setForm] = React.useState({
+    medicineName: "",
+    category: "",
+    quantity: "0",
+    reorderLevel: "0",
+    expiryDate: "",
+    price: "0.00",
+    supplier: "",
+    status: "In Stock",
+  })
+
+  const handleChange = (key: string, value: string) => setForm((s) => ({ ...s, [key]: value }))
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const payload = {
+        medicineName: form.medicineName,
+        category: form.category,
+        quantity: Number.parseInt(form.quantity || "0", 10) || 0,
+        reorderLevel: Number.parseInt(form.reorderLevel || "0", 10) || 0,
+        expiryDate: form.expiryDate,
+        price: Number(form.price) || 0,
+        supplier: form.supplier,
+        status: form.status,
+      }
+
+      const res = await fetch('/api/medicine-inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const result = await res.json()
+      if (!res.ok || !result.success) throw new Error(result.error || 'Unable to add medicine')
+
+      toast.success('Successfully added')
+      onOpenChange(false)
+      router.refresh()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <>
       <Button size="sm" className="shadow-md shadow-primary/20" onClick={() => onOpenChange(true)}>
@@ -34,7 +87,7 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
               Add a new medicine to the inventory system.
             </DialogDescription>
           </DialogHeader>
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Medicine Name and Category */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -44,6 +97,8 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                   name="medicineName"
                   placeholder="e.g., Amoxicillin 500mg"
                   required
+                  value={form.medicineName}
+                  onChange={(e) => handleChange('medicineName', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -53,6 +108,8 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                   name="category"
                   placeholder="e.g., Antibiotics"
                   required
+                  value={form.category}
+                  onChange={(e) => handleChange('category', e.target.value)}
                 />
               </div>
             </div>
@@ -68,6 +125,8 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                   placeholder="Number of units"
                   min="0"
                   required
+                  value={form.quantity}
+                  onChange={(e) => handleChange('quantity', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -79,6 +138,8 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                   placeholder="Minimum stock level"
                   min="0"
                   required
+                  value={form.reorderLevel}
+                  onChange={(e) => handleChange('reorderLevel', e.target.value)}
                 />
               </div>
             </div>
@@ -92,6 +153,8 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                   name="expiryDate"
                   type="date"
                   required
+                  value={form.expiryDate}
+                  onChange={(e) => handleChange('expiryDate', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -104,6 +167,8 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                   step="0.01"
                   min="0"
                   required
+                  value={form.price}
+                  onChange={(e) => handleChange('price', e.target.value)}
                 />
               </div>
             </div>
@@ -117,18 +182,20 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                   name="supplier"
                   placeholder="e.g., PharmaCare Inc."
                   required
+                  value={form.supplier}
+                  onChange={(e) => handleChange('supplier', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select name="status" defaultValue="in-stock">
+                <Select name="status" value={form.status} onValueChange={(v) => handleChange('status', v)}>
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="in-stock">In Stock</SelectItem>
-                    <SelectItem value="low-stock">Low Stock</SelectItem>
-                    <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                    <SelectItem value="In Stock">In Stock</SelectItem>
+                    <SelectItem value="Low Stock">Low Stock</SelectItem>
+                    <SelectItem value="Out of Stock">Out of Stock</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -140,11 +207,12 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={loading}
               >
                 Cancel
               </Button>
-              <Button className="bg-orange-500 hover:bg-orange-600">
-                Add Medicine
+              <Button className="bg-orange-500 hover:bg-orange-600" type="submit" disabled={loading}>
+                {loading ? 'Adding...' : 'Add Medicine'}
               </Button>
             </div>
           </form>

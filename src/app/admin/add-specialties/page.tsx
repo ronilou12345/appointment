@@ -1,52 +1,22 @@
-import { DataTable } from "@/components/data-table"
 import { columns, SpecialtyRow } from "./columns"
 import { AddSpecialtiesContent } from "./content"
+import prisma from "@/lib/prisma"
 
-const mockSpecialties: SpecialtyRow[] = [
-  {
-    id: "1",
-    name: "Cardiology",
-    description: "Heart and cardiovascular system specialists",
-    doctorCount: 8,
-    status: "Active",
-  },
-  {
-    id: "2",
-    name: "Neurology",
-    description: "Brain and nervous system specialists",
-    doctorCount: 6,
-    status: "Active",
-  },
-  {
-    id: "3",
-    name: "Orthopedics",
-    description: "Bone and joint specialists",
-    doctorCount: 12,
-    status: "Active",
-  },
-  {
-    id: "4",
-    name: "Pediatrics",
-    description: "Children's health specialists",
-    doctorCount: 10,
-    status: "Active",
-  },
-  {
-    id: "5",
-    name: "Dermatology",
-    description: "Skin health specialists",
-    doctorCount: 5,
-    status: "Active",
-  },
-  {
-    id: "6",
-    name: "Surgery",
-    description: "Surgical specialists",
-    doctorCount: 15,
-    status: "Active",
-  },
-]
+export default async function Page() {
+  // Use raw query to avoid relying on generated model accessor names
+  const specialties: Array<{ specialty_id: number; specialty_name: string; description: string | null; available_doctor: number | null }> = await prisma.$queryRaw`
+    SELECT specialty_id, specialty_name, description, available_doctor
+    FROM public.specialties
+    ORDER BY specialty_name ASC
+  `
 
-export default function Page() {
-  return <AddSpecialtiesContent rows={mockSpecialties} />
+  const rows: SpecialtyRow[] = specialties.map((s) => ({
+    id: String(s.specialty_id),
+    name: s.specialty_name,
+    description: s.description ?? "",
+    availableDoctors: Number(s.available_doctor ?? 0),
+    status: "Active",
+  }))
+
+  return <AddSpecialtiesContent rows={rows} />
 }

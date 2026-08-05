@@ -17,7 +17,7 @@ export type SpecialtyRow = {
   id: string
   name: string
   description: string
-  doctorCount: number
+  availableDoctors: number
   status: string
 }
 
@@ -33,9 +33,9 @@ export const columns: ColumnDef<SpecialtyRow>[] = [
     cell: ({ row }) => row.getValue("description") || "—",
   },
   {
-    accessorKey: "doctorCount",
-    header: "Doctors",
-    cell: ({ row }) => <span className="font-semibold">{row.getValue("doctorCount")}</span>,
+    accessorKey: "availableDoctors",
+    header: "Available Doctors",
+    cell: ({ row }) => <span className="font-semibold">{row.getValue("availableDoctors")}</span>,
   },
   {
     accessorKey: "status",
@@ -66,13 +66,26 @@ export const columns: ColumnDef<SpecialtyRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Specialty actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(specialty.id)}>
-              Copy specialty ID
+            <DropdownMenuItem
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("open-edit-specialty", { detail: specialty }),
+                )
+              }
+            >
+              Edit
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Edit specialty</DropdownMenuItem>
-            <DropdownMenuItem>View doctors</DropdownMenuItem>
-            <DropdownMenuItem>Delete specialty</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("open-delete-specialty", { detail: specialty }),
+                )
+              }
+              className="text-destructive focus:text-destructive"
+            >
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { DataTable } from "@/components/data-table"
 import { columns, MedicineRow } from "./columns"
 import { AddMedicineDialog } from "@/components/add-medicine-dialog"
+import { Box, CheckCircle, AlertTriangle, XCircle } from "lucide-react"
 
 export function InventoryContent({ rows }: { rows: MedicineRow[] }) {
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -22,30 +23,36 @@ export function InventoryContent({ rows }: { rows: MedicineRow[] }) {
             <AddMedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} />
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 gap-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-4 gap-4">
             <div className="rounded-lg border border-border bg-background p-4">
               <div className="text-sm text-muted-foreground">Total Items</div>
-              <div className="mt-2 text-2xl font-semibold">{rows.length}</div>
+              <div className="mt-2 flex items-center gap-3">
+                <Box className="size-5 text-foreground/80" />
+                <div className="text-2xl font-semibold">{rows.length}</div>
+              </div>
             </div>
             <div className="rounded-lg border border-border bg-background p-4">
               <div className="text-sm text-muted-foreground">In Stock</div>
-              <div className="mt-2 text-2xl font-semibold text-green-500">
-                {rows.filter(m => m.status === "In Stock").length}
+              <div className="mt-2 flex items-center gap-3">
+                <CheckCircle className="size-5 text-green-500" />
+                <div className="text-2xl font-semibold text-green-500">{rows.filter(m => m.status === "In Stock").length}</div>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-background p-4">
               <div className="text-sm text-muted-foreground">Low Stock</div>
-              <div className="mt-2 text-2xl font-semibold text-orange-500">
-                {rows.filter(m => m.status === "Low Stock").length}
+              <div className="mt-2 flex items-center gap-3">
+                <AlertTriangle className="size-5 text-orange-500" />
+                <div className="text-2xl font-semibold text-orange-500">{rows.filter(m => m.status === "Low Stock").length}</div>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-background p-4">
               <div className="text-sm text-muted-foreground">Out of Stock</div>
-              <div className="mt-2 text-2xl font-semibold text-red-500">
-                {rows.filter(m => m.status === "Out of Stock").length}
+              <div className="mt-2 flex items-center gap-3">
+                <XCircle className="size-5 text-red-500" />
+                <div className="text-2xl font-semibold text-red-500">{rows.filter(m => m.status === "Out of Stock").length}</div>
               </div>
             </div>
           </div>

@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { MailIcon, UserIcon, LockIcon, HashIcon, BriefcaseIcon, CheckIcon, XIcon } from "lucide-react"
 
@@ -29,6 +31,21 @@ export type CreateUserForm = {
   licenseNumber: string
   yearsofexperience: string
   address: string
+}
+
+type EditUserForm = {
+  id: string
+  name: string
+  email: string
+  status: string
+  role: string
+  address: string
+  prefix: string
+  suffix: string
+  credentials: string
+  licenseNumber: string
+  yearsOfExperience: string
+  boardCertifications: string
 }
 
 function CreateUserModal({
@@ -394,9 +411,230 @@ function CreateUserModal({
   )
 }
 
+function EditUserSheet({
+  open,
+  onOpenChange,
+  user,
+  onSuccess,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  user: UserRow | null
+  onSuccess: (message: string) => void
+}) {
+  const router = useRouter()
+  const [loading, setLoading] = React.useState(false)
+  const [errorMsg, setErrorMsg] = React.useState("")
+  const [form, setForm] = React.useState<EditUserForm>({
+    id: "",
+    name: "",
+    email: "",
+    status: "Active",
+    role: "PATIENT",
+    address: "",
+    prefix: "",
+    suffix: "",
+    credentials: "",
+    licenseNumber: "",
+    yearsOfExperience: "",
+    boardCertifications: "",
+  })
+
+  React.useEffect(() => {
+    if (!user) return
+    setForm({
+      id: user.id,
+      name: user.name ?? "",
+      email: user.email ?? "",
+      status: user.status ?? "Active",
+      role: user.role ?? "PATIENT",
+      address: user.address ?? "",
+      prefix: user.prefix ?? "",
+      suffix: user.suffix ?? "",
+      credentials: user.credentials ?? "",
+      licenseNumber: user.licenseNumber ?? "",
+      yearsOfExperience: user.yearsOfExperience ?? "",
+      boardCertifications: user.boardCertifications ?? "",
+    })
+    setErrorMsg("")
+  }, [user])
+
+  const handleChange = (field: keyof EditUserForm, value: string) =>
+    setForm((prev) => ({ ...prev, [field]: value }))
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!form.id) return
+
+    setLoading(true)
+    setErrorMsg("")
+
+    const response = await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    })
+
+    const result = await response.json()
+    setLoading(false)
+
+    if (result.success) {
+      toast.success("User updated successfully")
+      onSuccess("User updated successfully.")
+      onOpenChange(false)
+      setTimeout(() => router.refresh(), 100)
+    } else {
+      const errorMessage = result.error || "Unable to update user."
+      setErrorMsg(errorMessage)
+      toast.error(errorMessage)
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full max-w-xl sm:max-w-xl">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col">
+          <SheetHeader className="border-b px-6 py-4">
+            <SheetTitle>Edit user</SheetTitle>
+            <SheetDescription>Update the user profile details and access settings.</SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+            {errorMsg ? (
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{errorMsg}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Full name</Label>
+                <Input id="edit-name" value={form.name} onChange={(e) => handleChange("name", e.target.value)} />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input id="edit-email" type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select value={form.status} onValueChange={(value) => handleChange("status", value)}>
+                    <SelectTrigger id="edit-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="Active">Active</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                        <SelectItem value="Suspended">Suspended</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-role">Role</Label>
+                  <Select value={form.role} onValueChange={(value) => handleChange("role", value)}>
+                    <SelectTrigger id="edit-role">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="DOCTOR">Doctor</SelectItem>
+                        <SelectItem value="PATIENT">Patient</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-address">Address</Label>
+                <Input id="edit-address" value={form.address} onChange={(e) => handleChange("address", e.target.value)} />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-prefix">Prefix</Label>
+                  <Input id="edit-prefix" value={form.prefix} onChange={(e) => handleChange("prefix", e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-suffix">Suffix</Label>
+                  <Input id="edit-suffix" value={form.suffix} onChange={(e) => handleChange("suffix", e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-credentials">Credentials</Label>
+                <Input id="edit-credentials" value={form.credentials} onChange={(e) => handleChange("credentials", e.target.value)} />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-license-number">License number</Label>
+                  <Input id="edit-license-number" value={form.licenseNumber} onChange={(e) => handleChange("licenseNumber", e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-years">Years of experience</Label>
+                  <Input id="edit-years" value={form.yearsOfExperience} onChange={(e) => handleChange("yearsOfExperience", e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-board">Board certifications</Label>
+                <Input id="edit-board" value={form.boardCertifications} onChange={(e) => handleChange("boardCertifications", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          <SheetFooter className="border-t px-6 py-4">
+            <div className="flex w-full justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 export default function ManageUsersClient({ users }: { users: UserRow[] }) {
+  const router = useRouter()
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [selectedUser, setSelectedUser] = React.useState<UserRow | null>(null)
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [successMessage, setSuccessMessage] = React.useState("")
+
+  React.useEffect(() => {
+    const openEditUser = (event: Event) => {
+      const customEvent = event as CustomEvent<UserRow>
+      setSelectedUser(customEvent.detail ?? null)
+      setEditOpen(true)
+    }
+
+    const openDeleteUser = (event: Event) => {
+      const customEvent = event as CustomEvent<UserRow>
+      setSelectedUser(customEvent.detail ?? null)
+      setDeleteOpen(true)
+    }
+
+    window.addEventListener("open-edit-user", openEditUser as EventListener)
+    window.addEventListener("open-delete-user", openDeleteUser as EventListener)
+    return () => {
+      window.removeEventListener("open-edit-user", openEditUser as EventListener)
+      window.removeEventListener("open-delete-user", openDeleteUser as EventListener)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -422,6 +660,39 @@ export default function ManageUsersClient({ users }: { users: UserRow[] }) {
       </div>
 
       <CreateUserModal open={createOpen} onOpenChange={setCreateOpen} onSuccess={(message) => setSuccessMessage(message)} />
+      <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={selectedUser} onSuccess={(message) => setSuccessMessage(message)} />
+      <Dialog open={deleteOpen} onOpenChange={(o) => setDeleteOpen(o)}>
+        <DialogContent className="mx-auto max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-semibold">Delete account</DialogTitle>
+            <DialogDescription className="text-lg">Are you sure you want to delete this user account?</DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+              <Button disabled={selectedUser?.role === 'ADMIN'} className="bg-red-600 text-white" onClick={async () => {
+                if (!selectedUser) return
+                if (selectedUser.role === 'ADMIN') {
+                  toast.error('Admin accounts cannot be deleted')
+                  return
+                }
+                try {
+                  const res = await fetch('/api/users', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: selectedUser.id }) })
+                  const result = await res.json()
+                  if (!res.ok || !result.success) throw new Error(result.error || 'Unable to delete user')
+                  toast.success('User deleted')
+                  setDeleteOpen(false)
+                  setTimeout(() => router.refresh(), 100)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : String(err)
+                  toast.error(msg)
+                }
+              }}>Delete</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

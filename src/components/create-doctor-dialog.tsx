@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,12 +12,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PlusIcon } from "lucide-react"
@@ -23,6 +34,7 @@ import { PlusIcon } from "lucide-react"
 type UserOption = {
   id: string
   name: string
+  avatar?: string | null
   email: string
   designations: string | null
   role: string
@@ -30,25 +42,30 @@ type UserOption = {
 }
 
 export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const router = useRouter()
   const [users, setUsers] = useState<UserOption[]>([])
+  const [specialties, setSpecialties] = useState<string[]>([])
   const [selectedUserId, setSelectedUserId] = useState("")
   const [selectedName, setSelectedName] = useState("")
-  const [selectedDesignation, setSelectedDesignation] = useState("")
+  const [selectedDesignations, setSelectedDesignations] = useState<string[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [isLoadingSpecialties, setIsLoadingSpecialties] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (!open) {
       setUsers([])
+      setSpecialties([])
       setSelectedUserId("")
       setSelectedName("")
-      setSelectedDesignation("")
+      setSelectedDesignations([])
       return
     }
 
     const loadUsers = async () => {
       try {
         setIsLoadingUsers(true)
-        const response = await fetch("/api/users")
+        const response = await fetch("/api/users?role=NURSE")
         if (!response.ok) throw new Error("Unable to load users")
 
         const data = await response.json()
@@ -61,7 +78,24 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
       }
     }
 
+    const loadSpecialties = async () => {
+      try {
+        setIsLoadingSpecialties(true)
+        const response = await fetch("/api/specialties")
+        if (!response.ok) throw new Error("Unable to load specialties")
+
+        const data = await response.json()
+        setSpecialties(Array.isArray(data.specialties) ? data.specialties : [])
+      } catch (error) {
+        console.error("Unable to load specialties", error)
+        setSpecialties([])
+      } finally {
+        setIsLoadingSpecialties(false)
+      }
+    }
+
     loadUsers()
+    loadSpecialties()
   }, [open])
 
   const handleUserSelect = (value: string) => {
@@ -70,27 +104,60 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
     if (!selectedUser) {
       setSelectedUserId("")
       setSelectedName("")
-      setSelectedDesignation("")
       return
     }
 
     setSelectedUserId(value)
     setSelectedName(selectedUser.name)
+  }
 
-    if (!selectedUser.designations) {
-      setSelectedDesignation("")
+  const toggleDesignation = (designation: string, checked: boolean) => {
+    setSelectedDesignations((current) =>
+      checked
+        ? [...current, designation]
+        : current.filter((item) => item !== designation)
+    )
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!selectedUserId) {
+      toast.error("Please select a user before saving.")
       return
     }
 
-    try {
-      const parsed = JSON.parse(selectedUser.designations)
-      const normalizedDesignation = Array.isArray(parsed)
-        ? parsed.find((item) => typeof item === "string" && item.trim())?.toString().toLowerCase() ?? ""
-        : ""
+    if (!selectedDesignations.length) {
+      toast.error("Please select at least one specialty.")
+      return
+    }
 
-      setSelectedDesignation(normalizedDesignation)
-    } catch {
-      setSelectedDesignation("")
+    setIsSaving(true)
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedUserId,
+          designations: JSON.stringify(selectedDesignations),
+        }),
+      })
+
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || "Unable to save specialties.")
+      }
+
+      toast.success("Specialties recorded successfully.")
+      onOpenChange(false)
+      router.refresh()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to save specialties."
+      toast.error(message)
+      console.error("Failed to save specialties", error)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -108,18 +175,24 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
               Create the basic details for your Employee.
             </DialogDescription>
           </DialogHeader>
-          <form className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">Select a user</Label>
                 <Select value={selectedUserId} onValueChange={handleUserSelect}>
                   <SelectTrigger id="name">
-                    <SelectValue placeholder={isLoadingUsers ? "Loading names..." : "Select existing user"} />
+                    <SelectValue placeholder={isLoadingUsers ? "Loading users..." : "Select a user"} />
                   </SelectTrigger>
                   <SelectContent>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.name}
+                        <div className="flex items-center gap-2">
+                          <Avatar size="sm">
+                            {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
+                            <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span>{user.name}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -129,17 +202,36 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
                 ) : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="designations">Designations</Label>
-                <Select value={selectedDesignation} onValueChange={setSelectedDesignation}>
-                  <SelectTrigger id="designations">
-                    <SelectValue placeholder="Select designations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="doctor">Doctor</SelectItem>
-                    <SelectItem value="nurse">Nurse</SelectItem>
-                    <SelectItem value="specialist">Specialist</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="designations">Select specialties</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="justify-between w-full text-left"
+                    >
+                      <span>
+                        {selectedDesignations.length
+                          ? selectedDesignations.join(", ")
+                          : isLoadingSpecialties
+                          ? "Loading specialties..."
+                          : "Select specialties"}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-full max-w-sm">
+                    <DropdownMenuLabel>Specialties</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {specialties.map((specialty) => (
+                      <DropdownMenuCheckboxItem
+                        key={specialty}
+                        checked={selectedDesignations.includes(specialty)}
+                        onCheckedChange={(checked) => toggleDesignation(specialty, Boolean(checked))}
+                      >
+                        {specialty}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
@@ -151,8 +243,8 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
               >
                 Cancel
               </Button>
-              <Button className="bg-orange-500 hover:bg-orange-600">
-                Create Specialties
+              <Button type="submit" className="bg-orange-500 hover:bg-orange-600" disabled={isSaving}>
+                {isSaving ? "Saving..." : "Create Specialties"}
               </Button>
             </div>
           </form>

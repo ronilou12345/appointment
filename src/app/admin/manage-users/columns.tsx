@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,6 +25,10 @@ export type UserRow = {
   credentials?: string | null
   status?: string
   avatar?: string | null
+  role?: string
+  licenseNumber?: string
+  yearsOfExperience?: string
+  boardCertifications?: string
 }
 
 export const columns: ColumnDef<UserRow>[] = [
@@ -33,15 +38,17 @@ export const columns: ColumnDef<UserRow>[] = [
     cell: ({ row }) => {
       const user = row.original
       const name = String(row.getValue("name") ?? "")
-      const displayName = [user.prefix, name, user.suffix]
-        .filter(Boolean)
-        .join(" ")
-        .trim()
-      const credentialText = user.credentials?.trim()
       const nameParts = name.split(" ").filter(Boolean)
       const firstName = nameParts[0] ?? ""
+      const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : ""
       const lastName = nameParts[nameParts.length - 1] ?? ""
       const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase() || "U"
+      const isDoctorAccount = user.role === "DOCTOR" || user.role === "NURSE"
+      const baseDisplayName = [user.prefix, name].filter(Boolean).join(" ").trim()
+      const displayName = isDoctorAccount
+        ? ["Dr.", firstName, middleName ? `${middleName[0]}.` : "", lastName].filter(Boolean).join(" ").trim()
+        : baseDisplayName || name
+      const credentialText = isDoctorAccount ? user.credentials?.trim() : undefined
 
       return (
         <div className="flex items-center gap-3">
@@ -50,9 +57,8 @@ export const columns: ColumnDef<UserRow>[] = [
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-col">
-            <span className="font-medium">{displayName || name}</span>
+            <span className="font-medium">{displayName || name}{credentialText ? `, ${credentialText}` : ""}</span>
             <div className="flex flex-col gap-0.5">
-              {credentialText ? <span className="text-sm text-muted-foreground">{credentialText}</span> : null}
               {user.email ? <span className="text-sm text-muted-foreground">{user.email}</span> : null}
             </div>
           </div>
@@ -66,6 +72,17 @@ export const columns: ColumnDef<UserRow>[] = [
     cell: ({ row }) => row.getValue("address") || "—",
   },
   {
+    accessorKey: "role",
+    header: "Role",
+    cell: ({ row }) => {
+      const role = String(row.getValue("role") ?? "PATIENT").toUpperCase()
+      const label = role === "DOCTOR" || role === "NURSE" ? "Doctor" : role === "ADMIN" ? "Admin" : role === "STAFF" ? "Staff" : "Patient"
+      const variant = role === "ADMIN" ? "destructive" : role === "DOCTOR" || role === "NURSE" ? "secondary" : role === "STAFF" ? "outline" : "default"
+
+      return <Badge variant={variant as any}>{label}</Badge>
+    },
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => <span className="text-sm">{row.getValue("status") || "—"}</span>,
@@ -75,6 +92,7 @@ export const columns: ColumnDef<UserRow>[] = [
     header: "",
     cell: ({ row }) => {
       const user = row.original
+      const isAdmin = String(user.role ?? "").toUpperCase() === "ADMIN"
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -85,12 +103,18 @@ export const columns: ColumnDef<UserRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>User actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(user.id)}>
-              Copy user ID
+            <DropdownMenuItem>View profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("open-edit-user", { detail: user }))}>
+              Edit
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View profile</DropdownMenuItem>
-            <DropdownMenuItem>Deactivate</DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={isAdmin}
+              onClick={() => window.dispatchEvent(new CustomEvent("open-delete-user", { detail: user }))}
+              className={isAdmin ? "opacity-50 cursor-not-allowed" : "text-red-600 focus:text-red-600"}
+            >
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

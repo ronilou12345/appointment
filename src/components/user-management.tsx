@@ -437,7 +437,7 @@ function CreateUserModal({
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="ADMIN">Admin</SelectItem>
-                    <SelectItem value="NURSE">Doctor / Nurse</SelectItem>
+                    <SelectItem value="NURSE">Doctor</SelectItem>
                     <SelectItem value="PATIENT">Patient</SelectItem>
                   </SelectGroup>
                 </SelectContent>

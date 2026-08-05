@@ -1,97 +1,21 @@
 import { columns, MedicineRow } from "./columns"
 import { InventoryContent } from "./content"
+import prisma from "@/lib/prisma"
 
-const mockMedicines: MedicineRow[] = [
-  {
-    id: "1",
-    name: "Amoxicillin 500mg",
-    category: "Antibiotics",
-    quantity: 150,
-    reorderLevel: 50,
-    expiryDate: "2025-12-31",
-    price: 25.00,
-    supplier: "PharmaCare Inc.",
-    status: "In Stock",
-  },
-  {
-    id: "2",
-    name: "Ibuprofen 200mg",
-    category: "Pain Relief",
-    quantity: 45,
-    reorderLevel: 100,
-    expiryDate: "2026-06-30",
-    price: 15.50,
-    supplier: "MediHealth Ltd.",
-    status: "Low Stock",
-  },
-  {
-    id: "3",
-    name: "Metformin 500mg",
-    category: "Diabetes",
-    quantity: 200,
-    reorderLevel: 50,
-    expiryDate: "2025-09-15",
-    price: 12.00,
-    supplier: "PharmaCare Inc.",
-    status: "In Stock",
-  },
-  {
-    id: "4",
-    name: "Lisinopril 10mg",
-    category: "Blood Pressure",
-    quantity: 0,
-    reorderLevel: 75,
-    expiryDate: "N/A",
-    price: 18.75,
-    supplier: "MediHealth Ltd.",
-    status: "Out of Stock",
-  },
-  {
-    id: "5",
-    name: "Atorvastatin 20mg",
-    category: "Cholesterol",
-    quantity: 120,
-    reorderLevel: 50,
-    expiryDate: "2025-11-20",
-    price: 22.00,
-    supplier: "PharmaCare Inc.",
-    status: "In Stock",
-  },
-  {
-    id: "6",
-    name: "Omeprazole 20mg",
-    category: "Gastric",
-    quantity: 35,
-    reorderLevel: 75,
-    expiryDate: "2026-03-10",
-    price: 16.50,
-    supplier: "VitaPharm Solutions",
-    status: "Low Stock",
-  },
-  {
-    id: "7",
-    name: "Aspirin 300mg",
-    category: "Pain Relief",
-    quantity: 250,
-    reorderLevel: 100,
-    expiryDate: "2026-08-22",
-    price: 8.50,
-    supplier: "MediHealth Ltd.",
-    status: "In Stock",
-  },
-  {
-    id: "8",
-    name: "Azithromycin 500mg",
-    category: "Antibiotics",
-    quantity: 60,
-    reorderLevel: 40,
-    expiryDate: "2025-10-05",
-    price: 35.00,
-    supplier: "PharmaCare Inc.",
-    status: "In Stock",
-  },
-]
+export default async function Page() {
+  const medicines = await prisma.medicine_inventory.findMany({ orderBy: { medicine_name: "asc" } })
 
-export default function Page() {
-  return <InventoryContent rows={mockMedicines} />
+  const rows: MedicineRow[] = medicines.map((m) => ({
+    id: String(m.medicine_id),
+    name: m.medicine_name,
+    category: m.category,
+    quantity: m.quantity,
+    reorderLevel: m.reorder_level,
+    expiryDate: m.expiry_date ? m.expiry_date.toISOString().split("T")[0] : "N/A",
+    price: Number(m.unit_price),
+    supplier: m.supplier,
+    status: m.quantity === 0 ? "Out of Stock" : m.quantity <= (m.reorder_level ?? 0) ? "Low Stock" : "In Stock",
+  }))
+
+  return <InventoryContent rows={rows} />
 }

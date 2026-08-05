@@ -19,7 +19,8 @@ export type DoctorRow = {
   id: string
   name: string
   email: string
-  employeeNumber?: string
+  specialties?: string
+  boardCertification?: string
   designations?: string
   status?: string
   avatar?: string | null
@@ -50,26 +51,21 @@ export const columns: ColumnDef<DoctorRow>[] = [
             <Link href={`/admin/all-doctors/${doctor.id}`} className="font-medium text-primary hover:underline">
               {name}
             </Link>
-            {doctor.email ? <span className="text-sm text-muted-foreground">{doctor.email}</span> : null}
+            <span className="text-sm text-muted-foreground">{doctor.email}</span>
           </div>
         </div>
       )
     },
   },
   {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => row.getValue("email") || "—",
+    accessorKey: "specialties",
+    header: "Specialties",
+    cell: ({ row }) => row.getValue("specialties") || "—",
   },
   {
-    accessorKey: "employeeNumber",
-    header: "Employee #",
-    cell: ({ row }) => row.getValue("employeeNumber") || "—",
-  },
-  {
-    accessorKey: "designations",
-    header: "Credentials",
-    cell: ({ row }) => row.getValue("designations") || "—",
+    accessorKey: "boardCertification",
+    header: "Board certificate",
+    cell: ({ row }) => row.getValue("boardCertification") || "—",
   },
   {
     accessorKey: "status",
@@ -91,12 +87,16 @@ export const columns: ColumnDef<DoctorRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Doctor actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(doctor.id)}>
-              Copy doctor ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem>View profile</DropdownMenuItem>
-            <DropdownMenuItem>Manage schedule</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("open-edit-doctor", { detail: doctor })
+                )
+              }
+            >
+              Edit
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

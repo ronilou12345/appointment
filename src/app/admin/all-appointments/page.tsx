@@ -1,11 +1,69 @@
+import prisma from "@/lib/prisma"
 import { DataTable } from "@/components/data-table"
 import { columns, type AppointmentRow } from "./columns"
 
-export default function Page() {
-  const data: AppointmentRow[] = [
-    { id: "a1", patientId: "p1", patientName: "Juan Dela Cruz", doctorName: "Dr. Sarah Johnson", date: new Date().toISOString().split("T")[0], time: "09:30", status: "Confirmed" },
-    { id: "a2", patientId: "p2", patientName: "Maria Santos", doctorName: "Dr. Michael Chen", date: new Date(Date.now()+86400000).toISOString().split("T")[0], time: "11:00", status: "Pending" },
-  ]
+async function getAppointments(): Promise<AppointmentRow[]> {
+  const appointments = await prisma.appointment.findMany({
+    orderBy: { appointment_id: "desc" },
+    select: {
+      appointment_id: true,
+      user_id: true,
+      doctor_id: true,
+      appointment_status: true,
+      session_id: true,
+      reason_for_visit: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      doctor: {
+        select: {
+          first_name: true,
+          middle_name: true,
+          last_name: true,
+        },
+      },
+      session_tbl: {
+        select: {
+          session_date: true,
+          start_time: true,
+        },
+      },
+    },
+  })
+
+  return appointments.map((appointment) => {
+    const patientName = appointment.user?.name ?? "Unknown Patient"
+    const doctorName = appointment.doctor
+      ? [appointment.doctor.first_name, appointment.doctor.middle_name, appointment.doctor.last_name]
+          .filter(Boolean)
+          .join(" ")
+      : "Unknown Doctor"
+
+    const date = appointment.session_tbl?.session_date
+      ? appointment.session_tbl.session_date.toISOString().split("T")[0]
+      : ""
+
+    const time = appointment.session_tbl?.start_time
+      ? appointment.session_tbl.start_time.toISOString().slice(11, 16)
+      : ""
+
+    return {
+      id: String(appointment.appointment_id),
+      patientId: appointment.user_id,
+      patientName,
+      doctorName,
+      date,
+      time,
+      status: appointment.appointment_status ?? "Pending",
+    }
+  })
+}
+
+export default async function Page() {
+  const data = await getAppointments()
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">

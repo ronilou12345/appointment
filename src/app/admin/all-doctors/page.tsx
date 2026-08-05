@@ -9,6 +9,9 @@ type DoctorResult = {
   designations: string | null
   status: string | null
   avatar: string | null
+  doctor: {
+    board_certification: string | null
+  } | null
 }
 
 export default async function Page() {
@@ -21,18 +24,32 @@ export default async function Page() {
       designations: true,
       status: true,
       avatar: true,
+      doctor: {
+        select: {
+          board_certification: true,
+        },
+      },
     },
     orderBy: { name: "asc" },
   })
 
-  const rows: DoctorRow[] = doctors.map((user: DoctorResult) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    designations: user.designations ? JSON.parse(user.designations).join(", ") : "",
-    status: user.status ?? "",
-    avatar: user.avatar ?? null,
-  }))
+  const rows: DoctorRow[] = doctors.map((user: DoctorResult) => {
+    const rawDesignations = user.designations ? JSON.parse(user.designations) : []
+    const specialties = Array.isArray(rawDesignations)
+      ? Array.from(new Set(rawDesignations)).join(", ")
+      : ""
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      specialties,
+      boardCertification: user.doctor?.board_certification ?? "",
+      designations: specialties,
+      status: user.status ?? "",
+      avatar: user.avatar ?? null,
+    }
+  })
 
   return <AllDoctorsContent rows={rows} />
 }
