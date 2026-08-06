@@ -37,10 +37,10 @@ export function NavSecondary({
                   asChild
                   className={[
                     "rounded-lg transition-all duration-200",
-                    "hover:bg-primary/10 hover:text-primary",
-                    "data-[active=true]:bg-primary/10 data-[active=true]:text-primary",
-                    "active:bg-primary/15",
-                    isActive ? "bg-primary/10 text-primary shadow-sm" : "",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    "data-[active=true]:bg-primary data-[active=true]:text-primary-foreground",
+                    "active:bg-accent/80",
+                    isActive ? "bg-accent/80 text-accent-foreground" : "",
                   ].join(" ")}
                   data-active={isActive}
                 >

@@ -267,6 +267,59 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Location Section */}
+      <section id="location" className="relative z-10 py-24 bg-muted/10">
+        <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">Location</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Explore our location on the map. Use the directions map to find the best route to our clinic, and view the exact photo pin on the right.
+            </p>
+            <Link
+              href="https://www.google.com/maps?q=Poblacion%2C+Sinacaban%2C+Misamis+Occidental"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex rounded-full border border-border bg-background px-6 py-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Open Map
+            </Link>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border px-6 py-5">
+                <h3 className="text-xl font-semibold text-foreground">Map Directions</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Directions from your current location to our pinned clinic address.</p>
+              </div>
+              <iframe
+                title="C2M Family Clinic & Pharmacy Map Direction"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3948.1693612303407!2d123.84010568979909!3d8.285937715533276!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x325501005ec34a43%3A0x3f9247a9eba5c855!2sC2M%20Family%20Clinic%20%26%20Pharmacy!5e0!3m2!1sen!2sph!4v1786025975089!5m2!1sen!2sph"
+                className="h-96 w-full border-0"
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border px-6 py-5">
+                <h3 className="text-xl font-semibold text-foreground">Location</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Exact clinic location pinned on the map.</p>
+              </div>
+              <iframe
+                title="Poblacion, Sinacaban, Misamis Occidental Map"
+                src="https://www.google.com/maps/embed?pb=!4v1786025510623!6m8!1m7!1swmb7Op20cdqbM4sp1wKJag!2m2!1d8.28560839388068!2d123.8428480634417!3f40.26276063175551!4f-8.601137078695459!5f0.7820865974627469"
+                className="h-96 w-full border-0"
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+                style={{ border: 0 }}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Contact Section */}
       <section id="contact" className="relative z-10 py-24">
         <div className="container mx-auto px-4 lg:px-8 max-w-4xl text-center">
