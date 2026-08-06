@@ -16,6 +16,8 @@ async function getAppointments(): Promise<AppointmentRow[]> {
         select: {
           id: true,
           name: true,
+          email: true,
+          avatar: true,
         },
       },
       doctor: {
@@ -54,6 +56,8 @@ async function getAppointments(): Promise<AppointmentRow[]> {
       id: String(appointment.appointment_id),
       patientId: appointment.user_id,
       patientName,
+      patientEmail: appointment.user?.email ?? "",
+      patientAvatar: appointment.user?.avatar ?? "",
       doctorName,
       date,
       time,

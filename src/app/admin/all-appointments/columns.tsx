@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MoreHorizontal } from "lucide-react"
 import {
   DropdownMenu,
@@ -15,20 +16,46 @@ export type AppointmentRow = {
   id: string
   patientId: string
   patientName: string
+  patientEmail: string
+  patientAvatar: string
   doctorName: string
   date: string
   time: string
   status: string
 }
 
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("")
+
 export const columns: ColumnDef<AppointmentRow>[] = [
   {
     accessorKey: "patientName",
     header: "Patient",
     cell: ({ row }) => {
-      const id = row.original.patientId
-      const name = row.getValue("patientName")
-      return <Link href={`/admin/patients/${id}`} className="text-primary hover:underline">{String(name)}</Link>
+      const appointmentId = row.original.id
+      const name = String(row.getValue("patientName") ?? "Unknown Patient")
+      const email = row.original.patientEmail
+      const avatar = row.original.patientAvatar
+
+      return (
+        <Link
+          href={`/admin/all-appointments/${appointmentId}`}
+          className="group flex items-center gap-3 rounded-md px-2 py-1 text-primary transition-colors hover:bg-accent/50 hover:text-primary"
+        >
+          <Avatar size="sm" className="shrink-0">
+            {avatar ? <AvatarImage src={avatar} alt={name} /> : <AvatarFallback>{getInitials(name)}</AvatarFallback>}
+          </Avatar>
+          <div className="min-w-0">
+            <div className="font-medium text-foreground transition-colors group-hover:text-primary">{name}</div>
+            {email ? <div className="truncate text-xs text-muted-foreground transition-colors group-hover:text-primary/80">{email}</div> : null}
+          </div>
+        </Link>
+      )
     },
   },
   {
