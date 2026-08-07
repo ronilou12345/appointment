@@ -191,7 +191,9 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
           </div>
 
           <DrawerFooter>
-            <DrawerClose render={<Button variant="outline">Close</Button>} />
+            <DrawerClose asChild>
+              <Button variant="outline">Close</Button>
+            </DrawerClose>
             <Button onClick={handleSubmitCancel}>Submit</Button>
           </DrawerFooter>
         </DrawerContent>
