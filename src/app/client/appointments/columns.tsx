@@ -158,7 +158,9 @@ function AppointmentActionsCell({ appointment }: { appointment: ClientAppointmen
           </div>
 
           <DrawerFooter>
-            <DrawerClose render={<Button variant="outline">Cancel</Button>} />
+            <DrawerClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DrawerClose>
             <Button onClick={handleRescheduleSubmit}>Confirm reschedule</Button>
           </DrawerFooter>
         </DrawerContent>
