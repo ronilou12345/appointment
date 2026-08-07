@@ -66,7 +66,7 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
           <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
             <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-900">
-              <Image src="/logo.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-cover" />
+              <Image src="/logo1.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-cover" />
             </div>
             <span className="text-xl font-bold tracking-tight text-foreground dark:text-white">C2M Family Clinic & Pharmacy</span>
           </Link>

@@ -150,3 +150,58 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status })
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const user = await getSession()
+
+    if (!user?.id) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
+    const appointmentId = Number(body.appointmentId)
+    const action = String(body.action || "").trim()
+    const allowedActions = ["Confirm", "Complete"]
+
+    if (!appointmentId || !allowedActions.includes(action)) {
+      return NextResponse.json({ success: false, error: "Invalid appointment action" }, { status: 400 })
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        appointment_id: appointmentId,
+        doctor: { user_id: user.id },
+      },
+      select: {
+        appointment_id: true,
+        appointment_status: true,
+      },
+    })
+
+    if (!appointment) {
+      return NextResponse.json({ success: false, error: "Appointment not found" }, { status: 404 })
+    }
+
+    const normalizedStatus = String(appointment.appointment_status || "Pending").trim()
+    const targetStatus = action === "Confirm" ? "Confirmed" : "Completed"
+
+    if (normalizedStatus.toLowerCase() === "cancelled") {
+      return NextResponse.json({ success: false, error: "Cannot update a cancelled appointment" }, { status: 400 })
+    }
+
+    if (normalizedStatus === targetStatus) {
+      return NextResponse.json({ success: true, status: normalizedStatus })
+    }
+
+    const updatedAppointment = await prisma.appointment.update({
+      where: { appointment_id: appointmentId },
+      data: { appointment_status: targetStatus },
+    })
+
+    return NextResponse.json({ success: true, status: updatedAppointment.appointment_status })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
+  }
+}

@@ -78,7 +78,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-8 shadow-sm">
+      <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-8 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between mb-6">
           <div className="flex items-center gap-4">
             <Avatar size="lg">
@@ -94,53 +94,83 @@ export default async function AppointmentDetailPage({ params }: Props) {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div>
-            <p className="text-sm text-muted-foreground">Doctor</p>
-            <p className="font-medium">{doctorName}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Specialty</p>
-            <p className="font-medium">{String(appointment.specialty || "General Consultation")}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Date</p>
-            <p className="font-medium">{String(appointment.date || "")}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Time</p>
-            <p className="font-medium">{String(appointment.time || "")}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Status</p>
-            <p className="font-medium">{String(appointment.status || "Pending")}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Relationship</p>
-            <p className="font-medium">{String(appointment.relationship || "N/A")}</p>
-          </div>
-        </div>
+        <div className="grid gap-8 lg:grid-cols-[1.4fr_0.9fr]">
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <p className="text-sm text-muted-foreground">Doctor</p>
+                <p className="font-medium">{doctorName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Appointment Type</p>
+                <p className="font-medium">{String(appointment.specialty || "General Consultation")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Date</p>
+                <p className="font-medium">{String(appointment.date || "")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Time</p>
+                <p className="font-medium">{String(appointment.time || "")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <p className="font-medium">{String(appointment.status || "Pending")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Relationship</p>
+                <p className="font-medium">{String(appointment.relationship || "N/A")}</p>
+              </div>
+            </div>
 
-        <div className="mt-8 divide-y divide-border rounded-3xl bg-background text-sm text-foreground">
-          <div className="px-0 py-4">
-            <h2 className="text-2xl font-semibold">Appointment details</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Summary of the visit and doctor recommendations.</p>
+            <div className="divide-y divide-border rounded-3xl bg-background text-sm text-foreground shadow-sm">
+              <div className="px-0 py-4">
+                <h2 className="text-2xl font-semibold">Appointment details</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Clinic Visit Summary</p>
+              </div>
+
+              <div className="px-0 py-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Reason for visit</p>
+                <p className="mt-3 text-base font-medium">{String(appointment.reason_for_visit || "N/A")}</p>
+              </div>
+
+              <div className="px-0 py-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Symptoms</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.symptoms || "No symptoms recorded.")}</p>
+              </div>
+
+              <div className="px-0 py-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Additional notes</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.additional_notes || "No additional notes.")}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="px-0 py-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Reason for visit</p>
-            <p className="mt-3 text-base font-medium">{String(appointment.reason_for_visit || "N/A")}</p>
-          </div>
+          <aside className="rounded-3xl border border-border bg-background p-6 text-sm text-foreground shadow-sm">
+            <div>
+              <h2 className="text-2xl font-semibold">Doctor notes & plan</h2>
+              <p className="mt-2 text-sm text-muted-foreground">SOAP summary for the clinician's review and doctor recommendations.</p>
+            </div>
 
-          <div className="px-0 py-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Symptoms</p>
-            <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.symptoms || "No symptoms recorded.")}</p>
-          </div>
-
-          <div className="px-0 py-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Additional notes</p>
-            <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.additional_notes || "No additional notes.")}</p>
-          </div>
+            <div className="mt-6 space-y-6">
+              <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Chief Complaints</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.reason_for_visit || "No subjective details provided.")}</p>
+              </div>
+              <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Physical Examination</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.symptoms || "No objective findings recorded.")}</p>
+              </div>
+              <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Diagnosis</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.status || "Pending")}</p>
+              </div>
+              <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.additional_notes || "No plan provided.")}</p>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>

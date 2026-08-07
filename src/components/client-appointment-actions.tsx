@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ export default function ClientAppointmentActions({ currentDate, currentTime }: C
   const [scheduledTime, setScheduledTime] = useState(currentTime)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [appointmentStatus, setAppointmentStatus] = useState("Upcoming")
+  const [cancelReason, setCancelReason] = useState("")
 
   const handleReschedule = () => {
     setStatusMessage(`Appointment rescheduled to ${scheduledDate} at ${scheduledTime}.`)
@@ -32,9 +34,15 @@ export default function ClientAppointmentActions({ currentDate, currentTime }: C
   }
 
   const handleCancel = () => {
-    setStatusMessage("Your appointment has been canceled. Please contact your doctor if you need a new booking.")
-    setAppointmentStatus("Canceled")
+    if (!cancelReason.trim()) {
+      setStatusMessage("Please provide a reason for canceling the appointment.")
+      return
+    }
+
+    setStatusMessage(`Appointment canceled: ${cancelReason}`)
+    setAppointmentStatus("Cancelled")
     setCancelOpen(false)
+    setCancelReason("")
   }
 
   return (
@@ -105,12 +113,22 @@ export default function ClientAppointmentActions({ currentDate, currentTime }: C
         <DialogContent className="space-y-6">
           <DialogHeader>
             <DialogTitle>Cancel appointment</DialogTitle>
-            <DialogDescription>Confirm cancellation of this appointment.</DialogDescription>
+            <DialogDescription>Provide a reason for the cancellation before confirming.</DialogDescription>
           </DialogHeader>
 
           <div className="rounded-3xl border border-border bg-card p-5 text-sm text-foreground">
             <p className="font-semibold">Are you sure you want to cancel this appointment?</p>
             <p className="mt-2 text-muted-foreground">Once canceled, you can rebook a new visit from the appointment page.</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Reason for cancellation</label>
+            <Textarea
+              value={cancelReason}
+              onChange={(event) => setCancelReason(event.target.value)}
+              placeholder="Enter a brief reason for the cancellation"
+              className="min-h-[120px]"
+            />
           </div>
 
           <DialogFooter>

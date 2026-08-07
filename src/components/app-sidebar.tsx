@@ -173,8 +173,8 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
               <a href="#" title="Empowered Health and Wellness Clinic" className="flex items-center gap-2">
-                <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-900">
-                  <Image src="/logo.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-cover" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-2 dark:bg-slate-900">
+                  <Image src="/logo1.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-contain" />
                 </div>
                 <span className="flex flex-col items-start">
                   <span className="text-sm font-semibold leading-tight">C2M Family Clinic & Pharmacy</span>
