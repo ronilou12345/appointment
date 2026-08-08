@@ -37,6 +37,10 @@ function AppointmentActionsCell({ appointment }: { appointment: ClientAppointmen
   const [cancelReason, setCancelReason] = useState("")
   const [error, setError] = useState("")
 
+  const canManageAppointment = !["confirmed", "completed", "cancelled", "canceled"].includes(
+    (appointment.status ?? "").toLowerCase(),
+  )
+
   const deliveryTimes = [
     {
       value: "asap",
@@ -89,17 +93,29 @@ function AppointmentActionsCell({ appointment }: { appointment: ClientAppointmen
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
+          <Button variant="ghost" className="h-8 w-8 p-0" disabled={!canManageAppointment}>
             <span className="sr-only">Open appointment actions</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setCancelOpen(true)}>
+          <DropdownMenuItem
+            disabled={!canManageAppointment}
+            onSelect={() => {
+              if (!canManageAppointment) return
+              setCancelOpen(true)
+            }}
+          >
             <X className="mr-2 h-4 w-4" />
             Cancel
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setRescheduleOpen(true)}>
+          <DropdownMenuItem
+            disabled={!canManageAppointment}
+            onSelect={() => {
+              if (!canManageAppointment) return
+              setRescheduleOpen(true)
+            }}
+          >
             <CalendarDays className="mr-2 h-4 w-4" />
             Reschedule
           </DropdownMenuItem>
@@ -198,6 +214,24 @@ function AppointmentActionsCell({ appointment }: { appointment: ClientAppointmen
   )
 }
 
+const getStatusClasses = (status: string) => {
+  const normalized = status?.toLowerCase() ?? "upcoming"
+
+  switch (normalized) {
+    case "upcoming":
+      return "bg-sky-100 text-sky-800 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-800/60"
+    case "confirmed":
+      return "bg-blue-100 text-blue-800 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-800/60"
+    case "completed":
+      return "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800/60"
+    case "cancelled":
+    case "canceled":
+      return "bg-rose-100 text-rose-800 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-800/60"
+    default:
+      return "bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:ring-slate-700"
+  }
+}
+
 export const columns: ColumnDef<ClientAppointmentRow>[] = [
   {
     accessorKey: "doctorName",
@@ -240,8 +274,11 @@ export const columns: ColumnDef<ClientAppointmentRow>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = String(row.getValue("status"))
-      const variant = status === "Completed" ? "secondary" : status === "Upcoming" ? "default" : "outline"
-      return <Badge variant={variant}>{status}</Badge>
+      return (
+        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(status)}`}>
+          {status}
+        </span>
+      )
     },
   },
   {

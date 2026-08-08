@@ -14,7 +14,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   const role = normalizeUserRole(session.role)
-  const user = getUserByRole(session.role)
+  const user = {
+    name: session.name,
+    email: session.email,
+    role,
+    avatar: "/avatars/shadcn.jpg",
+  }
 
   return (
     <SidebarProvider

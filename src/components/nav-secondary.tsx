@@ -30,6 +30,7 @@ export function NavSecondary({
         <SidebarMenu>
           {items.map((item) => {
             const isActive = pathname === item.url || pathname.startsWith(`${item.url}/`)
+            const isAddBmi = item.title === "Add BMI"
 
             return (
               <SidebarMenuItem key={item.title}>
@@ -40,9 +41,9 @@ export function NavSecondary({
                     "hover:bg-accent hover:text-accent-foreground",
                     "data-[active=true]:bg-primary data-[active=true]:text-primary-foreground",
                     "active:bg-accent/80",
-                    isActive ? "bg-accent/80 text-accent-foreground" : "",
+                    isActive && !isAddBmi ? "bg-accent/80 text-accent-foreground" : "",
                   ].join(" ")}
-                  data-active={isActive}
+                  data-active={isAddBmi ? false : isActive}
                 >
                   <Link href={item.url}>
                     {item.icon}

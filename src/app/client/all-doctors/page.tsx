@@ -29,7 +29,7 @@ export default async function ClientAllDoctorsPage() {
     id: user.id,
     name: user.name,
     email: user.email,
-    designations: user.designations ? JSON.parse(user.designations).join(", ") : "",
+    specialties: user.designations ? JSON.parse(user.designations).join(", ") : "",
     status: user.status ?? "",
     avatar: user.avatar ?? null,
   }))

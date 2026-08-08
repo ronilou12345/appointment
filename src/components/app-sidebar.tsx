@@ -163,7 +163,11 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       url: user?.role === "DOCTOR" ? "/doctor/settings" : user?.role === "CLIENT" ? "/client/settings" : "/admin/settings",
       icon: <Settings2Icon />,
     },
-    { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
+    {
+      title: user?.role === "CLIENT" ? "Add BMI" : "Get Help",
+      url: user?.role === "CLIENT" ? "/client/add-bmi" : "#",
+      icon: user?.role === "CLIENT" ? <ChartBarIcon /> : <CircleHelpIcon />,
+    },
   ]
 
   return (

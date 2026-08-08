@@ -1,5 +1,4 @@
-"use client"
-
+import prisma from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -9,9 +8,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { TrendingUpIcon, TrendingDownIcon } from "lucide-react"
+import { TrendingUpIcon } from "lucide-react"
 
-export function SectionCards() {
+export async function SectionCards() {
+  const today = new Date()
+  const startOfDay = new Date(today)
+  startOfDay.setHours(0, 0, 0, 0)
+
+  const endOfDay = new Date(today)
+  endOfDay.setHours(23, 59, 59, 999)
+
+  const activeSessions = await prisma.session_tbl.count({
+    where: {
+      session_date: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+  })
+
   return (
     <div className="grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-5 dark:*:data-[slot=card]:bg-card">
       <Card className="@container/card">
@@ -110,7 +125,7 @@ export function SectionCards() {
         <CardHeader>
           <CardDescription>Active Sessions</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            47
+            {activeSessions.toLocaleString()}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
