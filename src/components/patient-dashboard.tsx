@@ -112,23 +112,29 @@ export function PatientDashboard({ user }: PatientDashboardProps) {
                 <AreaChart data={healthData}>
                   <defs>
                     <linearGradient id="colorBpm" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.24} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis hide />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "12px",
+                      border: "1px solid hsl(var(--border))",
+                      backgroundColor: "hsl(var(--background))",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                      color: "hsl(var(--foreground))",
+                    }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="bpm" 
-                    stroke="var(--primary)" 
+                  <Area
+                    type="monotone"
+                    dataKey="bpm"
+                    stroke="#2563eb"
                     strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorBpm)" 
+                    fillOpacity={1}
+                    fill="url(#colorBpm)"
                   />
                 </AreaChart>
               </ResponsiveContainer>

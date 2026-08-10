@@ -59,7 +59,7 @@ export default function DoctorAppointmentEditor({ notes, prescription, followUp 
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Prescriptions</p>
-                <p className="mt-1 text-base font-semibold">Current medication plan</p>
+                <p className="mt-1 text-base font-semibold">--</p>
               </div>
             </div>
 

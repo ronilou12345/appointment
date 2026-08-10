@@ -37,40 +37,102 @@ async function getDoctorIdFromRequest(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const mine = request.nextUrl.searchParams.get("mine") === "true"
+    const doctorIdParam = request.nextUrl.searchParams.get("doctorId")
+    const requestedDoctorId = parsePositiveInteger(doctorIdParam)
+
     let rows: any[] = []
 
-    if (mine) {
-      const doctorId = await getDoctorIdFromRequest(request)
-      if (!doctorId) {
-        return NextResponse.json({ success: true, sessions: [] })
+    const readStatusAwareRows = async () => {
+      if (mine || requestedDoctorId) {
+        const doctorId = requestedDoctorId ?? (await getDoctorIdFromRequest(request))
+
+        if (!doctorId) {
+          return []
+        }
+
+        return await prisma.$queryRawUnsafe<any[]>(`
+          SELECT
+            s.session_id AS id,
+            s.doctor_id,
+            to_char(s.session_date, 'YYYY-MM-DD') AS date,
+            to_char(s.start_time, 'HH24:MI') AS "startTime",
+            to_char(s.end_time, 'HH24:MI') AS "endTime",
+            s.slots,
+            s.appointment_type AS appointmentType,
+            s.status AS status,
+            COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
+          FROM "session_tbl" s
+          LEFT JOIN "appointment" a ON a.session_id = s.session_id
+          WHERE s.doctor_id = $1
+          GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type, s.status
+          ORDER BY s.session_date ASC, s.start_time ASC
+        `, doctorId)
       }
 
-      rows = await prisma.$queryRawUnsafe<any[]>(`
+      return await prisma.$queryRawUnsafe<any[]>(`
         SELECT
-          session_id AS id,
-          doctor_id,
-          to_char(session_date, 'YYYY-MM-DD') AS date,
-          to_char(start_time, 'HH24:MI') AS "startTime",
-          to_char(end_time, 'HH24:MI') AS "endTime",
-          slots,
-          appointment_type AS appointmentType
-        FROM "session_tbl"
-        WHERE doctor_id = $1
-        ORDER BY session_date ASC, start_time ASC
-      `, doctorId)
-    } else {
-      rows = await prisma.$queryRawUnsafe<any[]>(`
-        SELECT
-          session_id AS id,
-          doctor_id,
-          to_char(session_date, 'YYYY-MM-DD') AS date,
-          to_char(start_time, 'HH24:MI') AS "startTime",
-          to_char(end_time, 'HH24:MI') AS "endTime",
-          slots,
-          appointment_type AS appointmentType
-        FROM "session_tbl"
-        ORDER BY session_date ASC, start_time ASC
+          s.session_id AS id,
+          s.doctor_id,
+          to_char(s.session_date, 'YYYY-MM-DD') AS date,
+          to_char(s.start_time, 'HH24:MI') AS "startTime",
+          to_char(s.end_time, 'HH24:MI') AS "endTime",
+          s.slots,
+          s.appointment_type AS appointmentType,
+          s.status AS status,
+          COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
+        FROM "session_tbl" s
+        LEFT JOIN "appointment" a ON a.session_id = s.session_id
+        GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type, s.status
+        ORDER BY s.session_date ASC, s.start_time ASC
       `)
+    }
+
+    try {
+      rows = await readStatusAwareRows()
+    } catch {
+      const readLegacyRows = async () => {
+        if (mine || requestedDoctorId) {
+          const doctorId = requestedDoctorId ?? (await getDoctorIdFromRequest(request))
+          if (!doctorId) {
+            return []
+          }
+
+          return await prisma.$queryRawUnsafe<any[]>(`
+            SELECT
+              s.session_id AS id,
+              s.doctor_id,
+              to_char(s.session_date, 'YYYY-MM-DD') AS date,
+              to_char(s.start_time, 'HH24:MI') AS "startTime",
+              to_char(s.end_time, 'HH24:MI') AS "endTime",
+              s.slots,
+              s.appointment_type AS appointmentType,
+              COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
+            FROM "session_tbl" s
+            LEFT JOIN "appointment" a ON a.session_id = s.session_id
+            WHERE s.doctor_id = $1
+            GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type
+            ORDER BY s.session_date ASC, s.start_time ASC
+          `, doctorId)
+        }
+
+        return await prisma.$queryRawUnsafe<any[]>(`
+          SELECT
+            s.session_id AS id,
+            s.doctor_id,
+            to_char(s.session_date, 'YYYY-MM-DD') AS date,
+            to_char(s.start_time, 'HH24:MI') AS "startTime",
+            to_char(s.end_time, 'HH24:MI') AS "endTime",
+            s.slots,
+            s.appointment_type AS appointmentType,
+            COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
+          FROM "session_tbl" s
+          LEFT JOIN "appointment" a ON a.session_id = s.session_id
+          GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type
+          ORDER BY s.session_date ASC, s.start_time ASC
+        `)
+      }
+
+      rows = await readLegacyRows()
     }
 
     const normalizeDateValue = (value: unknown) => {
@@ -100,17 +162,28 @@ export async function GET(request: NextRequest) {
       return String(value).slice(0, 5)
     }
 
-    const sessions = rows.map((row) => ({
-      id: String(row.id),
-      doctorId: String(row.doctor_id),
-      date: normalizeDateValue(row.date),
-      startTime: normalizeTimeValue(row.starttime ?? row.startTime),
-      endTime: normalizeTimeValue(row.endtime ?? row.endTime),
-      duration: "",
-      slots: Number(row.slots ?? 0),
-      status: "Active",
-      appointmentTypes: row.appointmenttype ? String(row.appointmenttype).split(",").map((s) => s.trim()).filter(Boolean) : [],
-    }))
+    const sessions = rows.map((row) => {
+      const capacity = Number(row.slots ?? 0)
+      const bookedCount = Number(row.booked_count ?? 0)
+      const remaining = Math.max(capacity - bookedCount, 0)
+
+      const requestedStatus = typeof row.status === "string" ? row.status.trim() : ""
+      const normalizedStatus = ["Active", "Inactive", "Cancelled"].includes(requestedStatus)
+        ? requestedStatus
+        : "Active"
+
+      return {
+        id: String(row.id),
+        doctorId: String(row.doctor_id),
+        date: normalizeDateValue(row.date),
+        startTime: normalizeTimeValue(row.starttime ?? row.startTime),
+        endTime: normalizeTimeValue(row.endtime ?? row.endTime),
+        duration: "",
+        slots: remaining,
+        status: normalizedStatus,
+        appointmentTypes: row.appointmenttype || row.appointmentType ? String(row.appointmenttype ?? row.appointmentType).split(",").map((s) => s.trim()).filter(Boolean) : [],
+      }
+    })
 
     return NextResponse.json({ success: true, sessions })
   } catch (error) {
@@ -126,6 +199,45 @@ type SessionPayload = {
   slots: number
   appointmentType?: string
   appointmentTypes?: string[]
+  status?: string
+}
+
+function timeStringToMinutes(value: unknown): number {
+  const text = String(value ?? "").trim()
+  if (!/^\d{1,2}:\d{2}$/.test(text)) return NaN
+
+  const [hourText, minuteText] = text.split(":")
+  const hour = Number(hourText)
+  const minute = Number(minuteText)
+
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return NaN
+  }
+
+  return hour * 60 + minute
+}
+
+function timeRangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+  const startAValue = timeStringToMinutes(startA)
+  const endAValue = timeStringToMinutes(endA)
+  const startBValue = timeStringToMinutes(startB)
+  const endBValue = timeStringToMinutes(endB)
+
+  if (![startAValue, endAValue, startBValue, endBValue].every((value) => Number.isFinite(value))) {
+    return false
+  }
+
+  if (endAValue <= startAValue || endBValue <= startBValue) {
+    return false
+  }
+
+  return startAValue < endBValue && startBValue < endAValue
+}
+
+function normalizeStatusValue(value: unknown): string {
+  const requestedStatus = typeof value === "string" ? value.trim() : "Active"
+  const whitelistedStatus = ["Active", "Inactive", "Cancelled"].includes(requestedStatus) ? requestedStatus : "Active"
+  return whitelistedStatus
 }
 
 export async function POST(request: NextRequest) {
@@ -149,16 +261,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Missing required session fields or invalid slot count" }, { status: 400 })
       }
 
-      const existingSession = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT 1 FROM "session_tbl" WHERE "session_date" = $1 AND "start_time" = $2 AND "doctor_id" = $3 LIMIT 1`,
-        session.date,
-        session.startTime,
+      const existingSessions = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT "start_time", "end_time" FROM "session_tbl" WHERE "doctor_id" = $1 AND "session_date" = $2`,
         doctorId,
+        session.date,
       )
 
-      if (existingSession?.length) {
+      const overlap = existingSessions.some((row) => {
+        const existingStart = String(row.start_time ?? row.startTime ?? "")
+        const existingEnd = String(row.end_time ?? row.endTime ?? "")
+        return timeRangesOverlap(session.startTime, session.endTime, existingStart, existingEnd)
+      })
+
+      if (overlap) {
         return NextResponse.json(
-          { success: false, error: "A session with the same date and time already exists for this doctor." },
+          { success: false, error: "You cannot create a session in the same time range on the selected date." },
           { status: 400 },
         )
       }
@@ -168,16 +285,30 @@ export async function POST(request: NextRequest) {
         : (session.appointmentType ? [String(session.appointmentType).trim().slice(0, 50)] : ["General Consultation"])
 
       const appointmentType = types.join(", ").slice(0, 50)
+      const requestedStatus = normalizeStatusValue(session.status)
 
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "session_tbl" ("doctor_id", "session_date", "start_time", "end_time", "slots", "appointment_type") VALUES ($1, $2, $3, $4, $5, $6)`,
-        doctorId,
-        session.date,
-        session.startTime,
-        session.endTime,
-        slotCount,
-        appointmentType,
-      )
+      try {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "session_tbl" ("doctor_id", "session_date", "start_time", "end_time", "slots", "appointment_type", "status") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          doctorId,
+          session.date,
+          session.startTime,
+          session.endTime,
+          slotCount,
+          appointmentType,
+          requestedStatus,
+        )
+      } catch (err) {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "session_tbl" ("doctor_id", "session_date", "start_time", "end_time", "slots", "appointment_type") VALUES ($1, $2, $3, $4, $5, $6)`,
+          doctorId,
+          session.date,
+          session.startTime,
+          session.endTime,
+          slotCount,
+          appointmentType,
+        )
+      }
     }
 
     return NextResponse.json({ success: true })
@@ -209,24 +340,42 @@ export async function PUT(request: NextRequest) {
     if (!slots) {
       return NextResponse.json({ success: false, error: "Slots must be a whole number greater than zero" }, { status: 400 })
     }
+
+    const typedSessionName = body?.sessionName || body?.appointmentType || (Array.isArray(body?.appointmentTypes) ? body.appointmentTypes[0] : "")
     const types = Array.isArray(body?.appointmentTypes)
       ? body.appointmentTypes.map((t: any) => String(t).trim().slice(0, 50)).filter(Boolean)
-      : (body?.appointmentType ? [String(body.appointmentType).trim().slice(0, 50)] : [])
+      : (typedSessionName ? [String(typedSessionName).trim().slice(0, 50)] : [])
 
     const appointmentType = types.length ? types.join(', ').slice(0, 50) : null
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE "session_tbl" SET "session_date" = $1, "start_time" = $2, "end_time" = $3, "slots" = $4, "appointment_type" = $5, "updated_at" = now() WHERE session_id = $6 AND doctor_id = $7`,
-      date,
-      startTime,
-      endTime,
-      slots,
-      appointmentType,
-      id,
-      doctorId,
-    )
+    const requestedStatus = normalizeStatusValue(body?.status)
 
-    return NextResponse.json({ success: true })
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE "session_tbl" SET "session_date" = $1, "start_time" = $2, "end_time" = $3, "slots" = $4, "appointment_type" = $5, "status" = $6, "updated_at" = now() WHERE session_id = $7 AND doctor_id = $8`,
+        date,
+        startTime,
+        endTime,
+        slots,
+        appointmentType,
+        requestedStatus,
+        id,
+        doctorId,
+      )
+    } catch (err) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE "session_tbl" SET "session_date" = $1, "start_time" = $2, "end_time" = $3, "slots" = $4, "appointment_type" = $5, "updated_at" = now() WHERE session_id = $6 AND doctor_id = $7`,
+        date,
+        startTime,
+        endTime,
+        slots,
+        appointmentType,
+        id,
+        doctorId,
+      )
+    }
+
+    return NextResponse.json({ success: true, status: requestedStatus })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ success: false, error: message }, { status: 500 })

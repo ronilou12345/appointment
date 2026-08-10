@@ -93,6 +93,7 @@ model session_tbl {
   end_time         DateTime      @db.Time(6)
   slots            Int
   appointment_type String        @db.VarChar(50)
+  status           String        @default("Active") @db.VarChar(30)
   created_at       DateTime?     @default(now()) @db.Timestamp(6)
   updated_at       DateTime?     @default(now()) @db.Timestamp(6)
   appointment      appointment[]

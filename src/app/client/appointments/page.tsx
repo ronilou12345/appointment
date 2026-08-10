@@ -2,13 +2,7 @@ import { DataTable } from "@/components/data-table"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 import { columns, type ClientAppointmentRow } from "./columns"
-
-const formatAppointmentStatus = (value: string | null) => {
-  const normalized = (value ?? "Pending").toLowerCase()
-  if (normalized.includes("complete")) return "Completed"
-  if (normalized.includes("cancel") || normalized.includes("reject")) return "Cancelled"
-  return "Upcoming"
-}
+import { formatAppointmentStatus, formatAppointmentTime } from "./status"
 
 export default async function Page() {
   const user = await getSession()
@@ -50,7 +44,7 @@ export default async function Page() {
     doctorEmail: String(row.doctor_email || ""),
     specialty: String(row.specialty || "General Consultation"),
     date: String(row.date || ""),
-    time: String(row.time || ""),
+    time: formatAppointmentTime(String(row.time || "")),
     status: formatAppointmentStatus(String(row.status || "Pending")),
   }))
 

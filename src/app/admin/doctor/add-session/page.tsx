@@ -40,6 +40,43 @@ const sanitizeSlotCount = (value: unknown) => {
   return parsed
 }
 
+const normalizeSessionStatus = (value: unknown) => {
+  const requested = typeof value === "string" ? value.trim() : "Active"
+  return ["Active", "Inactive", "Cancelled"].includes(requested) ? requested : "Active"
+}
+
+const timeStringToMinutes = (value: unknown) => {
+  const text = String(value ?? "").trim()
+  if (!/^\d{1,2}:\d{2}$/.test(text)) return NaN
+
+  const [hourText, minuteText] = text.split(":")
+  const hour = Number(hourText)
+  const minute = Number(minuteText)
+
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return NaN
+  }
+
+  return hour * 60 + minute
+}
+
+const timeRangesOverlap = (startA: string, endA: string, startB: string, endB: string) => {
+  const startAValue = timeStringToMinutes(startA)
+  const endAValue = timeStringToMinutes(endA)
+  const startBValue = timeStringToMinutes(startB)
+  const endBValue = timeStringToMinutes(endB)
+
+  if (![startAValue, endAValue, startBValue, endBValue].every((value) => Number.isFinite(value))) {
+    return false
+  }
+
+  if (endAValue <= startAValue || endBValue <= startBValue) {
+    return false
+  }
+
+  return startAValue < endBValue && startBValue < endAValue
+}
+
 export default function AddSessionPage() {
   const [data, setData] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,22 +98,24 @@ export default function AddSessionPage() {
   const [errorMessage, setErrorMessage] = useState<string>("")
   const [calendarOpenFor, setCalendarOpenFor] = useState<string | null>(null)
 
-  useEffect(() => {
-    const loadSessions = async () => {
-      try {
-        const response = await fetch("/api/sessions?mine=true")
-        const result = await response.json()
-        if (response.ok && result.success) {
-          setData(result.sessions ?? [])
-        }
-      } catch {
+  const loadSessions = async () => {
+    try {
+      const response = await fetch("/api/sessions?mine=true")
+      const result = await response.json()
+      if (response.ok && result.success) {
+        setData(result.sessions ?? [])
+      } else {
         setData([])
-      } finally {
-        setLoading(false)
       }
+    } catch {
+      setData([])
+    } finally {
+      setLoading(false)
     }
+  }
 
-    loadSessions()
+  useEffect(() => {
+    void loadSessions()
   }, [])
 
   const isDateSelectable = (date: Date) => {
@@ -170,6 +209,12 @@ export default function AddSessionPage() {
     setOpen(nextOpen)
   }
 
+  const handleCancelAddDialog = () => {
+    resetDrafts()
+    setErrorMessage("")
+    setOpen(false)
+  }
+
   // Edit sheet state
   const [editOpen, setEditOpen] = useState(false)
   const [editSession, setEditSession] = useState<SessionRow | null>(null)
@@ -215,6 +260,8 @@ export default function AddSessionPage() {
       if (!resp.ok || !result.success) {
         throw new Error(result.error || 'Failed to delete')
       }
+
+      await loadSessions()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to delete session')
       // rollback: refetch sessions
@@ -232,12 +279,52 @@ export default function AddSessionPage() {
       const hasStartTime = Boolean(draft.startTime?.trim())
       const hasEndTime = Boolean(draft.endTime?.trim())
       const hasSlots = sanitizeSlotCount(draft.slots) > 0
+      const hasStatus = ["Active", "Inactive", "Cancelled"].includes(String(draft.status ?? "").trim())
+      const hasAppointmentType = Array.isArray(draft.appointmentTypes) && draft.appointmentTypes.some((item) => Boolean(String(item).trim()))
 
-      return !hasDate || !hasStartTime || !hasEndTime || !hasSlots
+      return !hasDate || !hasStartTime || !hasEndTime || !hasSlots || !hasStatus || !hasAppointmentType
     })
 
     if (incompleteDrafts.length > 0) {
-      setErrorMessage("Please complete all session fields for each entry before adding. Date, start time, end time, and slot are required.")
+      setErrorMessage("Please complete all session fields for each entry before adding. Select date, start time, end time, status, slots, and appointment type before confirming.")
+      return
+    }
+
+    const seenDraftRanges = new Set<string>()
+    const overlappingDrafts = drafts.filter((draft, idx) => {
+      if (!draft.date || !draft.startTime || !draft.endTime) return false
+
+      const draftKey = `${draft.date}-${draft.startTime}-${draft.endTime}`
+      if (seenDraftRanges.has(draftKey)) return false
+      seenDraftRanges.add(draftKey)
+
+      for (const other of drafts.slice(idx + 1)) {
+        if (!other.date || !other.startTime || !other.endTime) continue
+        if (other.date !== draft.date) continue
+        if (timeRangesOverlap(draft.startTime, draft.endTime, other.startTime, other.endTime)) {
+          return true
+        }
+      }
+
+      return false
+    })
+
+    if (overlappingDrafts.length > 0) {
+      setErrorMessage("You cannot create a session on the same date when the time range overlaps another selected session.")
+      return
+    }
+
+    const timeConflicts = drafts.filter((draft) => {
+      if (!draft.date || !draft.startTime || !draft.endTime) return false
+
+      return data.some((session) => {
+        if (session.date !== draft.date) return false
+        return timeRangesOverlap(draft.startTime, draft.endTime, session.startTime, session.endTime)
+      })
+    })
+
+    if (timeConflicts.length > 0) {
+      setErrorMessage("This time range is already used for the selected date. You cannot create a session in the same time range.")
       return
     }
 
@@ -281,6 +368,7 @@ export default function AddSessionPage() {
             startTime: draft.startTime,
             endTime: draft.endTime,
             slots: sanitizeSlotCount(draft.slots),
+            status: normalizeSessionStatus(draft.status),
             appointmentTypes: (draft.appointmentTypes ?? []).length ? draft.appointmentTypes : ["General Consultation"],
           })),
         }),
@@ -291,9 +379,9 @@ export default function AddSessionPage() {
         throw new Error(result.error || "Failed to save sessions")
       }
 
-      setData((prev) => [...nextRows, ...prev])
       setOpen(false)
       resetDrafts()
+      await loadSessions()
       toast.success("Session successfully added")
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to save sessions")
@@ -302,6 +390,10 @@ export default function AddSessionPage() {
 
   const handleEditSave = async () => {
     if (!editSession) return
+
+    const normalizedStatus = normalizeSessionStatus(editSession.status)
+    const sessionName = String((editSession.appointmentTypes ?? [])[0] ?? "").trim() || "General Consultation"
+
     try {
       const response = await fetch('/api/sessions', {
         method: 'PUT',
@@ -312,15 +404,28 @@ export default function AddSessionPage() {
           startTime: editSession.startTime,
           endTime: editSession.endTime,
           slots: sanitizeSlotCount(editSession.slots),
-          appointmentType: (editSession.appointmentTypes ?? [])[0] || undefined,
+          appointmentType: sessionName,
+          appointmentTypes: editSession.appointmentTypes ?? [sessionName],
+          status: normalizedStatus,
         }),
       })
       const result = await response.json()
       if (!response.ok || !result.success) throw new Error(result.error || 'Failed to update')
 
-      setData((d) => d.map((s) => (s.id === editSession.id ? editSession : s)))
+      setData((current) => current.map((row) => row.id === editSession.id ? {
+        ...row,
+        date: editSession.date,
+        startTime: editSession.startTime,
+        endTime: editSession.endTime,
+        slots: sanitizeSlotCount(editSession.slots),
+        status: normalizedStatus,
+        appointmentTypes: editSession.appointmentTypes ?? [],
+      } : row))
+
+      await loadSessions()
       setEditOpen(false)
       setEditSession(null)
+      toast.success("Session successfully updated")
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to update session')
     }
@@ -354,85 +459,104 @@ export default function AddSessionPage() {
           <div className="space-y-4 max-h-[60vh] overflow-auto py-2">
             {errorMessage ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{errorMessage}</div> : null}
             {drafts.map((d) => (
-              <div key={d.tempId} className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end p-3 rounded-lg border border-border">
-                <div className="md:col-span-2">
-                  <label className="text-sm text-muted-foreground">Date</label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      readOnly
-                      value={d.date}
-                      placeholder="yyyy/mm/dd"
-                      onClick={() => setCalendarOpenFor(d.tempId)}
-                      className="w-full rounded-lg border px-2 py-1"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Start</label>
-                  <input type="time" value={d.startTime} onChange={(e) => updateDraft(d.tempId, "startTime", e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1" />
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">End</label>
-                  <input type="time" value={d.endTime} onChange={(e) => updateDraft(d.tempId, "endTime", e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1" />
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Slots</label>
-                  <input type="number" min={1} value={d.slots} onChange={(e) => updateDraft(d.tempId, "slots", Number(e.target.value))} className="mt-1 w-full rounded-lg border px-2 py-1" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm text-muted-foreground">Appointment Types</label>
-                  <div className="mt-1 space-y-2 rounded-lg border px-2 py-2">
-                    {appointmentTypeOptions.map((option) => (
-                      <label key={option} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={(d.appointmentTypes ?? []).includes(option)}
-                          onChange={() => toggleAppointmentType(d.tempId, option)}
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
-                    {(d.appointmentTypes ?? []).includes("Others___") && (
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={getOtherTextValue(d.tempId)}
-                            onChange={(e) => updateOtherAppointmentType(d.tempId, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault()
-                                addCustomAppointmentType(d.tempId, e.currentTarget.value)
-                              }
-                            }}
-                            placeholder="Enter other appointment type"
-                            className="mt-1 w-full rounded-lg border px-2 py-1 text-sm"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              addCustomAppointmentType(d.tempId, getOtherTextValue(d.tempId))
-                              setCustomValues((prev) => ({ ...prev, [d.tempId]: "" }))
-                            }}
-                          >
-                            Add
-                          </Button>
-                        </div>
-                        {(d.appointmentTypes ?? []).filter((item) => item !== "__custom__" && item !== "Others___").map((item) => (
-                          <div key={item} className="flex items-center gap-2 text-sm">
-                            <input type="checkbox" checked readOnly />
-                            <span>{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2">
+              <div key={d.tempId} className="rounded-lg border border-border p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Session</span>
                   <button onClick={() => removeDraft(d.tempId)} className="h-9 px-3 rounded-md bg-red-50 text-red-600 border border-red-100">Remove</button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">Select Date</label>
+                    <div className="mt-1">
+                      <input
+                        type="text"
+                        readOnly
+                        value={d.date}
+                        placeholder="Select Date"
+                        onClick={() => setCalendarOpenFor(d.tempId)}
+                        className="w-full rounded-lg border px-2 py-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-sm text-muted-foreground">Select Start Time</label>
+                      <input type="time" value={d.startTime} onChange={(e) => updateDraft(d.tempId, "startTime", e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Select End Time</label>
+                      <input type="time" value={d.endTime} onChange={(e) => updateDraft(d.tempId, "endTime", e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-sm text-muted-foreground">Status</label>
+                      <select value={d.status || "Active"} onChange={(e) => updateDraft(d.tempId, "status", e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Slots</label>
+                      <input type="number" min={1} value={d.slots} onChange={(e) => updateDraft(d.tempId, "slots", Number(e.target.value))} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-muted-foreground">Appointment Types</label>
+                    <div className="mt-1 space-y-2 rounded-lg border px-2 py-2">
+                      {appointmentTypeOptions.map((option) => (
+                        <label key={option} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={(d.appointmentTypes ?? []).includes(option)}
+                            onChange={() => toggleAppointmentType(d.tempId, option)}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      ))}
+                      {(d.appointmentTypes ?? []).includes("Others___") && (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={getOtherTextValue(d.tempId)}
+                              onChange={(e) => updateOtherAppointmentType(d.tempId, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault()
+                                  addCustomAppointmentType(d.tempId, e.currentTarget.value)
+                                }
+                              }}
+                              placeholder="Enter other appointment type"
+                              className="mt-1 w-full rounded-lg border px-2 py-1 text-sm"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                addCustomAppointmentType(d.tempId, getOtherTextValue(d.tempId))
+                                setCustomValues((prev) => ({ ...prev, [d.tempId]: "" }))
+                              }}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                          {(d.appointmentTypes ?? []).filter((item) => item !== "__custom__" && item !== "Others___").map((item) => (
+                            <div key={item} className="flex items-center gap-2 text-sm">
+                              <input type="checkbox" checked readOnly />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -443,7 +567,7 @@ export default function AddSessionPage() {
               <Button variant="ghost" onClick={addDraft}>Add another</Button>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={handleCancelAddDialog}>Cancel</Button>
               <Button onClick={confirmAdd} className="bg-primary">Confirm add</Button>
             </DialogFooter>
           </div>
@@ -461,7 +585,7 @@ export default function AddSessionPage() {
             <div className="space-y-4 p-4">
               <div>
                 <label className="text-sm text-muted-foreground">Date</label>
-                <input value={editSession.date} readOnly className="mt-1 w-full rounded-lg border px-2 py-1" />
+                <input type="date" value={editSession.date} onChange={(e) => setEditSession({ ...editSession, date: e.target.value })} className="mt-1 w-full rounded-lg border px-2 py-1" />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -473,6 +597,15 @@ export default function AddSessionPage() {
                   <label className="text-sm text-muted-foreground">End</label>
                   <input type="time" value={editSession.endTime} onChange={(e) => setEditSession({ ...editSession, endTime: e.target.value })} className="mt-1 w-full rounded-lg border px-2 py-1" />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground">Status</label>
+                <select value={editSession.status || "Active"} onChange={(e) => setEditSession({ ...editSession, status: e.target.value })} className="mt-1 w-full rounded-lg border px-2 py-1">
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
               </div>
 
               <div>

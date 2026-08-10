@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
+import { formatAppointmentStatus, formatAppointmentTime } from "../status"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -111,11 +112,11 @@ export default async function AppointmentDetailPage({ params }: Props) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Time</p>
-                <p className="font-medium">{String(appointment.time || "")}</p>
+                <p className="font-medium">{formatAppointmentTime(String(appointment.time || ""))}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
-                <p className="font-medium">{String(appointment.status || "Pending")}</p>
+                <p className="font-medium">{formatAppointmentStatus(String(appointment.status || "Pending"))}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Relationship</p>
@@ -163,7 +164,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Diagnosis</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.status || "Pending")}</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{formatAppointmentStatus(String(appointment.status || "Pending"))}</p>
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>

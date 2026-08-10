@@ -12,8 +12,12 @@ type DoctorOption = {
   id: number
   name: string
   credential: string
+  email?: string
   specialty: string
+  specialties?: string[]
+  boardCertificates?: string[]
   experience: string
+  experienceYears?: number
 }
 
 type SessionOption = {
@@ -60,6 +64,7 @@ export function BookAppointmentContent() {
   const [sessionError, setSessionError] = useState("")
   const [dateConflictMessage, setDateConflictMessage] = useState("")
   const [checkingDateConflict, setCheckingDateConflict] = useState(false)
+  const [bookedTimes, setBookedTimes] = useState<string[]>([])
   const [formData, setFormData] = useState({
     doctorId: "",
     sessionId: "",
@@ -275,19 +280,27 @@ export function BookAppointmentContent() {
   const selectedDateSessionRanges = selectedDateSessions
     .map((session) => `${formatTimeLabel(session.startTime)} - ${formatTimeLabel(session.endTime)}`)
 
+  const totalSelectedDateRemainingSlots = selectedDateSessions.reduce((sum, session) => {
+    const remaining = Number(session.slots ?? 0)
+    return sum + (Number.isFinite(remaining) ? remaining : 0)
+  }, 0)
+
   const selectedDateSessionSummary = selectedDateSessionRanges.length
-    ? selectedDateSessionRanges.length === 1
-      ? `Available ${selectedDateSessionRanges[0]}`
-      : `Available ranges: ${selectedDateSessionRanges.join(", ")}`
+    ? totalSelectedDateRemainingSlots > 0
+      ? selectedDateSessionRanges.length === 1
+        ? `Available Time: ${selectedDateSessionRanges[0]} * ${totalSelectedDateRemainingSlots} ${totalSelectedDateRemainingSlots === 1 ? "Slot" : "Slots"} Remaining`
+        : `Available Time: ${selectedDateSessionRanges.join(", ")} * ${totalSelectedDateRemainingSlots} ${totalSelectedDateRemainingSlots === 1 ? "Slot" : "Slots"} Remaining`
+      : "No slot available"
     : ""
 
   const selectedDateTimeSummary = selectedDateTimeSlots.length
-    ? `Showing ${selectedDateTimeSlots.length} times every 20 minutes for ${formatLocalDateLabel(formData.date)}`
+    ? selectedDateSessionSummary
     : ""
 
   const checkDateConflict = async (doctorId: string, selectedDate: string) => {
     if (!doctorId || !selectedDate) {
       setDateConflictMessage("")
+      setBookedTimes([])
       return
     }
 
@@ -300,12 +313,15 @@ export function BookAppointmentContent() {
         throw new Error(result.error || "Unable to check appointment availability")
       }
 
+      setBookedTimes(Array.isArray(result.bookedTimes) ? result.bookedTimes : [])
+
       if (result.hasAppointment) {
         setDateConflictMessage("You already have an appointment for this date")
       } else {
         setDateConflictMessage("")
       }
     } catch {
+      setBookedTimes([])
       setDateConflictMessage("")
     } finally {
       setCheckingDateConflict(false)
@@ -320,10 +336,32 @@ export function BookAppointmentContent() {
     }))
   }
 
+  const todayIso = formatLocalDateValue(new Date())
+
+  const doctorIsAvailableToday = (doctorId: number) => {
+    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
+    if (!doctorSessions.length) return false
+
+    const now = new Date()
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+    return doctorSessions.some((session) => {
+      const end = parseTimeToMinutes(session.endTime)
+      if ((session.slots ?? 0) <= 0) return false
+
+      return currentMinutes < end
+    })
+  }
+
+  const getDoctorSlotCount = (doctorId: number) => {
+    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
+    return doctorSessions.reduce((sum, session) => sum + (Number(session.slots ?? 0) > 0 ? Number(session.slots ?? 0) : 0), 0)
+  }
+
   const doctorAppointmentTypes = Array.from(
     new Set(
       sessions
-        .filter((s) => String(s.doctorId) === String(selectedDoctorId))
+        .filter((s) => String(s.doctorId) === String(selectedDoctorId) && s.date === formData.date)
         .flatMap((s) => {
           const single = (s as any).appointmentType
           const arr = (s as any).appointmentTypes
@@ -404,6 +442,8 @@ export function BookAppointmentContent() {
     const payload = {
       doctorId: Number(formData.doctorId),
       sessionId: Number(formData.sessionId),
+      appointmentDate: formData.date || undefined,
+      appointmentTime: formData.time || undefined,
       appointmentType: formData.appointmentType || "General Consultation",
       reasonForVisit: formData.reason,
       relationship: formData.patientRelationship === "Other" ? formData.patientRelationshipOther || "Other" : formData.patientRelationship,
@@ -429,6 +469,11 @@ export function BookAppointmentContent() {
 
       toast.success("Appointment booked successfully!")
       await loadSessions(false)
+      const selectedDoctorIdValue = formData.doctorId
+      const selectedDateValue = formData.date
+      if (selectedDoctorIdValue && selectedDateValue) {
+        await checkDateConflict(selectedDoctorIdValue, selectedDateValue)
+      }
       setCurrentStep(0)
       setFormData({
         doctorId: "",
@@ -480,43 +525,70 @@ export function BookAppointmentContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {doctors.map((doctor) => (
-                  <div
-                    key={doctor.id}
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        doctorId: doctor.id.toString(),
-                        date: "",
-                        time: "",
-                        sessionId: "",
-                      }))
-                    }
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                      formData.doctorId === doctor.id.toString()
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        {doctor.name
-                          .split(" ")
-                          .slice(1)
-                          .map((part) => part[0])
-                          .join("")}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {doctor.name}, {doctor.credential}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {doctor.specialty} · {doctor.experience} of experience
-                        </p>
+                {doctors.map((doctor) => {
+                  const availableToday = doctorIsAvailableToday(doctor.id)
+                  const slotCount = getDoctorSlotCount(doctor.id)
+
+                  return (
+                    <div
+                      key={doctor.id}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          doctorId: doctor.id.toString(),
+                          date: "",
+                          time: "",
+                          sessionId: "",
+                        }))
+                      }
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        formData.doctorId === doctor.id.toString()
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          {doctor.name
+                            .split(" ")
+                            .slice(1)
+                            .map((part) => part[0])
+                            .join("")}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-foreground">
+                            {doctor.name}, {doctor.credential}
+                          </h3>
+                          <p className="text-xs text-muted-foreground/90">
+                            {doctor.email || "No email available"}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
+                              Specialties: {doctor.specialties?.length ? doctor.specialties.join(", ") : doctor.specialty || "General Practice"}
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                              Board Certificate: {doctor.boardCertificates?.length ? doctor.boardCertificates.join(", ") : "Not available"}
+                              {doctor.experienceYears && doctor.experienceYears > 0 ? ` • ${doctor.experience} of experience` : ""}
+                            </span>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                availableToday
+                                  ? "border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200"
+                                  : "border border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+                              }`}
+                            >
+                              <span className={`mr-1 h-2 w-2 rounded-full ${availableToday ? "bg-emerald-500" : "bg-slate-500 dark:bg-slate-300"}`} />
+                              {availableToday ? "Available today" : "Not available today"}
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
+                              {slotCount} slot{slotCount === 1 ? "" : "s"} available
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -608,7 +680,7 @@ export function BookAppointmentContent() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-lg font-medium">Available Times</h3>
                     <div className="text-sm text-muted-foreground">
-                      {selectedDoctorId ? "Available sessions for this doctor are loaded from the database" : "Select a doctor first"}
+                      {selectedDoctorId ? "Select an available time to book an appointment with this doctor." : "Select a doctor first"}
                     </div>
                   </div>
 
@@ -642,22 +714,27 @@ export function BookAppointmentContent() {
                   ) : (
                     <div className="space-y-3">
                       <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-                        <div>{selectedDateSessionSummary}</div>
-                        <div className="mt-1 text-[0.9rem] text-foreground/80 dark:text-black">{selectedDateTimeSummary}</div>
+                        <div>{selectedDateTimeSummary}</div>
                       </div>
                       <div className="max-h-[420px] space-y-3 overflow-auto pr-2">
                       {selectedDateTimeSlots.map((slot) => {
                         const selected = formData.time === slot
                         const remaining = selectedDateTimeSlotAvailability[slot] ?? 0
                         const isPast = !isSlotInFuture(formData.date, slot)
-                        const available = remaining > 0 && !isPast
-                        const baseClass = selected ? 'bg-primary text-white border-primary' : available ? 'bg-transparent border-border hover:border-primary' : 'bg-red-50 text-red-600 border-red-100 cursor-not-allowed'
+                        const alreadyBooked = bookedTimes.includes(slot)
+                        const available = remaining > 0 && !isPast && !alreadyBooked
+                        const disabled = !available || selected
+                        const baseClass = selected
+                          ? 'bg-primary text-white border-primary opacity-90'
+                          : available
+                            ? 'bg-transparent border-border hover:border-primary'
+                            : 'bg-red-50 text-red-600 border-red-100 cursor-not-allowed'
 
                         return (
                           <button
                             key={slot}
                             onClick={() => {
-                              if (!available) return
+                              if (disabled) return
                               const session = getSessionForSlot(slot)
                               setFormData((prev) => ({
                                 ...prev,
@@ -665,13 +742,19 @@ export function BookAppointmentContent() {
                                 sessionId: session?.id ?? "",
                               }))
                             }}
-                            disabled={!available}
+                            disabled={disabled}
                             className={`w-full text-left flex items-center gap-4 p-3 rounded-xl border transition ${baseClass}`}
                           >
                             <div className={`w-3 h-3 rounded-full ${selected ? 'bg-white' : available ? 'bg-emerald-400' : 'bg-red-400'}`} />
                             <div className="flex-1">
                               <div className="font-medium">{formatTimeLabel(slot)}</div>
-                              <div className="text-sm opacity-80">{isPast ? 'Time passed' : remaining === 0 ? 'Full' : `${remaining} slot${remaining === 1 ? '' : 's'} remaining`}</div>
+                              {selected ? (
+                                <div className="text-xs font-medium opacity-90">Selected</div>
+                              ) : !available ? (
+                                <div className="text-xs font-medium text-red-600">
+                                  {alreadyBooked ? "Booked" : isPast ? "Time passed" : "No slot available"}
+                                </div>
+                              ) : null}
                             </div>
                           </button>
                         )

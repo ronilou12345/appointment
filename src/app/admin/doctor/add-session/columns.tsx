@@ -1,10 +1,11 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
+import { MoreHorizontal, PencilIcon, Trash2Icon } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -112,12 +113,48 @@ export const columns: ColumnDef<SessionRow>[] = [
   {
     accessorKey: "slots",
     header: "Slots",
-    cell: ({ row }) => <span className="font-medium">{row.getValue("slots")}</span>,
+    cell: ({ row }) => {
+      const slotCount = Number(row.getValue("slots") ?? 0)
+
+      const slotClass = (() => {
+        if (slotCount <= 0) {
+          return "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-950/30 dark:text-slate-300 dark:border-slate-800"
+        }
+
+        if (slotCount >= 1 && slotCount <= 5) {
+          return "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800"
+        }
+
+        if (slotCount <= 10) {
+          return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800"
+        }
+
+        return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800"
+      })()
+
+      return <Badge className={`${slotClass} font-medium`}>{slotCount}</Badge>
+    },
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <span className="text-sm">{row.getValue("status")}</span>,
+    cell: ({ row }) => {
+      const status = String(row.getValue("status") ?? "Active").trim()
+
+      const statusClass = (() => {
+        switch (status.toLowerCase()) {
+          case "inactive":
+            return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800"
+          case "cancelled":
+            return "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800"
+          case "active":
+          default:
+            return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800"
+        }
+      })()
+
+      return <Badge className={`${statusClass} capitalize`}>{status}</Badge>
+    },
   },
   {
     id: "actions",
@@ -134,8 +171,14 @@ export const columns: ColumnDef<SessionRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Session actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('edit-session', { detail: session }))}>Edit session</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('delete-session', { detail: session }))}>Delete session</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('edit-session', { detail: session }))}>
+              <PencilIcon className="mr-2 h-4 w-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('delete-session', { detail: session }))}>
+              <Trash2Icon className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma"
 import { DataTable } from "@/components/data-table"
 import { columns, type AppointmentRow } from "./columns"
+import { formatAppointmentTime } from "@/app/client/appointments/status"
 
 async function getAppointments(): Promise<AppointmentRow[]> {
   const appointments = await prisma.appointment.findMany({
@@ -49,7 +50,7 @@ async function getAppointments(): Promise<AppointmentRow[]> {
       : ""
 
     const time = appointment.session_tbl?.start_time
-      ? appointment.session_tbl.start_time.toISOString().slice(11, 16)
+      ? formatAppointmentTime(appointment.session_tbl.start_time.toISOString().slice(11, 16))
       : ""
 
     return {

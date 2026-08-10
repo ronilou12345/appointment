@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 
+function parseTimeToMinutes(value: string): number | null {
+  const trimmed = String(value ?? "").trim()
+  if (!/^\d{1,2}:\d{2}$/.test(trimmed)) {
+    return null
+  }
+
+  const [hours, minutes] = trimmed.split(":").map(Number)
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null
+  }
+
+  return hours * 60 + minutes
+}
+
+function buildTimeSlots(startTime: string, endTime: string, stepMinutes = 20): string[] {
+  const start = parseTimeToMinutes(startTime)
+  const end = parseTimeToMinutes(endTime)
+  if (start === null || end === null || end <= start) {
+    return []
+  }
+
+  const slots: string[] = []
+  for (let minutes = start; minutes < end; minutes += stepMinutes) {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    slots.push(`${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`)
+  }
+
+  return slots
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getSession()
@@ -23,7 +54,47 @@ export async function GET(request: NextRequest) {
       selectedDate,
     )
 
-    return NextResponse.json({ success: true, hasAppointment: Boolean(existing?.length) })
+    let bookedTimes: string[] = []
+    try {
+      const sessionRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT
+          s.session_id,
+          s.session_date,
+          to_char(s.start_time, 'HH24:MI') AS start_time,
+          to_char(s.end_time, 'HH24:MI') AS end_time,
+          s.slots,
+          COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
+        FROM "session_tbl" s
+        LEFT JOIN "appointment" a ON a.session_id = s.session_id
+        WHERE s.doctor_id = $1 AND s.session_date = $2
+        GROUP BY s.session_id, s.session_date, s.start_time, s.end_time, s.slots`,
+        doctorId,
+        selectedDate,
+      )
+
+      const bookedSlotSet = new Set<string>()
+
+      for (const row of sessionRows) {
+        const capacity = Number(row.slots ?? 0)
+        const bookedCount = Number(row.booked_count ?? 0)
+        if (!capacity || bookedCount <= 0) continue
+
+        const slotKeys = buildTimeSlots(String(row.start_time ?? ""), String(row.end_time ?? ""))
+        const slotsToMark = Math.min(slotKeys.length, bookedCount)
+
+        slotKeys.slice(0, slotsToMark).forEach((slot) => bookedSlotSet.add(slot))
+      }
+
+      bookedTimes = Array.from(bookedSlotSet).sort((a, b) => {
+        const aMinutes = parseTimeToMinutes(a) ?? 0
+        const bMinutes = parseTimeToMinutes(b) ?? 0
+        return aMinutes - bMinutes
+      })
+    } catch {
+      bookedTimes = []
+    }
+
+    return NextResponse.json({ success: true, hasAppointment: Boolean(existing?.length), bookedTimes })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ success: false, error: message }, { status: 500 })
@@ -49,6 +120,8 @@ function parsePositiveInteger(value: unknown): number | null {
 type AppointmentPayload = {
   doctorId: number
   sessionId: number
+  appointmentDate?: string | null
+  appointmentTime?: string | null
   appointmentType?: string
   reasonForVisit: string
   relationship: string
@@ -88,10 +161,15 @@ export async function POST(request: NextRequest) {
     const additionalNotes = payload.additionalNotes ? String(payload.additionalNotes).trim().slice(0, 1000) : null
     const age = typeof payload.age === "number" ? payload.age : null
     const painLevel = typeof payload.painLevel === "number" ? payload.painLevel : null
+    const appointmentDate = payload.appointmentDate ? String(payload.appointmentDate).trim().slice(0, 10) : null
+    const appointmentTime = payload.appointmentTime ? String(payload.appointmentTime).trim().slice(0, 5) : null
 
     await prisma.$transaction(async (tx) => {
       const session = await tx.$queryRawUnsafe<any[]>(
-        `SELECT session_id, slots FROM "session_tbl" WHERE session_id = $1 AND doctor_id = $2 FOR UPDATE`,
+        `SELECT session_id, slots, status
+         FROM "session_tbl"
+         WHERE session_id = $1 AND doctor_id = $2
+         FOR UPDATE`,
         sessionId,
         doctorId,
       )
@@ -100,8 +178,24 @@ export async function POST(request: NextRequest) {
         throw new Error("Selected session not found for this doctor")
       }
 
-      const availableSlots = parsePositiveInteger(session[0].slots)
-      if (!availableSlots || availableSlots <= 0) {
+      const status = String(session[0].status ?? "Active").trim().toLowerCase()
+      if (status === "inactive" || status === "cancelled") {
+        throw new Error("This session is inactive or not available")
+      }
+
+      const capacity = parsePositiveInteger(session[0].slots)
+      if (!capacity || capacity <= 0) {
+        throw new Error("No slots available for the selected session")
+      }
+
+      const bookedCountRows = await tx.$queryRawUnsafe<any[]>(
+        `SELECT COALESCE(COUNT(appointment_id), 0)::int AS booked_count FROM "appointment" WHERE session_id = $1`,
+        sessionId,
+      )
+      const bookedCount = Number(bookedCountRows[0]?.booked_count ?? 0)
+
+      const remainingCapacity = capacity - bookedCount
+      if (remainingCapacity <= 0) {
         throw new Error("No slots available for the selected session")
       }
 
@@ -132,15 +226,6 @@ export async function POST(request: NextRequest) {
         painLevel,
         additionalNotes,
       )
-
-      const updated = await tx.$executeRawUnsafe(
-        `UPDATE "session_tbl" SET slots = slots - 1 WHERE session_id = $1 AND slots > 0`,
-        sessionId,
-      )
-
-      if (typeof updated !== "number" || updated === 0) {
-        throw new Error("Unable to decrement session slots")
-      }
     })
 
     return NextResponse.json({ success: true })
