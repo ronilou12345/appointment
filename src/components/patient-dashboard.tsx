@@ -38,21 +38,76 @@ interface PatientDashboardProps {
     name: string
     email: string
   }
+  nextPending?: {
+    id?: string
+    status?: string
+    title?: string
+    date?: string
+    time?: string
+  } | null
+  latestVitals?: {
+    weight?: number | null
+    height?: number | null
+    heartRate?: number | null
+    bodyTemperature?: number | null
+    recordedAt?: string | null
+  } | null
 }
 
-export function PatientDashboard({ user }: PatientDashboardProps) {
+export function PatientDashboard({ user, nextPending, latestVitals }: PatientDashboardProps) {
+  const formatTime = (time24?: string) => {
+    if (!time24) return ""
+    const parts = time24.split(":")
+    if (parts.length !== 2) return time24
+    const hh = Number(parts[0])
+    const mm = Number(parts[1])
+    const ampm = hh >= 12 ? "PM" : "AM"
+    const hour12 = ((hh + 11) % 12) + 1
+    return `${hour12}:${String(mm).padStart(2, "0")} ${ampm}`
+  }
+
+  const showPendingAppointmentMessage = (appt?: PatientDashboardProps["nextPending"]) => {
+    if (!appt || !appt.status) return "Your health journey is looking great."
+    if (String(appt.status).toLowerCase() !== "pending") return "Your health journey is looking great."
+
+    const dateStr = appt.date ? new Date(appt.date) : null
+    const weekday = dateStr ? dateStr.toLocaleDateString(undefined, { weekday: "long" }) : ""
+    const time = formatTime(appt.time)
+
+    return `Your health journey is looking great. You have an upcoming appointment this ${weekday} at ${time}.`
+  }
+
+  const computeBmi = (weight?: number | null, heightCm?: number | null) => {
+    if (!weight || !heightCm) return null
+    const heightM = heightCm / 100
+    if (heightM <= 0) return null
+    const bmi = weight / (heightM * heightM)
+    return Math.round(bmi * 10) / 10
+  }
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-8 max-w-7xl mx-auto w-full">
       {/* Hero Section */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/90 to-primary p-8 text-white shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
+            <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
               Welcome back, {user.name.split(" ")[0]}!
             </h1>
             <p className="text-primary-foreground/80 max-w-md">
-              Your health journey is looking great. You have an upcoming appointment this Thursday at 10:00 AM.
+              {showPendingAppointmentMessage(nextPending)}
             </p>
+            {latestVitals ? (
+              <div className="mt-3 rounded-lg bg-white/10 p-3 text-sm">
+                <div className="font-medium">Latest vitals</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {latestVitals.weight ? `Weight: ${latestVitals.weight} kg` : "Weight: —"} • {latestVitals.height ? `Height: ${latestVitals.height} cm` : "Height: —"}
+                  {latestVitals.heartRate ? ` • HR: ${latestVitals.heartRate} bpm` : ""}{latestVitals.bodyTemperature ? ` • Temp: ${latestVitals.bodyTemperature}°C` : ""}
+                </div>
+                {computeBmi(latestVitals.weight ?? null, latestVitals.height ?? null) ? (
+                  <div className="mt-1 text-sm">BMI: {computeBmi(latestVitals.weight ?? null, latestVitals.height ?? null)}</div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" className="rounded-full shadow-lg">

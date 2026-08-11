@@ -255,11 +255,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "No valid doctor record was found for this session" }, { status: 400 })
     }
 
+    const seenRanges = new Set<string>()
+
     for (const session of sessions) {
       const slotCount = parsePositiveInteger(session.slots)
       if (!session.date || !session.startTime || !session.endTime || !slotCount) {
         return NextResponse.json({ success: false, error: "Missing required session fields or invalid slot count" }, { status: 400 })
       }
+
+      const rangeKey = `${session.date}-${session.startTime}-${session.endTime}`
+      if (seenRanges.has(rangeKey)) {
+        return NextResponse.json(
+          { success: false, error: "You cannot create overlapping sessions on the same date and time range." },
+          { status: 400 },
+        )
+      }
+      seenRanges.add(rangeKey)
 
       const existingSessions = await prisma.$queryRawUnsafe<any[]>(
         `SELECT "start_time", "end_time" FROM "session_tbl" WHERE "doctor_id" = $1 AND "session_date" = $2`,
@@ -275,7 +286,7 @@ export async function POST(request: NextRequest) {
 
       if (overlap) {
         return NextResponse.json(
-          { success: false, error: "You cannot create a session in the same time range on the selected date." },
+          { success: false, error: "This selected time conflicts with an existing session and cannot be created." },
           { status: 400 },
         )
       }

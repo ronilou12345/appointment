@@ -5,7 +5,37 @@ import { Badge } from "@/components/ui/badge"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { CalendarDays, ClipboardList, HeartPulse, Stethoscope, Users, CalendarCheck, Activity } from "lucide-react"
 
-export function DoctorDashboard() {
+type DoctorDashboardProps = {
+  todayPatients?: number
+  confirmedAppointments?: number
+  sessionsCount?: number
+  nextAppointments?: Array<{
+    id?: string
+    time?: string
+    date?: string
+    name?: string
+    status?: string
+    appointmentType?: string
+    avatar?: string | null
+  }>
+}
+
+export function DoctorDashboard({
+  todayPatients = 0,
+  confirmedAppointments = 0,
+  sessionsCount = 0,
+  nextAppointments = [],
+}: DoctorDashboardProps) {
+  const formatTime = (time24?: string) => {
+    if (!time24) return ""
+    const parts = time24.split(":")
+    if (parts.length !== 2) return time24
+    const hh = Number(parts[0])
+    const mm = Number(parts[1])
+    const ampm = hh >= 12 ? "PM" : "AM"
+    const hour12 = ((hh + 11) % 12) + 1
+    return `${hour12}:${String(mm).padStart(2, "0")} ${ampm}`
+  }
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-col gap-6 py-4 md:py-6">
@@ -19,10 +49,12 @@ export function DoctorDashboard() {
               <Users className="size-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-semibold">12</div>
+              <div className="text-3xl font-semibold">{todayPatients}</div>
               <div className="mt-2 flex items-center gap-2 text-xs text-foreground/70">
                 <HeartPulse className="size-4" />
-                4 new patient check-ins
+                {todayPatients > 0
+                  ? `${todayPatients} appointment${todayPatients === 1 ? "" : "s"} today`
+                  : "No appointments today"}
               </div>
             </CardContent>
           </Card>
@@ -36,10 +68,12 @@ export function DoctorDashboard() {
               <CalendarDays className="size-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-semibold">8</div>
+              <div className="text-3xl font-semibold">{confirmedAppointments}</div>
               <div className="mt-2 flex items-center gap-2 text-xs text-foreground/70">
                 <Activity className="size-4" />
-                2 reschedules pending
+                {confirmedAppointments > 0
+                  ? `${confirmedAppointments} confirmed today`
+                  : "No confirmed appointments today"}
               </div>
             </CardContent>
           </Card>
@@ -53,10 +87,12 @@ export function DoctorDashboard() {
               <CalendarCheck className="size-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-semibold">5</div>
+              <div className="text-3xl font-semibold">{sessionsCount}</div>
               <div className="mt-2 flex items-center gap-2 text-xs text-foreground/70">
                 <Stethoscope className="size-4" />
-                3 open slots left
+                {sessionsCount > 0
+                  ? `${sessionsCount} active session${sessionsCount === 1 ? "" : "s"} today`
+                  : "No active sessions today"}
               </div>
             </CardContent>
           </Card>
@@ -99,20 +135,23 @@ export function DoctorDashboard() {
                 <CardDescription>Upcoming consultations in the next 12 hours.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {[
-                  { time: "09:30 AM", name: "Juan Dela Cruz", status: "Confirmed" },
-                  { time: "11:00 AM", name: "Maria Santos", status: "Pending" },
-                  { time: "01:15 PM", name: "Kevin Tan", status: "Confirmed" },
-                ].map((item) => (
-                  <div key={item.time} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border border-border bg-background p-4">
-                    <span className="text-sm font-medium text-foreground">{item.time}</span>
-                    <div>
-                      <div className="font-semibold">{item.name}</div>
-                      <div className="text-xs text-muted-foreground">General consultation</div>
+                {nextAppointments && nextAppointments.length > 0 ? (
+                  nextAppointments.map((item) => (
+                    <div
+                      key={item.id ?? `${item.date}-${item.time}`}
+                      className="grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border border-border bg-background p-4"
+                    >
+                      <span className="text-sm font-medium text-foreground">{formatTime(item.time)}</span>
+                      <div>
+                        <div className="font-semibold">{item.name}</div>
+                        <div className="text-xs text-muted-foreground">{item.appointmentType ?? "General consultation"}</div>
+                      </div>
+                      <Badge variant={item.status === "Confirmed" ? "default" : "outline"}>{item.status}</Badge>
                     </div>
-                    <Badge variant={item.status === "Confirmed" ? "default" : "outline"}>{item.status}</Badge>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground">No upcoming appointments</div>
+                )}
               </CardContent>
             </Card>
 

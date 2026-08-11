@@ -92,7 +92,8 @@ export const columns: ColumnDef<SessionRow>[] = [
     header: "Appointment Type",
     cell: ({ row }) => {
       const value = row.getValue("appointmentTypes") as string[] | undefined
-      return <span className="text-sm">{value && value.length > 0 ? value.join(", ") : "Not selected"}</span>
+      const visibleTypes = (value ?? []).filter((item) => typeof item === "string" && item.trim() && item !== "Others___")
+      return <span className="text-sm">{visibleTypes.length > 0 ? visibleTypes.join(", ") : "Not selected"}</span>
     },
   },
   {

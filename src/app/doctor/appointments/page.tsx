@@ -38,6 +38,7 @@ async function getDoctorAppointments(userId: string) {
       user: {
         select: {
           name: true,
+          avatar: true,
         },
       },
       session_tbl: {
@@ -64,6 +65,7 @@ async function getDoctorAppointments(userId: string) {
       id: String(appointment.appointment_id),
       patientId: appointment.user_id,
       patientName,
+      patientAvatar: appointment.user?.avatar ?? null,
       patientAge: appointment.age != null ? String(appointment.age) : "—",
       patientGender: appointment.gender ?? "—",
       doctorName,

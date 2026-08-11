@@ -6,6 +6,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ export type DoctorAppointmentRow = {
   id: string
   patientId: string
   patientName: string
+  patientAvatar?: string | null
   patientAge: string
   patientGender: string
   doctorName: string
@@ -72,7 +74,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
   const statusValue = appointment.status.toLowerCase()
   const canConfirm = statusValue !== "confirmed" && statusValue !== "completed"
   const canComplete = statusValue !== "completed"
-  const canCancel = statusValue !== "completed"
+  const canCancel = statusValue !== "completed" && statusValue !== "confirmed"
 
   const handleAction = async (action: "Confirm" | "Complete" | "Cancel") => {
     setMenuOpen(false)
@@ -209,13 +211,22 @@ export const columns: ColumnDef<DoctorAppointmentRow>[] = [
     cell: ({ row }) => {
       const appointment = row.original
       return (
-        <div className="space-y-1">
-          <Link href={`/doctor/appointments/${appointment.id}`} className="text-primary hover:underline">
-            {String(row.getValue("patientName"))}
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            {appointment.patientAge} yrs · {appointment.patientGender}
-          </p>
+        <div className="flex items-center gap-3">
+          <Avatar size="sm">
+            {appointment.patientAvatar ? (
+              <AvatarImage src={appointment.patientAvatar} alt={appointment.patientName} />
+            ) : (
+              <AvatarFallback>{appointment.patientName.split(" ").slice(0, 2).map((part) => part[0]).join("")}</AvatarFallback>
+            )}
+          </Avatar>
+          <div className="min-w-0 space-y-1">
+            <Link href={`/doctor/appointments/${appointment.id}`} className="text-primary hover:underline">
+              {String(row.getValue("patientName"))}
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              {appointment.patientAge} yrs · {appointment.patientGender}
+            </p>
+          </div>
         </div>
       )
     },

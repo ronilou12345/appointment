@@ -53,6 +53,12 @@ export default async function AppointmentDetailPage({ params }: Props) {
 
   const appointment = rows[0]
 
+  const soapRows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT * FROM public.soap_notes WHERE appointment_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    Number(id)
+  )
+  const soap = soapRows[0] ?? null
+
   if (!appointment) {
     return (
       <div className="min-h-screen bg-background p-6 text-foreground">
@@ -155,21 +161,26 @@ export default async function AppointmentDetailPage({ params }: Props) {
 
             <div className="mt-6 space-y-6">
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Chief Complaints</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.reason_for_visit || "No subjective details provided.")}</p>
-              </div>
-              <div className="rounded-3xl border border-border bg-muted/50 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Physical Examination</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.symptoms || "No objective findings recorded.")}</p>
-              </div>
-              <div className="rounded-3xl border border-border bg-muted/50 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Diagnosis</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{formatAppointmentStatus(String(appointment.status || "Pending"))}</p>
-              </div>
-              <div className="rounded-3xl border border-border bg-muted/50 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.additional_notes || "No plan provided.")}</p>
-              </div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Chief Complaints</p>
+                  <p className="mt-3 text-sm leading-7 text-foreground">{String(soap?.chief_complaints ?? appointment.reason_for_visit ?? "No subjective details provided.")}</p>
+                </div>
+                <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Physical Examination</p>
+                  <p className="mt-3 text-sm leading-7 text-foreground">{String(soap?.physical_examination ?? "No physical examination recorded.")}</p>
+                </div>
+                <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Diagnosis</p>
+                  <p className="mt-3 text-sm leading-7 text-foreground">{String(soap?.diagnosis ?? "No diagnosis recorded.")}</p>
+                </div>
+                <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>
+                  <p className="mt-3 text-sm leading-7 text-foreground">{String(soap?.prescription ?? "No prescriptions recorded.")}</p>
+                </div>
+                <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Next Follow-up</p>
+                  <p className="mt-3 text-sm leading-7 text-foreground">{String(soap?.next_follow_up ?? "No follow-up plan recorded.")}</p>
+                </div>
+              
             </div>
           </aside>
         </div>

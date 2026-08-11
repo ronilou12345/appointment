@@ -95,6 +95,7 @@ export default function AddSessionPage() {
     },
   ])
   const [customValues, setCustomValues] = useState<Record<string, string>>({})
+  const [editCustomValue, setEditCustomValue] = useState("")
   const [errorMessage, setErrorMessage] = useState<string>("")
   const [calendarOpenFor, setCalendarOpenFor] = useState<string | null>(null)
 
@@ -176,14 +177,35 @@ export default function AddSessionPage() {
       d.map((x) => {
         if (x.tempId !== tempId) return x
 
-        const current = x.appointmentTypes ?? []
-        const withoutCustom = current.filter((item) => item !== "__custom__" && item !== trimmed)
-        return { ...x, appointmentTypes: [...withoutCustom, trimmed] }
+        const current = (x.appointmentTypes ?? []).filter(Boolean)
+        const presetItems = current.filter((item) => appointmentTypeOptions.includes(item))
+        const existingCustomItems = current.filter((item) => !appointmentTypeOptions.includes(item) && item !== "Others___")
+        const withoutCustom = [...presetItems, ...existingCustomItems.filter((item) => item !== trimmed)]
+        return { ...x, appointmentTypes: Array.from(new Set([...withoutCustom, trimmed])) }
       }),
     )
   }
 
   const getOtherTextValue = (tempId: string) => customValues[tempId] ?? ""
+
+  const getCustomAppointmentEntries = (appointmentTypes: string[] | undefined) =>
+    (appointmentTypes ?? []).filter((item) => typeof item === "string" && item.trim() && !appointmentTypeOptions.includes(item) && item !== "Others___")
+
+  const addCustomAppointmentTypeToEditSession = () => {
+    if (!editSession) return
+
+    const trimmed = editCustomValue.trim()
+    if (!trimmed) return
+
+    const current = (editSession.appointmentTypes ?? []).filter(Boolean)
+    const presetItems = current.filter((item) => appointmentTypeOptions.includes(item))
+    const existingCustomItems = current.filter((item) => !appointmentTypeOptions.includes(item) && item !== "Others___")
+    const withoutCustom = [...presetItems, ...existingCustomItems.filter((item) => item !== trimmed)]
+    const nextItems = Array.from(new Set([...withoutCustom, trimmed, "Others___"]))
+
+    setEditSession({ ...editSession, appointmentTypes: nextItems })
+    setEditCustomValue("")
+  }
 
   const resetDrafts = () => {
     setDrafts([
@@ -225,7 +247,9 @@ export default function AddSessionPage() {
     const onEdit = (e: Event) => {
       const detail = (e as CustomEvent).detail as SessionRow
       if (detail) {
+        const customValue = getCustomAppointmentEntries(detail.appointmentTypes)[0] ?? ""
         setEditSession(detail)
+        setEditCustomValue(customValue)
         setEditOpen(true)
       }
     }
@@ -324,7 +348,7 @@ export default function AddSessionPage() {
     })
 
     if (timeConflicts.length > 0) {
-      setErrorMessage("This time range is already used for the selected date. You cannot create a session in the same time range.")
+      setErrorMessage("This selected time conflicts with an existing session and cannot be created.")
       return
     }
 
@@ -618,14 +642,51 @@ export default function AddSessionPage() {
                 <div className="mt-1 space-y-2 rounded-lg border px-2 py-2">
                   {appointmentTypeOptions.map((option) => (
                     <label key={option} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={(editSession.appointmentTypes ?? []).includes(option)} onChange={(e) => {
-                        const current = editSession.appointmentTypes ?? []
-                        const next = e.currentTarget.checked ? [...current, option] : current.filter((it) => it !== option)
-                        setEditSession({ ...editSession, appointmentTypes: next })
-                      }} />
+                      <input
+                        type="checkbox"
+                        checked={(editSession.appointmentTypes ?? []).includes(option)}
+                        onChange={(e) => {
+                          const current = editSession.appointmentTypes ?? []
+                          const next = e.currentTarget.checked ? [...current, option] : current.filter((it) => it !== option)
+                          setEditSession({ ...editSession, appointmentTypes: next })
+                        }}
+                      />
                       <span>{option}</span>
                     </label>
                   ))}
+                  {(editSession.appointmentTypes ?? []).includes("Others___") && (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editCustomValue}
+                          onChange={(e) => setEditCustomValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              addCustomAppointmentTypeToEditSession()
+                            }
+                          }}
+                          placeholder="Enter other appointment type"
+                          className="mt-1 w-full rounded-lg border px-2 py-1 text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addCustomAppointmentTypeToEditSession}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      {getCustomAppointmentEntries(editSession.appointmentTypes).map((item) => (
+                        <div key={item} className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" checked readOnly />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -661,17 +722,24 @@ export default function AddSessionPage() {
             <DialogDescription>Choose a date for this session.</DialogDescription>
           </DialogHeader>
           {calendarOpenFor ? (
-            <Calendar
-              selected={drafts.find((draft) => draft.tempId === calendarOpenFor)?.date ? parseDateValue(drafts.find((draft) => draft.tempId === calendarOpenFor)!.date) : null}
-              disabled={isDateSelectable}
-              onSelect={(date) => {
-                const currentDraft = drafts.find((draft) => draft.tempId === calendarOpenFor)
-                if (date && currentDraft && !isDateSelectable(date)) {
-                  updateDraft(currentDraft.tempId, "date", formatDateValue(date))
-                }
-                setCalendarOpenFor(null)
-              }}
-            />
+            <>
+              <Calendar
+                selected={drafts.find((draft) => draft.tempId === calendarOpenFor)?.date ? parseDateValue(drafts.find((draft) => draft.tempId === calendarOpenFor)!.date) : null}
+                disabled={isDateSelectable}
+                onSelect={(date) => {
+                  const currentDraft = drafts.find((draft) => draft.tempId === calendarOpenFor)
+                  if (date && currentDraft && !isDateSelectable(date)) {
+                    updateDraft(currentDraft.tempId, "date", formatDateValue(date))
+                  }
+                  setCalendarOpenFor(null)
+                }}
+              />
+              <div className="mt-2 flex justify-end">
+                <Button variant="outline" onClick={() => setCalendarOpenFor(null)}>
+                  Back
+                </Button>
+              </div>
+            </>
           ) : null}
         </DialogContent>
       </Dialog>

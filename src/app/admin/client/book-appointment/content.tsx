@@ -358,6 +358,16 @@ export function BookAppointmentContent() {
     return doctorSessions.reduce((sum, session) => sum + (Number(session.slots ?? 0) > 0 ? Number(session.slots ?? 0) : 0), 0)
   }
 
+  const getDoctorMonthSessionCount = (doctorId: number) => {
+    return sessions.filter((session) => {
+      if (String(session.doctorId) !== String(doctorId)) return false
+      if (Number(session.slots ?? 0) <= 0) return false
+
+      const [year, month] = String(session.date).split("-").map(Number)
+      return year === displayedMonth.getFullYear() && month === displayedMonth.getMonth() + 1
+    }).length
+  }
+
   const doctorAppointmentTypes = Array.from(
     new Set(
       sessions
@@ -469,11 +479,6 @@ export function BookAppointmentContent() {
 
       toast.success("Appointment booked successfully!")
       await loadSessions(false)
-      const selectedDoctorIdValue = formData.doctorId
-      const selectedDateValue = formData.date
-      if (selectedDoctorIdValue && selectedDateValue) {
-        await checkDateConflict(selectedDoctorIdValue, selectedDateValue)
-      }
       setCurrentStep(0)
       setFormData({
         doctorId: "",
@@ -583,6 +588,11 @@ export function BookAppointmentContent() {
                             <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
                               {slotCount} slot{slotCount === 1 ? "" : "s"} available
                             </span>
+                            {!availableToday && getDoctorMonthSessionCount(doctor.id) > 0 ? (
+                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                {getDoctorMonthSessionCount(doctor.id)} session{getDoctorMonthSessionCount(doctor.id) === 1 ? "" : "s"} this month
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </div>
