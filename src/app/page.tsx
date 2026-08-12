@@ -260,7 +260,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-2xl font-bold mb-4">Our Mission</h3>
               <p className="text-muted-foreground leading-relaxed">
-                We believe that modern healthcare deserves modern technology. C2M Family Clinic & Pharmacy brings simplicity and clarity to medical records, prescriptions, and appointments in one connected workflow.
+                To provide accessible, affordable, compassionate quality healthcare that empowers patients and families to actively participate in their health and well-being. C2M Family Clinic aims to foster a strong partnership among the physician, patient, family and community, while building meaningful linkages to promote health, wellness, prevention and continuity of care.
               </p>
             </div>
           </div>

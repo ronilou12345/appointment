@@ -20,6 +20,7 @@ export function NavMain({
     title: string
     url: string
     icon?: React.ReactNode
+    badge?: string | React.ReactNode
   }[]
 }) {
   const pathname = usePathname()
@@ -57,9 +58,12 @@ export function NavMain({
                   ].join(" ")}
                   data-active={isActive}
                 >
-                  <Link href={item.url}>
+                  <Link href={item.url} className="flex items-center gap-2">
                     {item.icon}
                     <span>{item.title}</span>
+                    {item.badge ? (
+                      <span className="ml-auto inline-flex items-center bg-white/70 dark:bg-white/5 px-2 py-0.5 rounded-sm text-green-600 dark:text-green-400 text-xs font-medium shadow-sm">{item.badge}</span>
+                    ) : null}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

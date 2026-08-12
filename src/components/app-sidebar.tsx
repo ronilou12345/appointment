@@ -49,6 +49,7 @@ const adminNavMain = [
   {
     title: "Add Specialties",
     url: "/admin/add-specialties",
+    badge: "New",
     icon: <Settings2Icon />,
   },
   {
@@ -148,7 +149,7 @@ const data = {
     { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
   ],
   documents: [
-    { name: "Medicine", url: "/admin/inventory", icon: <DatabaseIcon /> },
+    { name: "Medicine", url: "/admin/inventory", icon: <DatabaseIcon />, badge: "New" },
     { name: "Reports", url: "/admin/reports", icon: <FileChartColumnIcon /> },
   ],
 }
@@ -167,6 +168,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       title: user?.role === "CLIENT" ? "Add BMI" : "Get Help",
       url: user?.role === "CLIENT" ? "/client/add-bmi" : "#",
       icon: user?.role === "CLIENT" ? <ChartBarIcon /> : <CircleHelpIcon />,
+      badge: user?.role === "CLIENT" ? "new" : undefined,
     },
   ]
 

@@ -132,11 +132,17 @@ const chartConfig = {
   },
   desktop: {
     label: "Desktop",
-    color: "#ffffff",
+    theme: {
+      light: "#2563eb",
+      dark: "#ffffff",
+    },
   },
   mobile: {
     label: "Mobile",
-    color: "#ffffff",
+    theme: {
+      light: "#0ea5e9",
+      dark: "#ffffff",
+    },
   },
 } satisfies ChartConfig
 
@@ -218,24 +224,24 @@ export function ChartAreaInteractive() {
               <linearGradient id="fillDesktop" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="#ffffff"
+                  stopColor="var(--color-desktop)"
                   stopOpacity={0.9}
                 />
                 <stop
                   offset="95%"
-                  stopColor="#ffffff"
+                  stopColor="var(--color-desktop)"
                   stopOpacity={0.1}
                 />
               </linearGradient>
               <linearGradient id="fillMobile" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="#ffffff"
+                  stopColor="var(--color-mobile)"
                   stopOpacity={0.9}
                 />
                 <stop
                   offset="95%"
-                  stopColor="#ffffff"
+                  stopColor="var(--color-mobile)"
                   stopOpacity={0.1}
                 />
               </linearGradient>

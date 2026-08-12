@@ -22,6 +22,7 @@ import {
   CartesianGrid 
 } from "recharts"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 
 const healthData = [
   { day: "Mon", bpm: 72, temp: 36.6 },
@@ -55,6 +56,7 @@ interface PatientDashboardProps {
 }
 
 export function PatientDashboard({ user, nextPending, latestVitals }: PatientDashboardProps) {
+  const router = useRouter()
   const formatTime = (time24?: string) => {
     if (!time24) return ""
     const parts = time24.split(":")
@@ -110,7 +112,7 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
             ) : null}
           </div>
           <div className="flex gap-3">
-            <Button variant="secondary" className="rounded-full shadow-lg">
+            <Button variant="secondary" className="rounded-full shadow-lg" onClick={() => router.push('/client/book-appointment')}>
               <CalendarIcon className="mr-2 size-4" />
               Book Appointment
             </Button>

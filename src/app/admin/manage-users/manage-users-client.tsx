@@ -639,24 +639,26 @@ export default function ManageUsersClient({ users }: { users: UserRow[] }) {
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Users</h1>
-            <p className="text-sm text-muted-foreground">Manage user information and profiles.</p>
+        <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground">Users</h1>
+              <p className="text-sm text-muted-foreground">Manage user information and profiles.</p>
+            </div>
+            <Button className="w-full sm:w-auto" variant="secondary" onClick={() => setCreateOpen(true)}>
+               + Add
+            </Button>
           </div>
-          <Button className="w-full sm:w-auto" variant="secondary" onClick={() => setCreateOpen(true)}>
-             + Add
-          </Button>
+
+          {successMessage ? (
+            <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+              <AlertTitle className="text-sm font-semibold">Success</AlertTitle>
+              <AlertDescription className="text-sm">{successMessage}</AlertDescription>
+            </div>
+          ) : null}
+
+          <DataTable columns={columns} data={users} />
         </div>
-
-        {successMessage ? (
-          <Alert className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-            <AlertTitle className="text-sm font-semibold">Success</AlertTitle>
-            <AlertDescription className="text-sm">{successMessage}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <DataTable columns={columns} data={users} />
       </div>
 
       <CreateUserModal open={createOpen} onOpenChange={setCreateOpen} onSuccess={(message) => setSuccessMessage(message)} />
