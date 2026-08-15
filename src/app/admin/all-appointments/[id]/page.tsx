@@ -57,7 +57,7 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
           id: true,
           name: true,
           email: true,
-          avatar: true,
+          profile_image: true,
           status: true,
         },
       },
@@ -83,7 +83,7 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
   }
 
   const patientName = appointment.user?.name ?? "Unknown Patient"
-  const patientAvatar = appointment.user?.avatar ?? ""
+  const patientAvatar = appointment.user?.profile_image ?? ""
   const patientEmail = appointment.user?.email ?? "—"
   const patientStatus = appointment.user?.status ?? "Unknown"
   const patientAge = appointment.age != null ? String(appointment.age) : "—"

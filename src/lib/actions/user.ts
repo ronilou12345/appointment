@@ -4,6 +4,7 @@ import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
+import { saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
 
 type UserRole = "ADMIN" | "NURSE" | "PATIENT"
 type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED"
@@ -30,6 +31,7 @@ export async function updateUserProfileAction(formData: FormData) {
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
   const password = formData.get("password")?.toString() ?? ""
   const designations = formData.get("designations")?.toString().trim() ?? ""
+  const profileImage = formData.get("profileImage")?.toString().trim() ?? ""
   const redirectPath = formData.get("redirectPath")?.toString() ?? "/"
 
   if (!userId || !name || !email) {
@@ -45,6 +47,11 @@ export async function updateUserProfileAction(formData: FormData) {
 
   if (password) {
     updateData.password = password
+  }
+
+  if (profileImage.startsWith("data:image/")) {
+    const imageUrl = await saveProfileImageFile(userId, profileImage)
+    await updateUserProfileImage(userId, imageUrl)
   }
 
   await prisma.user.update({
@@ -107,7 +114,7 @@ export async function createUserAction(formData: FormData) {
           status: normalizedStatus,
           designations: null,
           password,
-          avatar: "",
+          profile_image: "",
           updatedAt: new Date(),
         },
       })
@@ -131,7 +138,7 @@ export async function createUserAction(formData: FormData) {
       }
     })
 
-    return { success: true, error: "" }
+    return { success: true, error: "", userId }
   } catch (error: unknown) {
     console.error("createUserAction error:", error)
 

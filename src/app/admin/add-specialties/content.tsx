@@ -11,7 +11,16 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { toast } from "sonner"
+
+const statusOptions = ["Active", "Inactive"]
 
 function EditSpecialtySheet({
   open,
@@ -32,6 +41,7 @@ function EditSpecialtySheet({
     name: "",
     description: "",
     availableDoctors: "0",
+    status: "Active",
   })
 
   React.useEffect(() => {
@@ -41,6 +51,7 @@ function EditSpecialtySheet({
       name: specialty.name,
       description: specialty.description,
       availableDoctors: String(specialty.availableDoctors ?? 0),
+      status: specialty.status || "Active",
     })
     setErrorMsg("")
   }, [specialty])
@@ -64,6 +75,7 @@ function EditSpecialtySheet({
           name: form.name,
           description: form.description,
           availableDoctors: Number(form.availableDoctors) || 0,
+          status: form.status,
         }),
       })
 
@@ -122,6 +134,22 @@ function EditSpecialtySheet({
                   onChange={(e) => handleChange("availableDoctors", e.target.value)}
                   required
                 />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-specialty-status">Status</Label>
+                <Select value={form.status} onValueChange={(value) => handleChange("status", value)}>
+                  <SelectTrigger id="edit-specialty-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-2">

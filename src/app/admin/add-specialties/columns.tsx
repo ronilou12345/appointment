@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -41,14 +42,15 @@ export const columns: ColumnDef<SpecialtyRow>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as string
-      return (
-        <span className={`text-sm px-2 py-1 rounded ${
-          status === "Active" ? "bg-green-500/20 text-green-700" : "bg-gray-500/20 text-gray-700"
-        }`}>
-          {status}
-        </span>
-      )
+      const status = String(row.getValue("status") ?? "").trim()
+      if (!status) return <span className="text-sm">—</span>
+
+      const statusClass =
+        status.toLowerCase() === "inactive"
+          ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800"
+          : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800"
+
+      return <Badge className={`${statusClass} capitalize`}>{status}</Badge>
     },
   },
   {

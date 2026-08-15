@@ -10,13 +10,14 @@ export async function POST(request: NextRequest) {
     if (!name) return NextResponse.json({ success: false, error: "Missing specialty name" }, { status: 400 })
 
     const availableDoctors = Number(body.availableDoctors) || 0
+    const status = String(body.status ?? "Active").trim() || "Active"
 
     const created = await prisma.$queryRaw`
-      INSERT INTO public.specialties (specialty_name, description, available_doctor)
-      VALUES (${name}, ${description || null}, ${availableDoctors})
+      INSERT INTO public.specialties (specialty_name, description, available_doctor, status)
+      VALUES (${name}, ${description || null}, ${availableDoctors}, ${status})
       ON CONFLICT (specialty_name)
-      DO UPDATE SET available_doctor = EXCLUDED.available_doctor
-      RETURNING specialty_id, specialty_name, description, available_doctor
+      DO UPDATE SET available_doctor = EXCLUDED.available_doctor, status = EXCLUDED.status
+      RETURNING specialty_id, specialty_name, description, available_doctor, status
     `
 
     return NextResponse.json({ success: true, specialty: created })
@@ -50,6 +51,7 @@ export async function PATCH(request: NextRequest) {
     const name = String(body.name ?? "").trim()
     const description = String(body.description ?? "").trim()
     const availableDoctors = Number(body.availableDoctors) || 0
+    const status = String(body.status ?? "Active").trim() || "Active"
 
     if (!id || !name) {
       return NextResponse.json({ success: false, error: "Missing specialty id or name" }, { status: 400 })
@@ -57,9 +59,9 @@ export async function PATCH(request: NextRequest) {
 
     const updated = await prisma.$queryRaw`
       UPDATE public.specialties
-      SET specialty_name = ${name}, description = ${description || null}, available_doctor = ${availableDoctors}
+      SET specialty_name = ${name}, description = ${description || null}, available_doctor = ${availableDoctors}, status = ${status}
       WHERE specialty_id = ${id}
-      RETURNING specialty_id, specialty_name, description, available_doctor
+      RETURNING specialty_id, specialty_name, description, available_doctor, status
     `
 
     return NextResponse.json({ success: true, specialty: updated })

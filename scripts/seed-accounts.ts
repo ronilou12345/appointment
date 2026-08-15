@@ -35,7 +35,7 @@ async function main() {
         password: account.password,
         role: account.role,
         status: "ACTIVE",
-        avatar: account.avatar,
+        profile_image: account.avatar,
         updatedAt: new Date(),
       },
       create: {
@@ -45,7 +45,7 @@ async function main() {
         password: account.password,
         role: account.role,
         status: "ACTIVE",
-        avatar: account.avatar,
+        profile_image: account.avatar,
         updatedAt: new Date(),
       },
       select: { email: true, role: true },

@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 
 type Props = {
@@ -110,7 +110,7 @@ export default async function ClientDoctorPage({ params }: Props) {
           email: true,
           designations: true,
           status: true,
-          avatar: true,
+          profile_image: true,
           createdAt: true,
         },
       },
@@ -188,6 +188,9 @@ export default async function ClientDoctorPage({ params }: Props) {
             <div className="rounded-3xl border border-border bg-background p-6 text-center">
               <div className="flex flex-col items-center justify-center gap-5">
                 <Avatar size="lg">
+                  {profileUser.profile_image ? (
+                    <AvatarImage src={profileUser.profile_image} alt={profileUser.name} />
+                  ) : null}
                   <AvatarFallback>{getInitials(profileUser.name)}</AvatarFallback>
                 </Avatar>
                 <div>

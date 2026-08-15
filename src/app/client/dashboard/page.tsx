@@ -43,7 +43,14 @@ async function getNextPendingAppointment(userId: string) {
 
 export default async function ClientDashboardPage() {
   const session = await getSession()
-  const userProp = getUserByRole("CLIENT")
+  const fallbackUser = getUserByRole("CLIENT")
+  const userProp = session
+    ? {
+        name: session.name,
+        email: session.email,
+        avatar: session.profile_image ?? fallbackUser.avatar,
+      }
+    : fallbackUser
 
   const nextPending = session?.id ? await getNextPendingAppointment(session.id) : null
 

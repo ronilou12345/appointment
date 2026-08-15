@@ -16,6 +16,7 @@ export async function getSession() {
         name: true,
         role: true,
         status: true,
+        profile_image: true,
       },
     })
     return user

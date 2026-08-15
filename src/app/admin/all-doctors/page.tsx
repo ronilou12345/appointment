@@ -8,7 +8,7 @@ type DoctorResult = {
   email: string
   designations: string | null
   status: string | null
-  avatar: string | null
+  profile_image: string | null
   doctor: {
     board_certification: string | null
   } | null
@@ -23,7 +23,7 @@ export default async function Page() {
       email: true,
       designations: true,
       status: true,
-      avatar: true,
+      profile_image: true,
       doctor: {
         select: {
           board_certification: true,
@@ -47,7 +47,7 @@ export default async function Page() {
       boardCertification: user.doctor?.board_certification ?? "",
       designations: specialties,
       status: user.status ?? "",
-      avatar: user.avatar ?? null,
+      avatar: user.profile_image ?? null,
     }
   })
 

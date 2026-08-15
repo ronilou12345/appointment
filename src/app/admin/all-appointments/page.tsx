@@ -18,7 +18,7 @@ async function getAppointments(): Promise<AppointmentRow[]> {
           id: true,
           name: true,
           email: true,
-          avatar: true,
+          profile_image: true,
         },
       },
       doctor: {
@@ -58,7 +58,7 @@ async function getAppointments(): Promise<AppointmentRow[]> {
       patientId: appointment.user_id,
       patientName,
       patientEmail: appointment.user?.email ?? "",
-      patientAvatar: appointment.user?.avatar ?? "",
+      patientAvatar: appointment.user?.profile_image ?? "",
       doctorName,
       date,
       time,

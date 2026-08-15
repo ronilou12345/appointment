@@ -4,7 +4,6 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { columns, UserRow } from "./columns"
 import { DataTable } from "@/components/data-table"
-import { createUserAction } from "@/lib/actions/user"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -13,8 +12,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Label } from "@/components/ui/label"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
-import { MailIcon, UserIcon, LockIcon, HashIcon, BriefcaseIcon, CheckIcon, XIcon } from "lucide-react"
+import { CameraIcon, MailIcon, UserIcon, LockIcon, HashIcon, CheckIcon, XIcon } from "lucide-react"
 
 export type CreateUserForm = {
   userType: string
@@ -48,6 +48,81 @@ type EditUserForm = {
   boardCertifications: string
 }
 
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "U"
+}
+
+function readImageFile(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Please choose an image file."))
+      return
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      reject(new Error("Image must be under 2MB."))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ""))
+    reader.onerror = () => reject(new Error("Unable to read the selected image."))
+    reader.readAsDataURL(file)
+  })
+}
+
+function AvatarUploadField({
+  preview,
+  name,
+  inputId,
+  onSelect,
+}: {
+  preview: string
+  name: string
+  inputId: string
+  onSelect: (dataUrl: string) => void
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
+      <label htmlFor={inputId} className="relative flex cursor-pointer items-center justify-center">
+        <Avatar size="lg" className="mx-auto">
+          {preview ? <AvatarImage src={preview} alt={name || "Profile"} /> : null}
+          <AvatarFallback>{getInitials(name)}</AvatarFallback>
+        </Avatar>
+        <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm">
+          <CameraIcon className="size-3.5" />
+        </span>
+      </label>
+      <div className="grid gap-1 place-items-center text-center sm:place-items-start sm:text-left">
+        <Label htmlFor={inputId} className="text-center sm:text-left">Profile image</Label>
+        <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, or GIF up to 2MB.</p>
+        <Input
+          id={inputId}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="h-9 max-w-xs cursor-pointer text-sm"
+          onChange={async (event) => {
+            const file = event.target.files?.[0]
+            if (!file) return
+            try {
+              onSelect(await readImageFile(file))
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Unable to use this image.")
+            }
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 function CreateUserModal({
   open,
   onOpenChange,
@@ -60,6 +135,7 @@ function CreateUserModal({
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
+  const [profileImage, setProfileImage] = React.useState("")
   const [form, setForm] = React.useState<CreateUserForm>({
     userType: "PATIENT",
     email: "",
@@ -97,6 +173,7 @@ function CreateUserModal({
       yearsofexperience: "",
       address: "",
     })
+    setProfileImage("")
     setErrorMsg("")
   }, [])
 
@@ -110,7 +187,7 @@ function CreateUserModal({
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, profileImage }),
     })
 
     const result = await response.json()
@@ -155,6 +232,15 @@ function CreateUserModal({
           ) : null}
 
           <div className="grid gap-4 py-2">
+            <div className="grid gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
+              <AvatarUploadField
+                inputId="create-profile-image"
+                preview={profileImage}
+                name={[form.firstName, form.lastName].filter(Boolean).join(" ")}
+                onSelect={setProfileImage}
+              />
+            </div>
+
             <div className="grid gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
               <div className="grid gap-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground/80">
@@ -425,6 +511,7 @@ function EditUserSheet({
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
+  const [profileImage, setProfileImage] = React.useState("")
   const [form, setForm] = React.useState<EditUserForm>({
     id: "",
     name: "",
@@ -456,6 +543,7 @@ function EditUserSheet({
       yearsOfExperience: user.yearsOfExperience ?? "",
       boardCertifications: user.boardCertifications ?? "",
     })
+    setProfileImage(user.avatar ?? "")
     setErrorMsg("")
   }, [user])
 
@@ -472,7 +560,10 @@ function EditUserSheet({
     const response = await fetch("/api/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        profileImage: profileImage.startsWith("data:image/") ? profileImage : undefined,
+      }),
     })
 
     const result = await response.json()
@@ -508,6 +599,13 @@ function EditUserSheet({
             ) : null}
 
             <div className="grid gap-4">
+              <AvatarUploadField
+                inputId="edit-profile-image"
+                preview={profileImage}
+                name={form.name}
+                onSelect={setProfileImage}
+              />
+
               <div className="grid gap-2">
                 <Label htmlFor="edit-name">Full name</Label>
                 <Input id="edit-name" value={form.name} onChange={(e) => handleChange("name", e.target.value)} />

@@ -18,7 +18,7 @@ export default async function ClientLayout({ children }: { children: React.React
     name: session.name,
     email: session.email,
     role,
-    avatar: "/avatars/shadcn.jpg",
+    avatar: session.profile_image ?? "/avatars/shadcn.jpg",
   }
 
   return (

@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
+import { MoreHorizontal, ShoppingCart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -85,6 +85,28 @@ export const columns: ColumnDef<MedicineRow>[] = [
         }`}>
           {status}
         </span>
+      )
+    },
+  },
+  {
+    id: "addToCart",
+    header: "",
+    cell: ({ row }) => {
+      const medicine = row.original
+      return (
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            window.dispatchEvent(
+              new CustomEvent("add-to-cart", { detail: medicine })
+            )
+          }}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          Add
+        </Button>
       )
     },
   },

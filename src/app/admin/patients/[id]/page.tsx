@@ -131,7 +131,7 @@ export default async function PatientProfilePage({ params }: Props) {
             <div className="rounded-3xl border border-border bg-background p-6 text-center">
               <div className="flex flex-col items-center justify-center gap-5">
                 <Avatar size="lg">
-                  {patient.avatar ? <AvatarImage src={patient.avatar} alt={patient.name} /> : <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>}
+                  {patient.profile_image ? <AvatarImage src={patient.profile_image} alt={patient.name} /> : <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>}
                 </Avatar>
                 <div>
                   <p className="text-lg font-semibold text-foreground">{patient.name}</p>

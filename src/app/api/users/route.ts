@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserAction } from "@/lib/actions/user"
 import prisma from "@/lib/prisma"
+import { saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
 
 function normalizeRole(value: string | null) {
   const role = (value ?? "PATIENT").toString().trim().toUpperCase()
@@ -73,6 +74,12 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 })
+    }
+
+    const profileImage = String(body.profileImage ?? "").trim()
+    if (profileImage.startsWith("data:image/") && result.userId) {
+      const imageUrl = await saveProfileImageFile(result.userId, profileImage)
+      await updateUserProfileImage(result.userId, imageUrl)
     }
 
     return NextResponse.json({ success: true })
@@ -181,6 +188,12 @@ export async function PATCH(request: NextRequest) {
         })
       }
     })
+
+    const profileImage = String(body?.profileImage ?? "").trim()
+    if (profileImage.startsWith("data:image/")) {
+      const imageUrl = await saveProfileImageFile(userId, profileImage)
+      await updateUserProfileImage(userId, imageUrl)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

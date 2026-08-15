@@ -1,13 +1,13 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { EyeIcon, EyeOffIcon } from "lucide-react"
+import { CameraIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { updateUserProfileAction } from "@/lib/actions/user"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface AccountSettingsFormProps {
   user: {
@@ -17,10 +17,41 @@ interface AccountSettingsFormProps {
     role?: string | null
     status?: string | null
     designations?: string | null
+    avatar?: string | null
   }
   redirectPath: string
   title: string
   description: string
+}
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "U"
+}
+
+function readImageFile(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Please choose an image file."))
+      return
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      reject(new Error("Image must be under 2MB."))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ""))
+    reader.onerror = () => reject(new Error("Unable to read the selected image."))
+    reader.readAsDataURL(file)
+  })
 }
 
 export function AccountSettingsForm({ user, redirectPath, title, description }: AccountSettingsFormProps) {
@@ -31,6 +62,7 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
   const [personalEmail, setPersonalEmail] = useState(user.email ?? "")
 
   const [composedName, setComposedName] = useState(user.name ?? "")
+  const [profileImagePreview, setProfileImagePreview] = useState(user.avatar ?? "")
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [newPasswordValue, setNewPasswordValue] = useState("")
@@ -53,7 +85,7 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
     setComposedName(parts.join(" "))
   }, [firstName, middleName, lastName])
 
-  const initials = (user.name || "").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const initials = getInitials(user.name || "")
 
   return (
     <Card className="border-border/60 shadow-sm">
@@ -64,11 +96,37 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
             <CardDescription>{description}</CardDescription>
           </div>
 
-          <div className="flex flex-col items-center">
-            <Avatar size="lg">
-              <AvatarFallback className="bg-primary/5 text-primary font-semibold">{initials}</AvatarFallback>
-            </Avatar>
-            <button type="button" className="mt-2 text-sm text-primary underline">Change profile</button>
+          <div className="flex items-center gap-4">
+            <label htmlFor="profile-image-upload" className="relative cursor-pointer">
+              <Avatar size="lg">
+                {profileImagePreview ? <AvatarImage src={profileImagePreview} alt={user.name || "Profile"} /> : null}
+                <AvatarFallback className="bg-primary/5 text-primary font-semibold">{initials}</AvatarFallback>
+              </Avatar>
+              <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm">
+                <CameraIcon className="size-3.5" />
+              </span>
+            </label>
+            <div className="grid gap-1 text-left">
+              <Label htmlFor="profile-image-upload" className="cursor-pointer text-sm font-medium text-primary">Change profile</Label>
+              <Input
+                id="profile-image-upload"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden h-9 max-w-xs cursor-pointer text-sm"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0]
+                  if (!file) return
+
+                  try {
+                    const dataUrl = await readImageFile(file)
+                    setProfileImagePreview(dataUrl)
+                  } catch (error) {
+                    console.error(error)
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, or GIF up to 2MB.</p>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -78,6 +136,7 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
           <input type="hidden" name="redirectPath" value={redirectPath} />
           <input type="hidden" name="name" value={composedName} />
           <input type="hidden" name="email" value={personalEmail} />
+          <input type="hidden" name="profileImage" value={profileImagePreview.startsWith("data:image/") ? profileImagePreview : ""} />
 
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">

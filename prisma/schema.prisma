@@ -7,43 +7,50 @@ datasource db {
 }
 
 model user {
-  id           String        @id
-  email        String        @unique(map: "User_email_key")
-  name         String
-  avatar       String?
-  role         user_role     @default(PATIENT)
-  status       user_status   @default(ACTIVE)
-  designations String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime
-  password     String
-  appointment  appointment[]
-  doctor       doctor?
-  bmi_record   bmi_record[]
+  id            String        @id
+  email         String        @unique(map: "User_email_key")
+  name          String
+  profile_image String?
+  role          user_role     @default(PATIENT)
+  status        user_status   @default(ACTIVE)
+  designations  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime
+  password      String
+  appointment   appointment[]
+  doctor        doctor?
+
+  @@map("user")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model appointment {
-  appointment_id       Int         @id @default(autoincrement())
+  appointment_id       Int           @id @default(autoincrement())
   user_id              String
   doctor_id            Int
   session_id           Int
   reason_for_visit     String
-  relationship         String?     @db.VarChar(100)
+  relationship         String?       @db.VarChar(100)
   age                  Int?
-  gender               String?     @db.VarChar(20)
-  contact_number       String?     @db.VarChar(20)
+  gender               String?       @db.VarChar(20)
+  contact_number       String?       @db.VarChar(20)
   symptoms             String?
-  duration_of_symptoms String?     @db.VarChar(100)
+  duration_of_symptoms String?       @db.VarChar(100)
   pain_level           Int?
   additional_notes     String?
-  appointment_status   String?     @default("Pending") @db.VarChar(30)
-  created_at           DateTime?   @default(now()) @db.Timestamp(6)
-  updated_at           DateTime?   @default(now()) @db.Timestamp(6)
-  doctor               doctor      @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_doctor")
-  session_tbl          session_tbl @relation(fields: [session_id], references: [session_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_session")
-  user                 user        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_user")
+  appointment_status   String?       @default("Pending") @db.VarChar(30)
+  created_at           DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?     @default(now()) @db.Timestamp(6)
+  appointment_type     String?       @db.VarChar
+  appointment_date     DateTime?     @db.Date
+  appointment_time     DateTime?     @db.Time(6)
+  reason_cancel        String?       @db.VarChar
+  doctor               doctor        @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_doctor")
+  session_tbl          session_tbl   @relation(fields: [session_id], references: [session_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_session")
+  user                 user          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_appointment_user")
+  soap_notes           soap_notes[]
+  vital_signs          vital_signs[]
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -62,7 +69,9 @@ model doctor {
   board_certification String?
   created_at          DateTime?     @default(now()) @db.Timestamp(6)
   updated_at          DateTime?     @default(now()) @db.Timestamp(6)
+  specialty_id        Int?          @db.SmallInt
   appointment         appointment[]
+  specialties         specialties?  @relation(fields: [specialty_id], references: [specialty_id], onDelete: NoAction, onUpdate: NoAction)
   user                user          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_doctor_user")
   session_tbl         session_tbl[]
 }
@@ -93,25 +102,50 @@ model session_tbl {
   end_time         DateTime      @db.Time(6)
   slots            Int
   appointment_type String        @db.VarChar(50)
-  status           String        @default("Active") @db.VarChar(30)
   created_at       DateTime?     @default(now()) @db.Timestamp(6)
   updated_at       DateTime?     @default(now()) @db.Timestamp(6)
+  status           String?       @db.VarChar
   appointment      appointment[]
   doctor           doctor        @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_session_doctor")
 }
 
-model bmi_record {
-  id                Int      @id @default(autoincrement())
-  user_id           String
-  heart_rate        Int?
-  body_temperature  Decimal? @db.Decimal(4, 1)
-  weight            Decimal? @db.Decimal(5, 2)
-  blood_sugar       Int?
-  created_at        DateTime @default(now()) @db.Timestamp(6)
-  updated_at        DateTime @updatedAt @db.Timestamp(6)
-  user              user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model soap_notes {
+  soap_id              Int         @id @default(autoincrement())
+  appointment_id       Int
+  chief_complaints     String
+  physical_examination String?
+  diagnosis            String
+  prescription         String?
+  next_follow_up       String?     @db.VarChar
+  created_at           DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?   @default(now()) @db.Timestamp(6)
+  appointment          appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_soap_appointment")
+}
 
-  @@index([user_id])
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model specialties {
+  specialty_id     Int       @id @default(autoincrement())
+  specialty_name   String    @unique @db.VarChar(100)
+  description      String?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+  available_doctor Int?      @db.SmallInt
+  status           String?   @db.VarChar
+  doctor           doctor[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model vital_signs {
+  vital_id         Int         @id @default(autoincrement())
+  appointment_id   Int
+  heart_rate       Int?
+  body_temperature Decimal?    @db.Decimal(4, 1)
+  weight           Decimal?    @db.Decimal(5, 2)
+  blood_sugar      Decimal?    @db.Decimal(5, 2)
+  created_at       DateTime?   @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?   @default(now()) @db.Timestamp(6)
+  appointment      appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_vital_appointment")
 }
 
 enum user_role {

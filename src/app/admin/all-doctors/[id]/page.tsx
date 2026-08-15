@@ -73,7 +73,7 @@ export default async function AdminDoctorDetailPage({ params }: Props) {
           email: true,
           designations: true,
           status: true,
-          avatar: true,
+          profile_image: true,
           createdAt: true,
         },
       },

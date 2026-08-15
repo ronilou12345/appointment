@@ -5,6 +5,7 @@ import { MoreHorizontal } from "lucide-react"
 import Link from "next/link"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -70,7 +71,24 @@ export const columns: ColumnDef<DoctorRow>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <span className="text-sm">{row.getValue("status") || "—"}</span>,
+    cell: ({ row }) => {
+      const status = String(row.getValue("status") ?? "").trim()
+      if (!status) return <span className="text-sm">—</span>
+
+      const statusClass = (() => {
+        switch (status.toLowerCase()) {
+          case "inactive":
+            return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800"
+          case "suspended":
+            return "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800"
+          case "active":
+          default:
+            return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800"
+        }
+      })()
+
+      return <Badge className={`${statusClass} capitalize`}>{status}</Badge>
+    },
   },
   {
     id: "actions",

@@ -98,6 +98,9 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
             <p className="text-primary-foreground/80 max-w-md">
               {showPendingAppointmentMessage(nextPending)}
             </p>
+            <p className="max-w-xl text-sm text-primary-foreground/80 leading-6">
+              Stay on top of your health with quick and easy access to your appointments, medical records, and personalized care. We're here to support your wellness every step of the way.
+            </p>
             {latestVitals ? (
               <div className="mt-3 rounded-lg bg-white/10 p-3 text-sm">
                 <div className="font-medium">Latest vitals</div>

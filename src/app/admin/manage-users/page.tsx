@@ -7,7 +7,7 @@ type UserResult = {
   name: string
   email: string
   status: string | null
-  avatar: string | null
+  profile_image: string | null
   role: string | null
   designations: string | null
   doctor: {
@@ -28,7 +28,7 @@ export default async function Page() {
       name: true,
       email: true,
       status: true,
-      avatar: true,
+      profile_image: true,
       role: true,
       designations: true,
       doctor: {
@@ -53,7 +53,7 @@ export default async function Page() {
     name: user.name,
     email: user.email,
     status: user.status ?? "",
-    avatar: user.avatar ?? null,
+    avatar: user.profile_image || null,
     role: user.role ?? "PATIENT",
     address: user.doctor?.address ?? "",
     prefix: user.doctor?.prefix ?? null,

@@ -28,6 +28,7 @@ export default async function ClientSettingsPage() {
             email: session.email,
             role: session.role,
             status: session.status,
+            avatar: session.profile_image ?? undefined,
           }}
           redirectPath="/client/settings"
           title="Client account settings"
