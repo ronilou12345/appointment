@@ -53,6 +53,7 @@ export async function GET() {
           select: {
             email: true,
             designations: true,
+            profile_image: true,
           },
         },
       },
@@ -70,6 +71,7 @@ export async function GET() {
         name: [doctor.first_name, doctor.middle_name, doctor.last_name].filter(Boolean).join(" "),
         credential: doctor.credentials ?? "MD",
         email: doctor.user?.email ?? "",
+        avatar: doctor.user?.profile_image ?? "",
         specialty: specialties.length ? specialties.join(", ") : "General Practice",
         specialties,
         boardCertificates,

@@ -189,29 +189,27 @@ async function sendAppointmentSms(contactNumber: string | null, details: {
 
   const message = `Hello, ${patientName}!
 
-Your appointment request at C2M Family Clinic has been successfully received.
+Your appointment request at C2M Family Clinic has been received and is currently **pending doctor confirmation**.
 
-Appointment Details:
 📅 Date: ${appointmentDate}
 🕒 Time: ${appointmentTime}
 👨‍⚕️ Doctor: Dr. ${doctorName}
 
-Please arrive 10–15 minutes before your scheduled appointment. If you need to cancel or reschedule, kindly let us know in advance.
-
-Thank you, and we look forward to seeing you!
+Please wait for confirmation. **You will receive another text message once your appointment has been confirmed.**
 
 — C2M Family Clinic`
 
-  try {
+  const configuredSenderName = process.env.SEMAPHORE_SENDER_NAME?.trim()
+
+  const attemptSend = async (senderName?: string) => {
     const payload: Record<string, string> = {
       apikey: apiKey,
       number: normalizedNumber,
       message,
     }
 
-    const configuredSenderName = process.env.SEMAPHORE_SENDER_NAME?.trim()
-    if (configuredSenderName) {
-      payload.sendername = configuredSenderName
+    if (senderName) {
+      payload.sendername = senderName
     }
 
     const response = await fetch("https://api.semaphore.co/api/v4/messages", {
@@ -224,12 +222,51 @@ Thank you, and we look forward to seeing you!
     })
 
     const responseText = await response.text()
+
     if (!response.ok) {
-      console.error("Semaphore SMS failed:", response.status, responseText)
-      return { success: false, reason: "provider-error", status: response.status, providerResponse: responseText }
+      const errorPayload = responseText ? responseText : "No response body returned"
+      return {
+        success: false,
+        reason: "provider-error",
+        status: response.status,
+        providerResponse: errorPayload,
+      }
     }
 
     return { success: true, response: responseText }
+  }
+
+  try {
+    const primaryAttempt = await attemptSend(configuredSenderName)
+
+    if (primaryAttempt.success) {
+      return primaryAttempt
+    }
+
+    const providerText = String(primaryAttempt.providerResponse || "")
+    const senderRejected = configuredSenderName && (
+      providerText.toLowerCase().includes("sender") ||
+      providerText.toLowerCase().includes("invalid") ||
+      providerText.toLowerCase().includes("not allowed") ||
+      providerText.toLowerCase().includes("rejected")
+    )
+
+    if (senderRejected) {
+      console.warn("Semaphore sender rejected; retrying without sendername:", providerText)
+      const fallbackAttempt = await attemptSend()
+      if (fallbackAttempt.success) {
+        return fallbackAttempt
+      }
+
+      return {
+        success: false,
+        reason: fallbackAttempt.reason,
+        status: fallbackAttempt.status,
+        providerResponse: fallbackAttempt.providerResponse,
+      }
+    }
+
+    return primaryAttempt
   } catch (error) {
     console.error("Semaphore SMS error:", error)
     return { success: false, reason: "request-failed" }
@@ -278,6 +315,7 @@ export async function POST(request: NextRequest) {
       appointmentType?: string | null
       reasonForVisit?: string | null
     } = {}
+    let savedContactNumber: string | null = contactNumber
 
     await prisma.$transaction(async (tx) => {
       const session = await tx.$queryRawUnsafe<any[]>(
@@ -366,9 +404,21 @@ export async function POST(request: NextRequest) {
         selectedAppointmentDate,
         selectedAppointmentTime ? `${selectedAppointmentTime}:00` : null,
       )
+
+      const createdAppointmentRows = await tx.$queryRawUnsafe<{ contact_number: string | null }[]>(
+        `SELECT contact_number FROM "appointment" WHERE user_id = $1 AND doctor_id = $2 AND session_id = $3 ORDER BY appointment_id DESC LIMIT 1`,
+        user.id,
+        doctorId,
+        sessionId,
+      )
+
+      const persistedContactNumber = createdAppointmentRows?.[0]?.contact_number ?? contactNumber
+      if (persistedContactNumber) {
+        savedContactNumber = persistedContactNumber
+      }
     })
 
-    const smsResult = await sendAppointmentSms(contactNumber, appointmentDetails)
+    const smsResult = await sendAppointmentSms(savedContactNumber, appointmentDetails)
 
     if (!smsResult.success) {
       console.warn("Appointment booked, SMS skipped or failed:", smsResult)

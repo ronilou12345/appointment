@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Stepper, type StepperItem } from "@/components/ui/stepper"
 import { User, Calendar as CalendarIcon, FileText, CheckCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
 
 type DoctorOption = {
@@ -14,6 +15,7 @@ type DoctorOption = {
   name: string
   credential: string
   email?: string
+  avatar?: string
   specialty: string
   specialties?: string[]
   boardCertificates?: string[]
@@ -562,13 +564,18 @@ export function BookAppointmentContent() {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          {doctor.name
-                            .split(" ")
-                            .slice(1)
-                            .map((part) => part[0])
-                            .join("")}
-                        </div>
+                        <Avatar className="h-11 w-11 border border-border bg-primary/5">
+                          {doctor.avatar ? <AvatarImage src={doctor.avatar} alt={doctor.name} /> : null}
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {doctor.name
+                              .split(" ")
+                              .filter(Boolean)
+                              .slice(0, 2)
+                              .map((part) => part[0])
+                              .join("")
+                              .toUpperCase() || "DR"}
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-foreground">
                             {doctor.name}, {doctor.credential}
