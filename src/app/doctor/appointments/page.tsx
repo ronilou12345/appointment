@@ -35,6 +35,8 @@ async function getDoctorAppointments(userId: string) {
       reason_for_visit: true,
       age: true,
       gender: true,
+      appointment_date: true,
+      appointment_time: true,
       user: {
         select: {
           name: true,
@@ -53,12 +55,10 @@ async function getDoctorAppointments(userId: string) {
 
   return appointments.map((appointment) => {
     const patientName = appointment.user?.name ?? "Unknown Patient"
-    const date = appointment.session_tbl?.session_date
-      ? appointment.session_tbl.session_date.toISOString().split("T")[0]
-      : ""
-    const time = appointment.session_tbl?.start_time
-      ? appointment.session_tbl.start_time.toISOString().slice(11, 16)
-      : ""
+    const dateValue = appointment.appointment_date ?? appointment.session_tbl?.session_date
+    const date = dateValue ? dateValue.toISOString().split("T")[0] : ""
+    const timeValue = appointment.appointment_time ?? appointment.session_tbl?.start_time
+    const time = timeValue ? timeValue.toISOString().slice(11, 16) : ""
     const specialty = appointment.session_tbl?.appointment_type || appointment.reason_for_visit || "General Consultation"
 
     return {
@@ -71,7 +71,7 @@ async function getDoctorAppointments(userId: string) {
       doctorName,
       specialty,
       date,
-      time: formatAppointmentTime(String(appointment.session_tbl?.start_time ? appointment.session_tbl.start_time.toISOString().slice(11, 16) : "")),
+      time: formatAppointmentTime(String(time || "")),
       status: appointment.appointment_status ?? "Pending",
     }
   })

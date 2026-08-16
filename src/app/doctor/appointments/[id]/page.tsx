@@ -56,8 +56,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
       SELECT a.*, u.name AS user_name,
              d.prefix AS doctor_prefix, d.first_name AS doctor_first_name, d.middle_name AS doctor_middle_name, d.last_name AS doctor_last_name,
              s.appointment_type AS session_appointment_type,
-             to_char(s.session_date, 'YYYY-MM-DD') AS session_date_text,
-             to_char(s.start_time, 'HH24:MI') AS start_time_text
+             to_char(COALESCE(a.appointment_date, s.session_date), 'YYYY-MM-DD') AS appointment_date_text,
+             to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time_text
       FROM "appointment" a
       LEFT JOIN "user" u ON u.id = a.user_id
       LEFT JOIN "doctor" d ON d.doctor_id = a.doctor_id
@@ -93,8 +93,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   const doctorNotes = appointment.additional_notes ?? "No doctor notes recorded."
   const followUp = appointment.symptoms ?? "No follow-up plan recorded."
   const specialty = appointment.session_appointment_type || appointment.reason_for_visit || "General Consultation"
-  const date = appointment.session_date_text ?? "—"
-  const timeText = appointment.start_time_text ?? ""
+  const date = appointment.appointment_date_text ?? "—"
+  const timeText = appointment.appointment_time_text ?? ""
   const time = timeText ? formatAppointmentTime(String(timeText)) : "—"
   const statusText = appointment.appointment_status ?? "Pending"
   const badgeVariant = getStatusVariant(statusText)

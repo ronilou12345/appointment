@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
+import { normalizePhilippineMobile } from "@/lib/phone-utils"
 
 function parseTimeToMinutes(value: string): number | null {
   const trimmed = String(value ?? "").trim()
@@ -56,40 +57,62 @@ export async function GET(request: NextRequest) {
 
     let bookedTimes: string[] = []
     try {
-      const sessionRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT
-          s.session_id,
-          s.session_date,
-          to_char(s.start_time, 'HH24:MI') AS start_time,
-          to_char(s.end_time, 'HH24:MI') AS end_time,
-          s.slots,
-          COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
-        FROM "session_tbl" s
-        LEFT JOIN "appointment" a ON a.session_id = s.session_id
-        WHERE s.doctor_id = $1 AND s.session_date = $2
-        GROUP BY s.session_id, s.session_date, s.start_time, s.end_time, s.slots`,
+      const appointmentTimeRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT DISTINCT
+          to_char(a.appointment_time, 'HH24:MI') AS appointment_time
+        FROM "appointment" a
+        INNER JOIN "session_tbl" s ON s.session_id = a.session_id
+        WHERE s.doctor_id = $1 AND s.session_date = $2 AND a.appointment_time IS NOT NULL
+        ORDER BY to_char(a.appointment_time, 'HH24:MI') ASC`,
         doctorId,
         selectedDate,
       )
 
-      const bookedSlotSet = new Set<string>()
+      bookedTimes = appointmentTimeRows
+        .map((row) => String(row.appointment_time ?? "").trim())
+        .filter(Boolean)
+        .sort((a, b) => {
+          const aMinutes = parseTimeToMinutes(a) ?? 0
+          const bMinutes = parseTimeToMinutes(b) ?? 0
+          return aMinutes - bMinutes
+        })
 
-      for (const row of sessionRows) {
-        const capacity = Number(row.slots ?? 0)
-        const bookedCount = Number(row.booked_count ?? 0)
-        if (!capacity || bookedCount <= 0) continue
+      if (bookedTimes.length === 0) {
+        const sessionRows = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT
+            s.session_id,
+            s.session_date,
+            to_char(s.start_time, 'HH24:MI') AS start_time,
+            to_char(s.end_time, 'HH24:MI') AS end_time,
+            s.slots,
+            COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
+          FROM "session_tbl" s
+          LEFT JOIN "appointment" a ON a.session_id = s.session_id
+          WHERE s.doctor_id = $1 AND s.session_date = $2
+          GROUP BY s.session_id, s.session_date, s.start_time, s.end_time, s.slots`,
+          doctorId,
+          selectedDate,
+        )
 
-        const slotKeys = buildTimeSlots(String(row.start_time ?? ""), String(row.end_time ?? ""))
-        const slotsToMark = Math.min(slotKeys.length, bookedCount)
+        const bookedSlotSet = new Set<string>()
 
-        slotKeys.slice(0, slotsToMark).forEach((slot) => bookedSlotSet.add(slot))
+        for (const row of sessionRows) {
+          const capacity = Number(row.slots ?? 0)
+          const bookedCount = Number(row.booked_count ?? 0)
+          if (!capacity || bookedCount <= 0) continue
+
+          const slotKeys = buildTimeSlots(String(row.start_time ?? ""), String(row.end_time ?? ""))
+          const slotsToMark = Math.min(slotKeys.length, bookedCount)
+
+          slotKeys.slice(0, slotsToMark).forEach((slot) => bookedSlotSet.add(slot))
+        }
+
+        bookedTimes = Array.from(bookedSlotSet).sort((a, b) => {
+          const aMinutes = parseTimeToMinutes(a) ?? 0
+          const bMinutes = parseTimeToMinutes(b) ?? 0
+          return aMinutes - bMinutes
+        })
       }
-
-      bookedTimes = Array.from(bookedSlotSet).sort((a, b) => {
-        const aMinutes = parseTimeToMinutes(a) ?? 0
-        const bMinutes = parseTimeToMinutes(b) ?? 0
-        return aMinutes - bMinutes
-      })
     } catch {
       bookedTimes = []
     }
@@ -134,6 +157,85 @@ type AppointmentPayload = {
   additionalNotes?: string | null
 }
 
+function normalizeContactNumber(value: string): string | null {
+  return normalizePhilippineMobile(value)
+}
+
+async function sendAppointmentSms(contactNumber: string | null, details: {
+  patientName?: string
+  doctorName?: string
+  date?: string | null
+  time?: string | null
+  appointmentType?: string | null
+  reasonForVisit?: string | null
+}) {
+  if (!contactNumber) return { success: false, reason: "missing-contact-number" }
+
+  const apiKey = process.env.SEMAPHORE_API_KEY
+  if (!apiKey) {
+    console.warn("SEMAPHORE_API_KEY is not configured; skipping SMS notification.")
+    return { success: false, reason: "missing-api-key" }
+  }
+
+  const normalizedNumber = normalizeContactNumber(contactNumber)
+  if (!normalizedNumber) {
+    return { success: false, reason: "invalid-contact-number" }
+  }
+
+  const patientName = details.patientName?.trim() || "Patient"
+  const doctorName = details.doctorName?.trim() || "Doctor"
+  const appointmentDate = details.date || "[Date]"
+  const appointmentTime = details.time || "[Time]"
+
+  const message = `Hello, ${patientName}!
+
+Your appointment request at C2M Family Clinic has been successfully received.
+
+Appointment Details:
+📅 Date: ${appointmentDate}
+🕒 Time: ${appointmentTime}
+👨‍⚕️ Doctor: Dr. ${doctorName}
+
+Please arrive 10–15 minutes before your scheduled appointment. If you need to cancel or reschedule, kindly let us know in advance.
+
+Thank you, and we look forward to seeing you!
+
+— C2M Family Clinic`
+
+  try {
+    const payload: Record<string, string> = {
+      apikey: apiKey,
+      number: normalizedNumber,
+      message,
+    }
+
+    const configuredSenderName = process.env.SEMAPHORE_SENDER_NAME?.trim()
+    if (configuredSenderName) {
+      payload.sendername = configuredSenderName
+    }
+
+    const response = await fetch("https://api.semaphore.co/api/v4/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const responseText = await response.text()
+    if (!response.ok) {
+      console.error("Semaphore SMS failed:", response.status, responseText)
+      return { success: false, reason: "provider-error", status: response.status, providerResponse: responseText }
+    }
+
+    return { success: true, response: responseText }
+  } catch (error) {
+    console.error("Semaphore SMS error:", error)
+    return { success: false, reason: "request-failed" }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -154,7 +256,11 @@ export async function POST(request: NextRequest) {
     const appointmentType = payload.appointmentType ? String(payload.appointmentType).trim().slice(0, 50) : "General Consultation"
     const relationship = payload.relationship.trim().slice(0, 100)
     const reasonForVisit = payload.reasonForVisit.trim().slice(0, 500)
-    const contactNumber = payload.contactNumber ? String(payload.contactNumber).trim().slice(0, 20) : null
+    const rawContactNumber = payload.contactNumber ? String(payload.contactNumber).trim().slice(0, 20) : null
+    const contactNumber = rawContactNumber ? normalizePhilippineMobile(rawContactNumber) : null
+    if (rawContactNumber && !contactNumber) {
+      return NextResponse.json({ success: false, error: "Please enter a valid Philippine mobile number." }, { status: 400 })
+    }
     const gender = payload.gender ? String(payload.gender).trim().slice(0, 20) : null
     const symptoms = payload.symptoms ? String(payload.symptoms).trim().slice(0, 1000) : null
     const durationOfSymptoms = payload.durationOfSymptoms ? String(payload.durationOfSymptoms).trim().slice(0, 100) : null
@@ -164,9 +270,18 @@ export async function POST(request: NextRequest) {
     const appointmentDate = payload.appointmentDate ? String(payload.appointmentDate).trim().slice(0, 10) : null
     const appointmentTime = payload.appointmentTime ? String(payload.appointmentTime).trim().slice(0, 5) : null
 
+    let appointmentDetails: {
+      patientName?: string
+      doctorName?: string
+      date?: string | null
+      time?: string | null
+      appointmentType?: string | null
+      reasonForVisit?: string | null
+    } = {}
+
     await prisma.$transaction(async (tx) => {
       const session = await tx.$queryRawUnsafe<any[]>(
-        `SELECT session_id, slots, status
+        `SELECT session_id, slots, status, to_char(session_date, 'YYYY-MM-DD') AS session_date, to_char(start_time, 'HH24:MI') AS start_time, to_char(end_time, 'HH24:MI') AS end_time
          FROM "session_tbl"
          WHERE session_id = $1 AND doctor_id = $2
          FOR UPDATE`,
@@ -210,8 +325,31 @@ export async function POST(request: NextRequest) {
         throw new Error("You already have an appointment for this date")
       }
 
+      const doctor = await tx.$queryRawUnsafe<any[]>(
+        `SELECT u.name, u.email
+         FROM "doctor" d
+         INNER JOIN "user" u ON u.id = d.user_id
+         WHERE d.doctor_id = $1
+         LIMIT 1`,
+        doctorId,
+      )
+
+      const selectedAppointmentDate = session[0].session_date ? String(session[0].session_date).slice(0, 10) : appointmentDate
+      const selectedAppointmentTime = appointmentTime && /^\d{1,2}:\d{2}$/.test(appointmentTime)
+        ? appointmentTime
+        : session[0].start_time ? String(session[0].start_time).slice(0, 5) : null
+
+      appointmentDetails = {
+        patientName: user.name ?? user.email ?? "Patient",
+        doctorName: doctor?.[0]?.name ?? "Doctor",
+        date: selectedAppointmentDate,
+        time: selectedAppointmentTime,
+        appointmentType,
+        reasonForVisit,
+      }
+
       await tx.$executeRawUnsafe(
-        `INSERT INTO "appointment" ("user_id", "doctor_id", "session_id", "appointment_type", "reason_for_visit", "relationship", "age", "gender", "contact_number", "symptoms", "duration_of_symptoms", "pain_level", "additional_notes") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        `INSERT INTO "appointment" ("user_id", "doctor_id", "session_id", "appointment_type", "reason_for_visit", "relationship", "age", "gender", "contact_number", "symptoms", "duration_of_symptoms", "pain_level", "additional_notes", "appointment_date", "appointment_time") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
         user.id,
         doctorId,
         sessionId,
@@ -225,10 +363,18 @@ export async function POST(request: NextRequest) {
         durationOfSymptoms,
         painLevel,
         additionalNotes,
+        selectedAppointmentDate,
+        selectedAppointmentTime ? `${selectedAppointmentTime}:00` : null,
       )
     })
 
-    return NextResponse.json({ success: true })
+    const smsResult = await sendAppointmentSms(contactNumber, appointmentDetails)
+
+    if (!smsResult.success) {
+      console.warn("Appointment booked, SMS skipped or failed:", smsResult)
+    }
+
+    return NextResponse.json({ success: true, smsSent: smsResult.success })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const status = message.includes("already have an appointment") ? 409 : 500
@@ -247,29 +393,44 @@ export async function PATCH(request: NextRequest) {
 
     const appointmentId = Number(body.appointmentId)
     const action = String(body.action || "").trim()
-    const allowedActions = ["Confirm", "Complete"]
+    const reasonCancel = typeof body.reasonCancel === "string" ? body.reasonCancel.trim().slice(0, 1000) : ""
+    const allowedActions = ["Confirm", "Complete", "Cancel"]
 
     if (!appointmentId || !allowedActions.includes(action)) {
       return NextResponse.json({ success: false, error: "Invalid appointment action" }, { status: 400 })
     }
 
-    const appointment = await prisma.appointment.findFirst({
-      where: {
-        appointment_id: appointmentId,
-        doctor: { user_id: user.id },
-      },
-      select: {
-        appointment_id: true,
-        appointment_status: true,
-      },
-    })
+    const shouldCancel = action === "Cancel"
+    const appointment = shouldCancel
+      ? await prisma.appointment.findFirst({
+          where: {
+            appointment_id: appointmentId,
+            user_id: user.id,
+          },
+          select: {
+            appointment_id: true,
+            appointment_status: true,
+            reason_cancel: true,
+          },
+        })
+      : await prisma.appointment.findFirst({
+          where: {
+            appointment_id: appointmentId,
+            doctor: { user_id: user.id },
+          },
+          select: {
+            appointment_id: true,
+            appointment_status: true,
+            reason_cancel: true,
+          },
+        })
 
     if (!appointment) {
       return NextResponse.json({ success: false, error: "Appointment not found" }, { status: 404 })
     }
 
     const normalizedStatus = String(appointment.appointment_status || "Pending").trim()
-    const targetStatus = action === "Confirm" ? "Confirmed" : "Completed"
+    const targetStatus = shouldCancel ? "Cancelled" : action === "Confirm" ? "Confirmed" : "Completed"
 
     if (normalizedStatus.toLowerCase() === "cancelled") {
       return NextResponse.json({ success: false, error: "Cannot update a cancelled appointment" }, { status: 400 })
@@ -281,7 +442,11 @@ export async function PATCH(request: NextRequest) {
 
     const updatedAppointment = await prisma.appointment.update({
       where: { appointment_id: appointmentId },
-      data: { appointment_status: targetStatus },
+      data: {
+        appointment_status: targetStatus,
+        ...(shouldCancel && reasonCancel ? { reason_cancel: reasonCancel } : {}),
+        ...(shouldCancel && !reasonCancel && appointment.reason_cancel ? {} : {}),
+      },
     })
 
     return NextResponse.json({ success: true, status: updatedAppointment.appointment_status })

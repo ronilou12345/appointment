@@ -89,8 +89,8 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
   const patientAge = appointment.age != null ? String(appointment.age) : "—"
   const patientGender = appointment.gender ?? "—"
   const patientType = appointment.session_tbl?.appointment_type ?? "General Consultation"
-  const patientDate = formatDate(appointment.session_tbl?.session_date)
-  const patientTime = formatTime(appointment.session_tbl?.start_time)
+  const patientDate = formatDate(appointment.appointment_date ?? appointment.session_tbl?.session_date)
+  const patientTime = formatTime(appointment.appointment_time ?? appointment.session_tbl?.start_time)
   const patientRelationship = appointment.relationship ?? "N/A"
   const patientReason = appointment.reason_for_visit ?? "N/A"
   const patientSymptoms = appointment.symptoms ?? "No symptoms recorded."

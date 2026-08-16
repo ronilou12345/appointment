@@ -251,8 +251,21 @@ export const columns: ColumnDef<DoctorAppointmentRow>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = String(row.getValue("status"))
-      const variant = status === "Confirmed" ? "default" : status === "Pending" ? "secondary" : "outline"
-      return <Badge variant={variant}>{status}</Badge>
+      const normalized = status.toLowerCase()
+
+      let badgeClass = "bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:ring-slate-700"
+
+      if (normalized === "confirmed") {
+        badgeClass = "bg-blue-100 text-blue-800 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-800/60"
+      } else if (normalized === "completed") {
+        badgeClass = "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800/60"
+      } else if (normalized === "cancelled" || normalized === "canceled") {
+        badgeClass = "bg-rose-100 text-rose-800 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-800/60"
+      } else if (normalized === "pending") {
+        badgeClass = "bg-amber-100 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800/60"
+      }
+
+      return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badgeClass}`}>{status}</span>
     },
   },
   {

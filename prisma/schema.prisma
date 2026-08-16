@@ -79,17 +79,18 @@ model doctor {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model medicine_inventory {
-  medicine_id   Int       @id @default(autoincrement())
-  medicine_name String    @db.VarChar(150)
-  category      String    @db.VarChar(100)
-  quantity      Int       @default(0)
-  reorder_level Int       @default(10)
-  expiry_date   DateTime  @db.Date
-  unit_price    Decimal   @db.Decimal(10, 2)
-  status        String    @default("Available") @db.VarChar(30)
-  supplier      String    @db.VarChar(150)
-  created_at    DateTime? @default(now()) @db.Timestamp(6)
-  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+  medicine_id    Int       @id @default(autoincrement())
+  medicine_name  String    @db.VarChar(150)
+  category       String    @db.VarChar(100)
+  quantity       Int       @default(0)
+  reorder_level  Int       @default(10)
+  expiry_date    DateTime  @db.Date
+  unit_price     Decimal   @db.Decimal(10, 2)
+  status         String    @default("Available") @db.VarChar(30)
+  supplier       String    @db.VarChar(150)
+  medicine_image String?
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+  updated_at     DateTime? @default(now()) @db.Timestamp(6)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Stepper, type StepperItem } from "@/components/ui/stepper"
 import { User, Calendar as CalendarIcon, FileText, CheckCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { normalizePhilippineMobile } from "@/lib/phone-utils"
 
 type DoctorOption = {
   id: number
@@ -330,9 +331,11 @@ export function BookAppointmentContent() {
 
   const handleInputChange = (e: any) => {
     const { name, value } = e.target
+    const nextValue = name === "contactNumber" ? value.replace(/[^\d+\s-]/g, "").slice(0, 18) : value
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: nextValue,
     }))
   }
 
@@ -449,6 +452,12 @@ export function BookAppointmentContent() {
       return
     }
 
+    const cleanedContactNumber = normalizePhilippineMobile(formData.contactNumber)
+    if (formData.contactNumber.trim() && !cleanedContactNumber) {
+      toast.error("Please enter a valid Philippine mobile number before confirming.")
+      return
+    }
+
     const payload = {
       doctorId: Number(formData.doctorId),
       sessionId: Number(formData.sessionId),
@@ -459,7 +468,7 @@ export function BookAppointmentContent() {
       relationship: formData.patientRelationship === "Other" ? formData.patientRelationshipOther || "Other" : formData.patientRelationship,
       age: formData.age ? Number(formData.age) : undefined,
       gender: formData.gender || undefined,
-      contactNumber: formData.contactNumber || undefined,
+      contactNumber: cleanedContactNumber || undefined,
       symptoms: formData.symptoms || undefined,
       durationOfSymptoms: formData.durationOfSymptoms || undefined,
       painLevel: formData.painLevel ? Number(formData.painLevel) : undefined,
@@ -885,16 +894,19 @@ export function BookAppointmentContent() {
                 </div>
 
                 <div>
-                  <Label htmlFor="contactNumber">Contact Number</Label>
+                  <Label htmlFor="contactNumber">Contact Number (Philippine Format)</Label>
                   <input
                     id="contactNumber"
                     name="contactNumber"
                     type="tel"
-                    placeholder="e.g. 0917 123 4567"
+                    placeholder="e.g. 0917 123 4567 or 09616203914"
                     value={formData.contactNumber}
                     onChange={handleInputChange}
                     className="mt-2 h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Use Philippine mobile number format: 09XX-XXX-XXXX or 09XXXXXXXXX. We'll send your appointment confirmation via SMS.
+                  </p>
                 </div>
               </div>
 

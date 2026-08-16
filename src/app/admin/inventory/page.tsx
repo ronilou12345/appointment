@@ -15,6 +15,7 @@ export default async function Page() {
     price: Number(m.unit_price),
     supplier: m.supplier,
     status: m.quantity === 0 ? "Out of Stock" : m.quantity <= (m.reorder_level ?? 0) ? "Low Stock" : "In Stock",
+    image: m.medicine_image || undefined,
   }))
 
   return <InventoryContent rows={rows} />

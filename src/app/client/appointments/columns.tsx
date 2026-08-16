@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 
@@ -31,11 +32,13 @@ export type ClientAppointmentRow = {
 }
 
 function AppointmentActionsCell({ appointment }: { appointment: ClientAppointmentRow }) {
+  const router = useRouter()
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState("asap")
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
   const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   const canManageAppointment = !["confirmed", "completed", "cancelled", "canceled"].includes(
     (appointment.status ?? "").toLowerCase(),
@@ -70,17 +73,36 @@ function AppointmentActionsCell({ appointment }: { appointment: ClientAppointmen
     },
   ]
 
-  const handleCancelSubmit = () => {
+  const handleCancelSubmit = async () => {
     if (!cancelReason.trim()) {
       setError("Please provide a reason for cancellation.")
       return
     }
 
-    // TODO: wire this to your cancellation API or action
-    console.log(`Cancel appointment ${appointment.id}: ${cancelReason}`)
-    setCancelOpen(false)
-    setCancelReason("")
+    setSubmitting(true)
     setError("")
+
+    try {
+      const response = await fetch("/api/appointments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appointmentId: Number(appointment.id), action: "Cancel", reasonCancel: cancelReason.trim() }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to cancel appointment")
+      }
+
+      setCancelOpen(false)
+      setCancelReason("")
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to cancel appointment")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleRescheduleSubmit = () => {
@@ -206,7 +228,9 @@ function AppointmentActionsCell({ appointment }: { appointment: ClientAppointmen
             <Button variant="outline" onClick={() => setCancelOpen(false)}>
               Close
             </Button>
-            <Button onClick={handleCancelSubmit}>Submit</Button>
+            <Button onClick={handleCancelSubmit} disabled={submitting}>
+              {submitting ? "Submitting..." : "Submit"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

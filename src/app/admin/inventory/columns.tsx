@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, ShoppingCart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,9 +24,32 @@ export type MedicineRow = {
   price: number
   supplier: string
   status: string
+  image?: string
 }
 
 export const columns: ColumnDef<MedicineRow>[] = [
+  {
+    id: "image",
+    header: "",
+    cell: ({ row }) => {
+      const image = row.original.image
+      const name = row.getValue("name") as string
+      const initials = name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase() || "M"
+
+      return (
+        <Avatar className="h-10 w-10">
+          {image ? <AvatarImage src={image} alt={name} /> : null}
+          <AvatarFallback>{initials}</AvatarFallback>
+        </Avatar>
+      )
+    },
+  },
   {
     accessorKey: "name",
     header: "Medicine Name",
@@ -35,6 +59,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
     accessorKey: "category",
     header: "Category",
     cell: ({ row }) => row.getValue("category") || "—",
+    enableHiding: true,
   },
   {
     accessorKey: "quantity",
@@ -53,6 +78,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
     accessorKey: "reorderLevel",
     header: "Reorder Level",
     cell: ({ row }) => row.getValue("reorderLevel") || "—",
+    enableHiding: true,
   },
   {
     accessorKey: "expiryDate",
@@ -71,6 +97,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
     accessorKey: "supplier",
     header: "Supplier",
     cell: ({ row }) => row.getValue("supplier") || "—",
+    enableHiding: true,
   },
   {
     accessorKey: "status",

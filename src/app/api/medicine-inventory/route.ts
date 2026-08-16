@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const unitPrice = Number(body.price ?? 0) || 0
     const supplier = String(body.supplier ?? "").trim()
     const status = String(body.status ?? "In Stock").trim()
+    const medicineImage = body.medicineImage ? String(body.medicineImage).trim() : null
 
     if (!medicineName || !category || !supplier || !expiryDate) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
         unit_price: unitPrice,
         supplier,
         status,
+        medicine_image: medicineImage,
       },
     })
 

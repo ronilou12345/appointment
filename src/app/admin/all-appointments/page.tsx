@@ -13,6 +13,8 @@ async function getAppointments(): Promise<AppointmentRow[]> {
       appointment_status: true,
       session_id: true,
       reason_for_visit: true,
+      appointment_date: true,
+      appointment_time: true,
       user: {
         select: {
           id: true,
@@ -45,13 +47,12 @@ async function getAppointments(): Promise<AppointmentRow[]> {
           .join(" ")
       : "Unknown Doctor"
 
-    const date = appointment.session_tbl?.session_date
-      ? appointment.session_tbl.session_date.toISOString().split("T")[0]
+    const date = (appointment.appointment_date ?? appointment.session_tbl?.session_date)
+      ? (appointment.appointment_date ?? appointment.session_tbl!.session_date).toISOString().split("T")[0]
       : ""
 
-    const time = appointment.session_tbl?.start_time
-      ? formatAppointmentTime(appointment.session_tbl.start_time.toISOString().slice(11, 16))
-      : ""
+    const timeValue = appointment.appointment_time ?? appointment.session_tbl?.start_time
+    const time = timeValue ? formatAppointmentTime(timeValue.toISOString().slice(11, 16)) : ""
 
     return {
       id: String(appointment.appointment_id),

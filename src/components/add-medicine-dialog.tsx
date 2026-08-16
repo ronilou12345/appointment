@@ -20,11 +20,33 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PlusIcon } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { PlusIcon, CameraIcon } from "lucide-react"
+
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+
+function readImageFile(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Please choose an image file."))
+      return
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      reject(new Error("Image must be under 2MB."))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ""))
+    reader.onerror = () => reject(new Error("Unable to read the selected image."))
+    reader.readAsDataURL(file)
+  })
+}
 
 export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
+  const [medicineImage, setMedicineImage] = React.useState("")
   const [form, setForm] = React.useState({
     medicineName: "",
     category: "",
@@ -37,6 +59,16 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
   })
 
   const handleChange = (key: string, value: string) => setForm((s) => ({ ...s, [key]: value }))
+
+  function getInitials(name: string) {
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "M"
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,6 +83,7 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
         price: Number(form.price) || 0,
         supplier: form.supplier,
         status: form.status,
+        medicineImage: medicineImage.startsWith("data:image/") ? medicineImage : "",
       }
 
       const res = await fetch('/api/medicine-inventory', {
@@ -64,6 +97,7 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
 
       toast.success('Successfully added')
       onOpenChange(false)
+      setMedicineImage("")
       router.refresh()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -88,6 +122,39 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Medicine Image Upload */}
+            <div className="flex flex-col items-center justify-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
+              <label htmlFor="medicineImage" className="relative flex cursor-pointer items-center justify-center">
+                <Avatar size="lg" className="mx-auto">
+                  {medicineImage ? <AvatarImage src={medicineImage} alt={form.medicineName || "Medicine"} /> : null}
+                  <AvatarFallback>{getInitials(form.medicineName || "Medicine")}</AvatarFallback>
+                </Avatar>
+                <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm">
+                  <CameraIcon className="size-3.5" />
+                </span>
+              </label>
+              <div className="grid gap-1 place-items-center text-center sm:place-items-start sm:text-left">
+                <Label htmlFor="medicineImage" className="text-center sm:text-left">Medicine Image</Label>
+                <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, or GIF up to 2MB.</p>
+                <Input
+                  id="medicineImage"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="h-9 max-w-xs cursor-pointer text-sm"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) return
+                    try {
+                      const dataUrl = await readImageFile(file)
+                      setMedicineImage(dataUrl)
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Unable to use this image.")
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
             {/* Medicine Name and Category */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

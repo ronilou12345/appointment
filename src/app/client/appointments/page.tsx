@@ -23,8 +23,8 @@ export default async function Page() {
       a.appointment_id AS id,
       a.appointment_status AS status,
       COALESCE(a.appointment_type, s.appointment_type) AS specialty,
-      to_char(s.session_date, 'YYYY-MM-DD') AS date,
-      to_char(s.start_time, 'HH24:MI') AS time,
+      to_char(COALESCE(a.appointment_date, s.session_date), 'YYYY-MM-DD') AS date,
+      to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS time,
       CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
       u.email AS doctor_email,
       d.doctor_id AS doctor_id
@@ -33,7 +33,7 @@ export default async function Page() {
     JOIN "doctor" d ON d.doctor_id = a.doctor_id
     JOIN "user" u ON u.id = d.user_id
     WHERE a.user_id = $1
-    ORDER BY s.session_date ASC, s.start_time ASC, a.appointment_id ASC
+    ORDER BY COALESCE(a.appointment_date, s.session_date) ASC, COALESCE(a.appointment_time, s.start_time) ASC, a.appointment_id ASC
   `, user.id)
 
   const appointments: ClientAppointmentRow[] = rows.map((row) => ({
