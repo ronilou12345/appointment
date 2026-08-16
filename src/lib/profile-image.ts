@@ -32,12 +32,20 @@ export async function saveProfileImageFile(userId: string, dataUrl: string) {
     throw new Error("Please upload a JPG, PNG, WEBP, or GIF image under 2MB.")
   }
 
-  const filename = `${userId}${parsed.ext}`
-  const directory = path.join(process.cwd(), "public", "uploads", "profiles")
-  await mkdir(directory, { recursive: true })
-  await writeFile(path.join(directory, filename), parsed.buffer)
+  try {
+    const filename = `${userId}${parsed.ext}`
+    const directory = path.join(process.cwd(), "public", "uploads", "profiles")
+    await mkdir(directory, { recursive: true })
+    await writeFile(path.join(directory, filename), parsed.buffer)
+    return `/uploads/profiles/${filename}`
+  } catch (error) {
+    if (error instanceof Error && ("code" in error ? String((error as NodeJS.ErrnoException).code) === "EROFS" : false)) {
+      console.warn("Profile image write fallback: filesystem is read-only. Storing the uploaded image as a data URL instead.")
+      return dataUrl
+    }
 
-  return `/uploads/profiles/${filename}`
+    throw error
+  }
 }
 
 export async function updateUserProfileImage(userId: string, imageUrl: string) {
