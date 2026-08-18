@@ -585,7 +585,7 @@ export function BookAppointmentContent() {
                           </p>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
-                              Specialties: {doctor.specialties?.length ? doctor.specialties.join(", ") : doctor.specialty || "General Practice"}
+                              Specialties: {doctor.specialties?.length ? doctor.specialties.join(", ") : doctor.specialty?.trim() || "No specialties"}
                             </span>
                             <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
                               Board Certificate: {doctor.boardCertificates?.length ? doctor.boardCertificates.join(", ") : "Not available"}

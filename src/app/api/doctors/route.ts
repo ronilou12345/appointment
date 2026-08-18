@@ -72,7 +72,7 @@ export async function GET() {
         credential: doctor.credentials ?? "MD",
         email: doctor.user?.email ?? "",
         avatar: doctor.user?.profile_image ?? "",
-        specialty: specialties.length ? specialties.join(", ") : "General Practice",
+        specialty: specialties.join(", "),
         specialties,
         boardCertificates,
         experience: experienceYears > 0 ? `${experienceYears} ${experienceYears === 1 ? "year" : "years"}` : "",

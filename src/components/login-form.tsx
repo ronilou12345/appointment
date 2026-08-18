@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,14 +22,38 @@ import { Input } from "@/components/ui/input"
 import { getDashboardPath, getRoleFromEmail } from "@/lib/user-role"
 import { Eye, EyeOff } from "lucide-react"
 
+const googleErrorMessages: Record<string, string> = {
+  google_not_configured: "Google sign-in is not set up yet. Please use your email and password.",
+  google_denied: "Google sign-in was cancelled.",
+  google_state_mismatch: "That Google sign-in link expired. Please try again.",
+  google_unverified_email: "Your Google account email is not verified.",
+  google_failed: "We could not sign you in with Google. Please try again.",
+  account_inactive: "Your account is not active yet.",
+}
+
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const errorCode = new URLSearchParams(window.location.search).get("error")
+    if (!errorCode) return
+
+    setError(googleErrorMessages[errorCode] ?? "Sign-in failed. Please try again.")
+    window.history.replaceState(null, "", window.location.pathname)
+  }, [])
+
+  function handleGoogleLogin() {
+    setError(null)
+    setGoogleLoading(true)
+    window.location.href = "/api/auth/google"
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -88,14 +112,19 @@ export function LoginForm({
                 </div>
               )}
               <Field className="flex justify-center">
-                <Button variant="outline" type="button">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading || loading}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <path
                       d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
                       fill="currentColor"
                     />
                   </svg>
-                  Login with Google
+                  {googleLoading ? "Redirecting to Google..." : "Login with Google"}
                 </Button>
               </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">

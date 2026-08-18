@@ -100,6 +100,26 @@ export async function createUserAction(formData: FormData) {
     .trim()
 
   try {
+    const existingEmail = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    })
+
+    if (existingEmail) {
+      return { success: false, error: "A user with this email already exists." }
+    }
+
+    if (isDoctorAccount) {
+      const existingLicense = await prisma.doctor.findUnique({
+        where: { license_number: licenseNumber },
+        select: { doctor_id: true },
+      })
+
+      if (existingLicense) {
+        return { success: false, error: "A doctor with this license number already exists." }
+      }
+    }
+
     const userId = randomUUID()
     const role = normalizeRole(userType)
     const normalizedStatus = normalizeStatus(status)
@@ -148,6 +168,13 @@ export async function createUserAction(formData: FormData) {
       "code" in error &&
       (error as any).code === "P2002"
     ) {
+      const target = (error as any).meta?.target
+      const fields = Array.isArray(target) ? target.map(String) : [String(target ?? "")]
+
+      if (fields.some((field) => field.includes("license_number"))) {
+        return { success: false, error: "A doctor with this license number already exists." }
+      }
+
       return { success: false, error: "A user with this email already exists." }
     }
 

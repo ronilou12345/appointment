@@ -494,6 +494,7 @@ export async function PATCH(request: NextRequest) {
       where: { appointment_id: appointmentId },
       data: {
         appointment_status: targetStatus,
+        updated_at: new Date(),
         ...(shouldCancel && reasonCancel ? { reason_cancel: reasonCancel } : {}),
         ...(shouldCancel && !reasonCancel && appointment.reason_cancel ? {} : {}),
       },

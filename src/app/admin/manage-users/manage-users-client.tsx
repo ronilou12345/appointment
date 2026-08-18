@@ -49,6 +49,35 @@ type EditUserForm = {
 }
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+const DOCTOR_EMAIL_DOMAIN = "ckcm.edu.ph"
+const RESERVED_DOCTOR_EMAILS = new Set(["doctor@clinic.dev", "doctor@ckcm.edu.ph"])
+
+function slugEmailPart(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "")
+}
+
+function buildDoctorEmail(firstName: string, lastName: string, takenEmails: Set<string>) {
+  const first = slugEmailPart(firstName)
+  const last = slugEmailPart(lastName)
+  const localPart = [first, last].filter(Boolean).join(".") || "doctor"
+  const taken = new Set(
+    [...takenEmails, ...RESERVED_DOCTOR_EMAILS].map((email) => email.trim().toLowerCase())
+  )
+
+  let candidate = `${localPart}@${DOCTOR_EMAIL_DOMAIN}`
+  let suffix = 2
+  while (taken.has(candidate)) {
+    candidate = `${localPart}${suffix}@${DOCTOR_EMAIL_DOMAIN}`
+    suffix += 1
+  }
+
+  return candidate
+}
 
 function getInitials(name: string) {
   return name
@@ -127,10 +156,12 @@ function CreateUserModal({
   open,
   onOpenChange,
   onSuccess,
+  existingEmails = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: (message: string) => void
+  existingEmails?: string[]
 }) {
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
@@ -153,8 +184,38 @@ function CreateUserModal({
     address: "",
   })
 
-  const handleChange = (field: keyof CreateUserForm, value: string) =>
-    setForm((prev) => ({ ...prev, [field]: value }))
+  const takenEmails = React.useMemo(
+    () => new Set((existingEmails ?? []).map((email) => email.trim().toLowerCase()).filter(Boolean)),
+    [existingEmails]
+  )
+  const autoEmailRef = React.useRef("")
+
+  const handleChange = (field: keyof CreateUserForm, value: string) => {
+    setForm((prev) => {
+      const next = { ...prev, [field]: value }
+
+      if (field === "email") {
+        autoEmailRef.current = ""
+        return next
+      }
+
+      const shouldAssignDoctorEmail =
+        next.userType === "DOCTOR" &&
+        (field === "userType" || field === "firstName" || field === "lastName") &&
+        (!next.email ||
+          next.email === autoEmailRef.current ||
+          RESERVED_DOCTOR_EMAILS.has(next.email.trim().toLowerCase()) ||
+          takenEmails.has(next.email.trim().toLowerCase()))
+
+      if (shouldAssignDoctorEmail && (next.firstName || next.lastName)) {
+        const generated = buildDoctorEmail(next.firstName, next.lastName, takenEmails)
+        next.email = generated
+        autoEmailRef.current = generated
+      }
+
+      return next
+    })
+  }
 
   const resetForm = React.useCallback(() => {
     setForm({
@@ -175,6 +236,7 @@ function CreateUserModal({
     })
     setProfileImage("")
     setErrorMsg("")
+    autoEmailRef.current = ""
   }, [])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -266,13 +328,17 @@ function CreateUserModal({
                     </Select>
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="email">Personal Email</FieldLabel>
+                    <FieldLabel htmlFor="email">
+                      {form.userType === "DOCTOR" ? "Institutional Email" : "Personal Email"}
+                    </FieldLabel>
                     <div className="relative">
                       <MailIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                       <Input
                         id="email"
+                        name="create-user-email"
                         type="email"
-                        placeholder="username@school.edu"
+                        autoComplete="off"
+                        placeholder={form.userType === "DOCTOR" ? "firstname.lastname@ckcm.edu.ph" : "username@school.edu"}
                         className="h-10 pl-10 text-sm"
                         value={form.email}
                         onChange={(e) => handleChange("email", e.target.value)}
@@ -705,7 +771,7 @@ function EditUserSheet({
   )
 }
 
-export default function ManageUsersClient({ users }: { users: UserRow[] }) {
+export default function ManageUsersClient({ users = [] }: { users?: UserRow[] }) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
@@ -759,7 +825,12 @@ export default function ManageUsersClient({ users }: { users: UserRow[] }) {
         </div>
       </div>
 
-      <CreateUserModal open={createOpen} onOpenChange={setCreateOpen} onSuccess={(message) => setSuccessMessage(message)} />
+      <CreateUserModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        existingEmails={(users ?? []).map((user) => user.email ?? "")}
+        onSuccess={(message) => setSuccessMessage(message)}
+      />
       <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={selectedUser} onSuccess={(message) => setSuccessMessage(message)} />
       <Dialog open={deleteOpen} onOpenChange={(o) => setDeleteOpen(o)}>
         <DialogContent className="mx-auto max-w-md">
