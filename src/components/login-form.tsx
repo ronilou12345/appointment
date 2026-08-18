@@ -28,6 +28,8 @@ const googleErrorMessages: Record<string, string> = {
   google_state_mismatch: "That Google sign-in link expired. Please try again.",
   google_unverified_email: "Your Google account email is not verified.",
   google_failed: "We could not sign you in with Google. Please try again.",
+  google_bad_origin:
+    "Google sign-in only works on http://localhost:3000 or an https address. Open the app that way and try again.",
   account_inactive: "Your account is not active yet.",
 }
 

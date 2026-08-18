@@ -40,6 +40,28 @@ export function resolveOrigin(headers: Headers, fallbackOrigin: string) {
   return `${protocol}://${host}`
 }
 
+const LOOPBACK_HOSTNAMES = ["localhost", "127.0.0.1"]
+const WILDCARD_HOSTNAMES = ["0.0.0.0", "::", "[::]"]
+
+// `next dev -H 0.0.0.0` advertises a host Google refuses, so the browser is moved
+// to the equivalent loopback address before the flow starts.
+export function loopbackEquivalent(origin: string) {
+  const url = new URL(origin)
+
+  if (!WILDCARD_HOSTNAMES.includes(url.hostname)) return null
+
+  url.hostname = "localhost"
+  return url.origin
+}
+
+// Google only accepts https redirect URIs, plus plain http for loopback addresses.
+export function isAllowedOAuthOrigin(origin: string) {
+  const url = new URL(origin)
+
+  if (url.protocol === "https:") return true
+  return url.protocol === "http:" && LOOPBACK_HOSTNAMES.includes(url.hostname)
+}
+
 // Google matches this value literally against the console entry, so an explicit
 // override is needed whenever the app is reached through a proxy or tunnel.
 export function resolveRedirectUri(origin: string) {
