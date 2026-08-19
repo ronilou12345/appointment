@@ -31,6 +31,14 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
+
+export async function sendContactMessage({
+  email,
+  message,
+}: {
+  email: string
+  message: string
+}) {
   const transporter = getTransporter()
   if (!transporter) return { success: false, reason: "missing-credentials" }
 
