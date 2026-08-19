@@ -25,6 +25,7 @@ import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { ThemeCustomizer } from "@/components/theme-customizer"
 import {
   DropdownMenu,
@@ -36,10 +37,40 @@ export default function LandingPage() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
+  const [contactEmail, setContactEmail] = React.useState("")
+  const [contactMessage, setContactMessage] = React.useState("")
+  const [contactStatus, setContactStatus] = React.useState<"idle" | "sending" | "sent" | "error">("idle")
+  const [contactError, setContactError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  async function handleContactSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setContactStatus("sending")
+    setContactError(null)
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: contactEmail, message: contactMessage }),
+      })
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to send your message.")
+      }
+
+      setContactStatus("sent")
+      setContactEmail("")
+      setContactMessage("")
+    } catch (error) {
+      setContactStatus("error")
+      setContactError(error instanceof Error ? error.message : String(error))
+    }
+  }
 
   const isDark = mounted ? resolvedTheme === "dark" : false
 
@@ -333,20 +364,40 @@ export default function LandingPage() {
               <Headset className="size-8 text-primary mb-4" />
               <h3 className="font-semibold text-lg mb-2">Technical Support</h3>
               <p className="text-sm text-muted-foreground mb-4">Stuck on something? Let us help you out.</p>
-              <Button variant="outline" className="mt-auto">support@c2mclinic.com</Button>
+              <Button variant="outline" className="mt-auto">c2mfamilyclinicpharmacy@gmail.com</Button>
             </div>
             <div className="flex flex-col text-left p-8 rounded-2xl border bg-card text-card-foreground shadow-sm">
               <h3 className="font-semibold text-xl mb-6">Drop us a line</h3>
-              <form className="flex flex-col gap-4" onSubmit={e => e.preventDefault()}>
+              <form className="flex flex-col gap-4" onSubmit={handleContactSubmit}>
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="name" className="text-xs font-medium">Name</label>
-                  <Input id="name" placeholder="Your Name" />
+                  <label htmlFor="contact-message" className="text-xs font-medium">Message</label>
+                  <Textarea
+                    id="contact-message"
+                    placeholder="Write your message"
+                    value={contactMessage}
+                    onChange={(event) => setContactMessage(event.target.value)}
+                    className="min-h-28"
+                    required
+                  />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label htmlFor="emailMessage" className="text-xs font-medium">Email</label>
-                  <Input id="emailMessage" type="email" placeholder="juandelacruz@hospital.org" />
+                  <Input
+                    id="emailMessage"
+                    type="email"
+                    placeholder="juandelacruz@hospital.org"
+                    value={contactEmail}
+                    onChange={(event) => setContactEmail(event.target.value)}
+                    required
+                  />
                 </div>
-                <Button className="mt-2" type="submit">Send Message</Button>
+                {contactError ? <p className="text-sm text-destructive">{contactError}</p> : null}
+                {contactStatus === "sent" ? (
+                  <p className="text-sm text-emerald-600">Your message was sent. We will reply to your email.</p>
+                ) : null}
+                <Button className="mt-2" type="submit" disabled={contactStatus === "sending"}>
+                  {contactStatus === "sending" ? "Sending..." : "Send Message"}
+                </Button>
               </form>
             </div>
           </div>
@@ -358,7 +409,7 @@ export default function LandingPage() {
         <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-4 md:flex-row">
           <div className="flex items-center gap-2 opacity-60">
             <Triangle className="size-4 fill-current text-foreground" />
-            <span className="text-sm font-bold tracking-tight text-foreground">C2M Network</span>
+            <span className="text-sm font-bold tracking-tight text-foreground">C2M Family Clinic & Pharmacy</span>
           </div>
           <p className="text-sm text-muted-foreground">
             © 2026 C2M Clinic System  All rights reserved.

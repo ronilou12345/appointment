@@ -18,6 +18,7 @@
   --popover-foreground: 0 0% 3.9%;
   --primary: 0 0% 9%;
   --primary-foreground: 0 0% 98%;
+  --primary-gradient: none;
   --secondary: 0 0% 96.1%;
   --secondary-foreground: 0 0% 9%;
   --muted: 0 0% 96.1%;
@@ -131,5 +132,9 @@
 @layer utilities {
   .shadow-hover {
     @apply transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 active:scale-95;
+  }
+
+  html[data-primary-gradient="true"] .bg-primary {
+    background-image: var(--primary-gradient);
   }
 }

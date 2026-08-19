@@ -4,6 +4,7 @@ import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
+import { ThemeCustomizer } from "@/components/theme-customizer"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -40,6 +41,7 @@ import type { AppNotification, NotificationType } from "@/lib/notifications"
 import {
   BellIcon,
   InboxIcon,
+  PaintbrushIcon,
   Settings2Icon,
   LogOutIcon,
   SunIcon,
@@ -567,26 +569,39 @@ export function SiteHeader({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" sideOffset={8}>
               <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => setTheme("light")}> 
+              <DropdownMenuItem onSelect={() => setTheme("light")}>
                 <SunIcon className="size-4 mr-2" />
                 Light
                 {theme === "light" && <CheckIcon className="ml-auto size-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTheme("dark")}> 
+              <DropdownMenuItem onSelect={() => setTheme("dark")}>
                 <MoonIcon className="size-4 mr-2" />
                 Dark
                 {theme === "dark" && <CheckIcon className="ml-auto size-4" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTheme("system")}> 
+              <DropdownMenuItem onSelect={() => setTheme("system")}>
                 <MonitorIcon className="size-4 mr-2" />
                 System
                 {theme === "system" && <CheckIcon className="ml-auto size-4" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="icon" aria-label="Settings">
-            <Settings2Icon />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="Customize theme">
+                <PaintbrushIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-80 p-6" align="end" sideOffset={8}>
+              <div className="mb-4 space-y-1">
+                <h4 className="font-semibold leading-none text-lg">Customize</h4>
+                <p className="text-sm text-muted-foreground">
+                  Pick a style and color for your components.
+                </p>
+              </div>
+              <ThemeCustomizer />
+            </DropdownMenuContent>
+          </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

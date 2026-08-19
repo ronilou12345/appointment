@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useConfig, themes, grays } from "@/hooks/use-config"
+import { useConfig, themes, grays, getThemeCss } from "@/hooks/use-config"
 import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -11,8 +11,9 @@ import { cn } from "@/lib/utils"
 
 export function ThemeCustomizer() {
   const [config, setConfig] = useConfig()
-  const { theme: mode, setTheme: setMode } = useTheme()
+  const { theme: mode, setTheme: setMode, resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
+  const isDark = resolvedTheme === "dark"
 
   React.useEffect(() => {
     setMounted(true)
@@ -21,21 +22,23 @@ export function ThemeCustomizer() {
   React.useEffect(() => {
     if (!mounted) return
 
-    // Apply primary color and gray color via CSS variables
     const root = document.documentElement
     const selectedTheme = themes[config.theme]
-    const selectedGray = grays[config.gray]
 
     if (selectedTheme) {
-      root.style.setProperty("--primary", selectedTheme.hsl)
+      const colors = getThemeCss(selectedTheme, isDark)
+      root.style.setProperty("--primary", colors.hsl)
+      root.style.setProperty("--primary-foreground", colors.foreground)
+      root.style.setProperty("--primary-gradient", colors.gradient)
+      if (colors.gradient !== "none") {
+        root.setAttribute("data-primary-gradient", "true")
+      } else {
+        root.removeAttribute("data-primary-gradient")
+      }
     }
-    
-    // Applying radius
+
     root.style.setProperty("--radius", `${config.radius}rem`)
-    
-    // Note: Gray coloring is more complex as it affects many variables.
-    // For a real implementation, we'd swap out the entire color palette.
-  }, [config, mounted])
+  }, [config, mounted, isDark])
 
   if (!mounted) return null
 
@@ -57,10 +60,26 @@ export function ThemeCustomizer() {
                 title={theme.label}
               >
                 <span
-                  className="flex size-6 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: theme.activeColor }}
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full",
+                    (theme.gradient || theme.swatchSecondary) && "border border-black/15"
+                  )}
+                  style={{
+                    background: theme.gradient
+                      ? theme.gradient
+                      : theme.swatchSecondary
+                        ? `linear-gradient(135deg, ${theme.activeColor}, ${theme.swatchSecondary})`
+                        : theme.activeColor,
+                  }}
                 >
-                  {isActive && <CheckIcon className="size-3 text-white" />}
+                  {isActive && (
+                    <CheckIcon
+                      className={cn(
+                        "size-3",
+                        theme.swatchSecondary ? "text-black drop-shadow-[0_0_1px_#fff]" : "text-white"
+                      )}
+                    />
+                  )}
                 </span>
               </button>
             )

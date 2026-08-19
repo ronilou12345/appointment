@@ -12,14 +12,34 @@ export type GoogleProfile = {
   picture: string
 }
 
+function readEnv(name: string) {
+  // Dynamic lookup so Vercel can inject values at runtime. Static
+  // `process.env.GOOGLE_CLIENT_ID` can be inlined as undefined at build time
+  // if the variable was missing during the last production build.
+  const value = process.env[name]
+  return String(value ?? "").trim().replace(/^["']|["']$/g, "")
+}
+
 export function isGoogleOAuthConfigured() {
-  return Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim())
+  return Boolean(readEnv("GOOGLE_CLIENT_ID") && readEnv("GOOGLE_CLIENT_SECRET"))
+}
+
+export function getGoogleEnvStatus() {
+  const clientId = readEnv("GOOGLE_CLIENT_ID")
+  const clientSecret = readEnv("GOOGLE_CLIENT_SECRET")
+
+  return {
+    configured: Boolean(clientId && clientSecret),
+    hasClientId: Boolean(clientId),
+    hasClientSecret: Boolean(clientSecret),
+    secretStartsWithGocspx: clientSecret.startsWith("GOCSPX-"),
+  }
 }
 
 function requireCredentials() {
-  const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
+  const clientId = readEnv("GOOGLE_CLIENT_ID")
   // A leading digit is often pasted from a numbered console list (e.g. "8GOCSPX-...").
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim().replace(/^\d+(?=GOCSPX-)/, "")
+  const clientSecret = readEnv("GOOGLE_CLIENT_SECRET").replace(/^\d+(?=GOCSPX-)/, "")
 
   if (!clientId || !clientSecret) {
     throw new Error("Google sign-in is missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET.")

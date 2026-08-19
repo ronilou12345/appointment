@@ -6,8 +6,30 @@ export type Config = {
   gray: keyof typeof grays
 }
 
-export const themes = {
-  primary: { label: "Default", activeColor: "hsl(0 0% 9%)", hsl: "0 0% 9%", foreground: "0 0% 98%" },
+export type ThemeOption = {
+  label: string
+  activeColor: string
+  hsl: string
+  foreground: string
+  swatchSecondary?: string
+  darkHsl?: string
+  darkForeground?: string
+  gradient?: string
+  darkGradient?: string
+}
+
+export const themes: Record<string, ThemeOption> = {
+  primary: {
+    label: "C2M",
+    activeColor: "hsl(0 0% 9%)",
+    hsl: "0 0% 9%",
+    foreground: "0 0% 98%",
+    swatchSecondary: "#ffffff",
+    darkHsl: "0 0% 98%",
+    darkForeground: "0 0% 9%",
+    gradient: "linear-gradient(135deg, hsl(0 0% 0%) 0%, hsl(0 0% 45%) 50%, hsl(0 0% 100%) 100%)",
+    darkGradient: "linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(0 0% 55%) 50%, hsl(0 0% 0%) 100%)",
+  },
   red: { label: "Red", activeColor: "hsl(0 72.2% 50.6%)", hsl: "0 72.2% 50.6%", foreground: "0 0% 98%" },
   orange: { label: "Orange", activeColor: "hsl(24.6 95% 53.1%)", hsl: "24.6 95% 53.1%", foreground: "0 0% 98%" },
   amber: { label: "Amber", activeColor: "hsl(37.9 94.1% 52.7%)", hsl: "37.9 94.1% 52.7%", foreground: "0 0% 3.9%" },
@@ -36,9 +58,25 @@ export const grays = {
 }
 
 const defaultConfig: Config = {
-  theme: "yellow",
+  theme: "primary",
   radius: 0.5,
   gray: "zinc",
+}
+
+export function getThemeCss(theme: ThemeOption, isDark: boolean) {
+  if (isDark && theme.darkHsl) {
+    return {
+      hsl: theme.darkHsl,
+      foreground: theme.darkForeground ?? "0 0% 9%",
+      gradient: theme.darkGradient ?? theme.gradient ?? "none",
+    }
+  }
+
+  return {
+    hsl: theme.hsl,
+    foreground: theme.foreground,
+    gradient: theme.gradient ?? "none",
+  }
 }
 
 export function useConfig() {

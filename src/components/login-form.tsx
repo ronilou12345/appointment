@@ -23,7 +23,8 @@ import { getDashboardPath, getRoleFromEmail } from "@/lib/user-role"
 import { Eye, EyeOff } from "lucide-react"
 
 const googleErrorMessages: Record<string, string> = {
-  google_not_configured: "Google sign-in is not set up yet. Please use your email and password.",
+  google_not_configured:
+    "Google sign-in is not set up on this server. In Vercel, add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (the secret must start with GOCSPX-), then Redeploy with Build Cache turned off.",
   google_denied: "Google sign-in was cancelled.",
   google_state_mismatch: "That Google sign-in link expired. Please try again.",
   google_unverified_email: "Your Google account email is not verified.",

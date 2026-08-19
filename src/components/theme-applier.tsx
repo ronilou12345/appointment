@@ -1,19 +1,28 @@
 "use client"
 
 import * as React from "react"
-import { useConfig, themes, grays } from "@/hooks/use-config"
+import { useConfig, themes, grays, getThemeCss } from "@/hooks/use-config"
+import { useTheme } from "@/components/theme-provider"
 
 export function ThemeApplier() {
   const [config] = useConfig()
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
 
   React.useEffect(() => {
-    const theme = (themes as any)[config.theme]
-    const gray = (grays as any)[config.gray]
+    const theme = themes[config.theme] ?? themes.primary
+    const gray = grays[config.gray] ?? grays.zinc
     const root = document.documentElement
-    
-    // Apply primary color
-    root.style.setProperty("--primary", theme.hsl)
-    root.style.setProperty("--primary-foreground", theme.foreground)
+    const colors = getThemeCss(theme, isDark)
+
+    root.style.setProperty("--primary", colors.hsl)
+    root.style.setProperty("--primary-foreground", colors.foreground)
+    root.style.setProperty("--primary-gradient", colors.gradient)
+    if (colors.gradient !== "none") {
+      root.setAttribute("data-primary-gradient", "true")
+    } else {
+      root.removeAttribute("data-primary-gradient")
+    }
     
     // Apply radius
     root.style.setProperty("--radius", `${config.radius}rem`)
@@ -31,7 +40,7 @@ export function ThemeApplier() {
     root.style.setProperty("--muted", gray.hsl)
     root.style.setProperty("--accent", gray.hsl)
     
-  }, [config])
+  }, [config, isDark])
 
   return null
 }

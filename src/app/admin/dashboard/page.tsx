@@ -1,6 +1,7 @@
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { SectionCards } from "@/components/section-cards"
 import prisma from "@/lib/prisma"
+import { resolveProfileAvatar } from "@/lib/profile-image"
 import UsersTable from "./users-table"
 
 export default async function AdminDashboardPage() {
@@ -11,6 +12,7 @@ export default async function AdminDashboardPage() {
       email: true,
       status: true,
       role: true,
+      profile_image: true,
       doctor: {
         select: {
           address: true,
@@ -27,6 +29,7 @@ export default async function AdminDashboardPage() {
     address: u.doctor?.address ?? "",
     role: u.role ?? "",
     status: u.status ?? "",
+    avatar: resolveProfileAvatar(u.id, u.profile_image) || null,
   }))
 
   return (
