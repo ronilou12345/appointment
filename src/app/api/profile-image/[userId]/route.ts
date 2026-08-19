@@ -24,6 +24,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
       return new NextResponse(null, { status: 404 })
     }
 
+    if (stored.startsWith("https://") || stored.startsWith("http://")) {
+      try {
+        const remote = await fetch(stored, {
+          cache: "no-store",
+          headers: { Accept: "image/*", "User-Agent": "Mozilla/5.0 (compatible; C2MClinic/1.0)" },
+        })
+        if (!remote.ok) return new NextResponse(null, { status: 404 })
+
+        const contentType = remote.headers.get("content-type") ?? "image/jpeg"
+        return new NextResponse(remote.body, {
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "private, max-age=3600",
+          },
+        })
+      } catch {
+        return new NextResponse(null, { status: 404 })
+      }
+    }
+
     if (!stored.startsWith("data:image/")) {
       return new NextResponse(null, { status: 307, headers: { Location: stored } })
     }

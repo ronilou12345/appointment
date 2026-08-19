@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getUserByRole, normalizeUserRole } from "@/lib/user-role"
 import { getSession } from "@/lib/auth-utils"
+import { resolveProfileAvatar } from "@/lib/profile-image"
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -18,7 +19,7 @@ export default async function ClientLayout({ children }: { children: React.React
     name: session.name,
     email: session.email,
     role,
-    avatar: session.profile_image ?? "/avatars/shadcn.jpg",
+    avatar: resolveProfileAvatar(session.id, session.profile_image) || "/avatars/shadcn.jpg",
   }
 
   return (

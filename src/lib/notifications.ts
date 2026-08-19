@@ -312,19 +312,12 @@ function buildStatusNotification(view: AppointmentView, role: UserRole): AppNoti
     }
   }
 
-  // Only the patient who owns an appointment can cancel it, so the actor is never ambiguous.
+  // Patients and doctors can both cancel, and the actor is not stored, so stay neutral.
   if (view.status === "Cancelled") {
-    const title =
-      role === "CLIENT"
-        ? "You cancelled this appointment"
-        : role === "DOCTOR"
-          ? "Patient cancelled appointment"
-          : "Appointment cancelled"
-
     return {
       ...base,
       type: "cancelled",
-      title,
+      title: "Appointment cancelled",
       message: view.cancelReason ? `${summary}. Reason: ${view.cancelReason}` : `${summary}.`,
       createdAt: view.updatedAt.toISOString(),
     }

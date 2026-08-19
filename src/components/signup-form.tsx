@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ComponentProps, type FormEvent } from "react"
+import { useEffect, useState, type ComponentProps, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { registerUser } from "@/lib/actions/auth"
 import { Eye, EyeOff } from "lucide-react"
@@ -32,7 +32,39 @@ export function SignupForm({
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordValue, setPasswordValue] = useState("")
+  const [emailValue, setEmailValue] = useState("")
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle")
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const email = emailValue.trim().toLowerCase()
+
+    if (!email || !email.includes("@")) {
+      setEmailStatus("idle")
+      return
+    }
+
+    const timeout = window.setTimeout(async () => {
+      setEmailStatus("checking")
+
+      try {
+        const response = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`)
+        const result = await response.json()
+
+        if (!response.ok || !result.success) {
+          setEmailStatus("idle")
+          return
+        }
+
+        setEmailStatus(result.exists ? "taken" : "available")
+      } catch {
+        setEmailStatus("idle")
+      }
+    }, 400)
+
+    return () => window.clearTimeout(timeout)
+  }, [emailValue])
 
   const passwordProgressValue = Math.min(100, Math.round((passwordValue.length / 16) * 100))
   const passwordProgressVariant = passwordValue.length === 0
@@ -49,6 +81,19 @@ export function SignupForm({
     setError(null)
 
     const formData = new FormData(event.currentTarget)
+
+    if (emailStatus === "taken") {
+      setError("This email is already registered. Please sign in or use a different email.")
+      setLoading(false)
+      return
+    }
+
+    if (!agreedToTerms) {
+      setError("Please agree to the Terms of Service and Privacy Policy to continue.")
+      setLoading(false)
+      return
+    }
+
     const result = await registerUser(formData)
 
     setLoading(false)
@@ -56,7 +101,7 @@ export function SignupForm({
     if (result.error) {
       setError(result.error)
     } else {
-      router.push("/login")
+      router.push("/login?signup=success")
     }
   }
 
@@ -88,8 +133,27 @@ export function SignupForm({
                   name="email"
                   type="email"
                   placeholder="m@example.com"
+                  value={emailValue}
+                  onChange={(event) => setEmailValue(event.target.value)}
+                  aria-invalid={emailStatus === "taken"}
                   required
                 />
+                <FieldDescription>Use your active email account. This is where we will send appointment updates.</FieldDescription>
+                {emailStatus === "checking" ? (
+                  <FieldDescription>Checking if this email is available...</FieldDescription>
+                ) : null}
+                {emailStatus === "taken" ? (
+                  <FieldDescription className="text-destructive">
+                    This email is already registered. Please{" "}
+                    <a href="/login" className="font-medium underline-offset-4 hover:underline">
+                      sign in
+                    </a>{" "}
+                    or use a different email.
+                  </FieldDescription>
+                ) : null}
+                {emailStatus === "available" ? (
+                  <FieldDescription className="text-emerald-600">This email is available.</FieldDescription>
+                ) : null}
               </Field>
               <Field>
                 <div className="grid grid-cols-2 gap-4">
@@ -150,7 +214,43 @@ export function SignupForm({
                 </FieldDescription>
               </Field>
               <Field>
-                <Button type="submit" disabled={loading}>
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    id="agree-terms"
+                    checked={agreedToTerms}
+                    onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                    className="mt-1"
+                  />
+                  <label
+                    htmlFor="agree-terms"
+                    className="min-w-0 flex-1 text-left text-sm font-normal leading-5 text-white/70"
+                  >
+                    By clicking Continue, you agree to our{" "}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="whitespace-nowrap font-medium text-white underline-offset-4 hover:underline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="whitespace-nowrap font-medium text-white underline-offset-4 hover:underline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      Privacy Policy
+                    </a>
+                    .
+                  </label>
+                </div>
+              </Field>
+              <Field>
+                <Button type="submit" disabled={loading || emailStatus === "taken" || emailStatus === "checking" || !agreedToTerms}>
                   {loading ? "Creating Account..." : "Create Account"}
                 </Button>
                 <FieldDescription className="text-center text-white/70">
@@ -161,17 +261,6 @@ export function SignupForm({
           </form>
         </CardContent>
       </Card>
-      <Label className="flex-wrap justify-center gap-1 px-6 text-center text-sm font-normal leading-6 text-white/70">
-        By clicking continue, you agree to our{" "}
-        <a href="#" className="font-medium text-white underline-offset-4 hover:underline">
-          Terms of Service
-        </a>{" "}
-        and{" "}
-        <a href="#" className="font-medium text-white underline-offset-4 hover:underline">
-          Privacy Policy
-        </a>
-        .
-      </Label>
     </div>
   )
 }

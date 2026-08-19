@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
+import { sendAppointmentEmail, sendAppointmentStatusEmail } from "@/lib/appointment-email"
+
+// Date and time columns come back as UTC-anchored Date objects, so the calendar
+// parts have to be read off the ISO string rather than local getters.
+const isoDatePart = (value: Date | null | undefined) => (value ? value.toISOString().slice(0, 10) : null)
+const isoTimePart = (value: Date | null | undefined) => (value ? value.toISOString().slice(11, 16) : null)
 
 function parseTimeToMinutes(value: string): number | null {
   const trimmed = String(value ?? "").trim()
@@ -418,13 +424,20 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const smsResult = await sendAppointmentSms(savedContactNumber, appointmentDetails)
+    const [smsResult, emailResult] = await Promise.all([
+      sendAppointmentSms(savedContactNumber, appointmentDetails),
+      sendAppointmentEmail(user.email ?? null, appointmentDetails),
+    ])
 
     if (!smsResult.success) {
       console.warn("Appointment booked, SMS skipped or failed:", smsResult)
     }
 
-    return NextResponse.json({ success: true, smsSent: smsResult.success })
+    if (!emailResult.success) {
+      console.warn("Appointment booked, email skipped or failed:", emailResult)
+    }
+
+    return NextResponse.json({ success: true, smsSent: smsResult.success, emailSent: emailResult.success })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const status = message.includes("already have an appointment") ? 409 : 500
@@ -451,29 +464,26 @@ export async function PATCH(request: NextRequest) {
     }
 
     const shouldCancel = action === "Cancel"
-    const appointment = shouldCancel
-      ? await prisma.appointment.findFirst({
-          where: {
-            appointment_id: appointmentId,
-            user_id: user.id,
-          },
-          select: {
-            appointment_id: true,
-            appointment_status: true,
-            reason_cancel: true,
-          },
-        })
-      : await prisma.appointment.findFirst({
-          where: {
-            appointment_id: appointmentId,
-            doctor: { user_id: user.id },
-          },
-          select: {
-            appointment_id: true,
-            appointment_status: true,
-            reason_cancel: true,
-          },
-        })
+    // Either side may cancel; only the assigned doctor may confirm or complete.
+    const accessScope = shouldCancel
+      ? { OR: [{ user_id: user.id }, { doctor: { user_id: user.id } }] }
+      : { doctor: { user_id: user.id } }
+
+    const appointment = await prisma.appointment.findFirst({
+      where: { appointment_id: appointmentId, ...accessScope },
+      select: {
+        appointment_id: true,
+        appointment_status: true,
+        reason_cancel: true,
+        appointment_type: true,
+        reason_for_visit: true,
+        appointment_date: true,
+        appointment_time: true,
+        user: { select: { name: true, email: true } },
+        doctor: { select: { first_name: true, last_name: true } },
+        session_tbl: { select: { session_date: true, start_time: true } },
+      },
+    })
 
     if (!appointment) {
       return NextResponse.json({ success: false, error: "Appointment not found" }, { status: 404 })
@@ -500,7 +510,29 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, status: updatedAppointment.appointment_status })
+    const doctorName = [appointment.doctor?.first_name, appointment.doctor?.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim()
+    const emailResult = await sendAppointmentStatusEmail(appointment.user?.email ?? null, targetStatus, {
+      patientName: appointment.user?.name ?? undefined,
+      doctorName,
+      date: isoDatePart(appointment.appointment_date ?? appointment.session_tbl?.session_date),
+      time: isoTimePart(appointment.appointment_time ?? appointment.session_tbl?.start_time),
+      appointmentType: appointment.appointment_type,
+      reasonForVisit: appointment.reason_for_visit,
+      cancelReason: shouldCancel ? reasonCancel || appointment.reason_cancel : null,
+    })
+
+    if (!emailResult.success) {
+      console.warn(`Appointment ${targetStatus.toLowerCase()}, email skipped or failed:`, emailResult)
+    }
+
+    return NextResponse.json({
+      success: true,
+      status: updatedAppointment.appointment_status,
+      emailSent: emailResult.success,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ success: false, error: message }, { status: 500 })

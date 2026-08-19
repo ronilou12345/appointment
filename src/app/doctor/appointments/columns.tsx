@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/drawer"
 import { Textarea } from "@/components/ui/textarea"
 import { Check, CheckCircle2, MoreHorizontal, X } from "lucide-react"
+import { toast } from "sonner"
 
 export type DoctorAppointmentRow = {
   id: string
@@ -45,8 +46,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState("10-00")
   const [cancelReason, setCancelReason] = useState("")
-  const [loadingAction, setLoadingAction] = useState<"" | "Confirm" | "Complete">("")
-  const [error, setError] = useState<string | null>(null)
+  const [loadingAction, setLoadingAction] = useState<"" | "Confirm" | "Complete" | "Cancel">("")
 
   const availableSlots = [
     {
@@ -76,21 +76,18 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
   const canComplete = statusValue !== "completed"
   const canCancel = statusValue !== "completed" && statusValue !== "confirmed"
 
-  const handleAction = async (action: "Confirm" | "Complete" | "Cancel") => {
-    setMenuOpen(false)
-    if (action === "Cancel") {
-      setDrawerOpen(true)
-      return
-    }
-
+  const submitAction = async (action: "Confirm" | "Complete" | "Cancel", reason?: string) => {
     setLoadingAction(action)
-    setError(null)
 
     try {
       const response = await fetch("/api/appointments", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appointmentId: Number(appointment.id), action }),
+        body: JSON.stringify({
+          appointmentId: Number(appointment.id),
+          action,
+          ...(reason ? { reasonCancel: reason } : {}),
+        }),
       })
 
       const result = await response.json()
@@ -99,18 +96,41 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
         throw new Error(result.error || "Unable to update appointment status")
       }
 
+      const statusLabel = action === "Confirm" ? "confirmed" : action === "Complete" ? "completed" : "cancelled"
+      toast.success(
+        result.emailSent
+          ? `Appointment ${statusLabel}. ${appointment.patientName} has been emailed.`
+          : `Appointment ${statusLabel}.`
+      )
+
       router.refresh()
+      return true
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      toast.error(err instanceof Error ? err.message : String(err))
+      return false
     } finally {
       setLoadingAction("")
     }
   }
 
-  const handleSubmitCancel = () => {
-    console.log(`Cancel appointment ${appointment.id} and reschedule to ${selectedSlot}: ${cancelReason}`)
-    setDrawerOpen(false)
-    setCancelReason("")
+  const handleAction = async (action: "Confirm" | "Complete" | "Cancel") => {
+    setMenuOpen(false)
+
+    if (action === "Cancel") {
+      setDrawerOpen(true)
+      return
+    }
+
+    await submitAction(action)
+  }
+
+  const handleSubmitCancel = async () => {
+    const sent = await submitAction("Cancel", cancelReason.trim())
+
+    if (sent) {
+      setDrawerOpen(false)
+      setCancelReason("")
+    }
   }
 
   return (
@@ -196,7 +216,9 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
             <DrawerClose asChild>
               <Button variant="outline">Close</Button>
             </DrawerClose>
-            <Button onClick={handleSubmitCancel}>Submit</Button>
+              <Button onClick={handleSubmitCancel} disabled={loadingAction === "Cancel"}>
+                {loadingAction === "Cancel" ? "Cancelling..." : "Submit"}
+              </Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>

@@ -1,5 +1,6 @@
 "use server"
 
+import { randomUUID } from "crypto"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
 
@@ -38,12 +39,16 @@ export async function loginUser(formData: FormData) {
 
 export async function registerUser(formData: FormData) {
   const name = formData.get("name")?.toString().trim() ?? ""
-  const email = formData.get("email")?.toString().trim() ?? ""
+  const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
   const password = formData.get("password")?.toString() ?? ""
   const confirmPassword = formData.get("confirm-password")?.toString() ?? ""
 
   if (!name || !email || !password || !confirmPassword) {
     return { success: false, error: "Please fill in all fields." }
+  }
+
+  if (!email.includes("@")) {
+    return { success: false, error: "Please enter a valid email address." }
   }
 
   if (password.length < 8) {
@@ -54,14 +59,45 @@ export async function registerUser(formData: FormData) {
     return { success: false, error: "Passwords do not match." }
   }
 
-  return {
-    success: true,
-    error: "",
-    user: {
-      name,
-      email,
-      role: "CLIENT",
-    },
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  })
+
+  if (existing) {
+    return { success: false, error: "A user with this email already exists." }
+  }
+
+  try {
+    const userId = randomUUID()
+
+    await prisma.user.create({
+      data: {
+        id: userId,
+        email,
+        name,
+        role: "PATIENT",
+        status: "ACTIVE",
+        designations: null,
+        password,
+        profile_image: "",
+        updatedAt: new Date(),
+      },
+    })
+
+    return { success: true, error: "", userId }
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002"
+    ) {
+      return { success: false, error: "A user with this email already exists." }
+    }
+
+    const message = error instanceof Error ? error.message : String(error)
+    return { success: false, error: message }
   }
 }
 

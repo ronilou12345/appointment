@@ -18,13 +18,26 @@ export function isGoogleOAuthConfigured() {
 
 function requireCredentials() {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
+  // A leading digit is often pasted from a numbered console list (e.g. "8GOCSPX-...").
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim().replace(/^\d+(?=GOCSPX-)/, "")
 
   if (!clientId || !clientSecret) {
     throw new Error("Google sign-in is missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET.")
   }
 
   return { clientId, clientSecret }
+}
+
+const LOOPBACK_HOSTNAMES = ["localhost", "127.0.0.1"]
+const WILDCARD_HOSTNAMES = ["0.0.0.0", "::", "[::]"]
+
+function hostnameOf(host: string) {
+  return host.replace(/^\[|\]$/g, "").split(":")[0]
+}
+
+function isLoopbackHost(host: string) {
+  const hostname = hostnameOf(host)
+  return LOOPBACK_HOSTNAMES.includes(hostname) || WILDCARD_HOSTNAMES.includes(hostname)
 }
 
 // `next dev -H 0.0.0.0` makes the request URL report 0.0.0.0 as the host, so the
@@ -34,21 +47,22 @@ export function resolveOrigin(headers: Headers, fallbackOrigin: string) {
 
   if (!host) return fallbackOrigin
 
-  const forwardedProtocol = headers.get("x-forwarded-proto")?.split(",")[0]?.trim()
-  const protocol = forwardedProtocol || new URL(fallbackOrigin).protocol.replace(":", "")
+  // Google rejects http redirect URIs except on localhost. Non-loopback hosts
+  // (including *.vercel.app) must always use https, even if a proxy omits the header.
+  const protocol = isLoopbackHost(host)
+    ? "http"
+    : headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https"
 
   return `${protocol}://${host}`
 }
 
-const LOOPBACK_HOSTNAMES = ["localhost", "127.0.0.1"]
-const WILDCARD_HOSTNAMES = ["0.0.0.0", "::", "[::]"]
-
 // `next dev -H 0.0.0.0` advertises a host Google refuses, so the browser is moved
-// to the equivalent loopback address before the flow starts.
+// to the equivalent loopback address before the flow starts. 127.0.0.1 is also
+// rewritten so only one local redirect URI has to be registered.
 export function loopbackEquivalent(origin: string) {
   const url = new URL(origin)
 
-  if (!WILDCARD_HOSTNAMES.includes(url.hostname)) return null
+  if (!WILDCARD_HOSTNAMES.includes(url.hostname) && url.hostname !== "127.0.0.1") return null
 
   url.hostname = "localhost"
   return url.origin
@@ -66,7 +80,12 @@ export function isAllowedOAuthOrigin(origin: string) {
 // override is needed whenever the app is reached through a proxy or tunnel.
 export function resolveRedirectUri(origin: string) {
   const configured = process.env.GOOGLE_REDIRECT_URI?.trim()
-  return configured || `${origin}${GOOGLE_CALLBACK_PATH}`
+  if (configured) return configured
+
+  const url = new URL(origin)
+  if (url.hostname === "127.0.0.1") url.hostname = "localhost"
+
+  return `${url.origin}${GOOGLE_CALLBACK_PATH}`
 }
 
 export function buildGoogleAuthUrl({ redirectUri, state }: { redirectUri: string; state: string }) {
@@ -117,10 +136,22 @@ export async function exchangeCodeForProfile({
     cache: "no-store",
   })
 
-  const token = (await response.json()) as { id_token?: string; error_description?: string; error?: string }
+  const token = (await response.json()) as {
+    id_token?: string
+    access_token?: string
+    error_description?: string
+    error?: string
+  }
 
   if (!response.ok || !token.id_token) {
-    throw new Error(token.error_description || token.error || "Google rejected the sign-in request.")
+    const detail = token.error_description || token.error || "Google rejected the sign-in request."
+    if (/client secret is invalid/i.test(detail) || token.error === "invalid_client") {
+      throw new Error("invalid_client_secret")
+    }
+    if (/redirect_uri/i.test(detail)) {
+      throw new Error("redirect_uri_mismatch")
+    }
+    throw new Error(detail)
   }
 
   // The token came straight from Google over TLS using our client secret, so the
@@ -134,10 +165,31 @@ export async function exchangeCodeForProfile({
   if (!GOOGLE_ISSUERS.includes(issuer)) throw new Error("Google ID token has an unexpected issuer.")
   if (!expiry || expiry * 1000 <= Date.now()) throw new Error("Google ID token has expired.")
 
+  let picture = String(claims.picture ?? "").trim()
+  let name = String(claims.name ?? "").trim()
+
+  // Workspace accounts often omit `picture` from the ID token. Userinfo is the
+  // reliable source for the Google account photo.
+  if (token.access_token) {
+    try {
+      const userinfoResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+        headers: { Authorization: `Bearer ${token.access_token}` },
+        cache: "no-store",
+      })
+      if (userinfoResponse.ok) {
+        const userinfo = (await userinfoResponse.json()) as { picture?: string; name?: string }
+        picture = String(userinfo.picture ?? picture).trim()
+        name = String(userinfo.name ?? name).trim()
+      }
+    } catch {
+      // Keep ID token claims if userinfo is unavailable.
+    }
+  }
+
   return {
     email: String(claims.email ?? "").trim().toLowerCase(),
     emailVerified: claims.email_verified === true || claims.email_verified === "true",
-    name: String(claims.name ?? "").trim(),
-    picture: String(claims.picture ?? "").trim(),
+    name,
+    picture,
   }
 }

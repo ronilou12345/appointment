@@ -8,6 +8,7 @@ import {
   resolveRedirectUri,
 } from "@/lib/google-oauth"
 import { getDashboardPath } from "@/lib/user-role"
+import { isRemoteProfileImage, saveRemoteProfileImage } from "@/lib/profile-image"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 
@@ -57,11 +58,26 @@ export async function GET(request: NextRequest) {
     let userId = existing?.id
     let role: string = existing?.role ?? "PATIENT"
 
+    if (!userId) {
+      userId = randomUUID()
+      role = "PATIENT"
+    }
+
+    const storedPhoto = profile.picture
+      ? (await saveRemoteProfileImage(userId, profile.picture).catch(() => "")) || profile.picture
+      : ""
+
+    if (!profile.picture) {
+      console.warn("Google profile did not include a photo for", profile.email)
+    } else if (storedPhoto.startsWith("http")) {
+      console.warn("Google photo URL was stored because the image download failed for", profile.email)
+    }
+
     if (existing) {
       // Only fill gaps so clinic-managed names and uploaded photos are never overwritten.
       const backfill = {
         ...(existing.name.trim() ? {} : { name: profile.name || profile.email }),
-        ...(existing.profile_image?.trim() || !profile.picture ? {} : { profile_image: profile.picture }),
+        ...(isRemoteProfileImage(existing.profile_image) && storedPhoto ? { profile_image: storedPhoto } : {}),
       }
 
       if (Object.keys(backfill).length) {
@@ -71,9 +87,6 @@ export async function GET(request: NextRequest) {
         })
       }
     } else {
-      userId = randomUUID()
-      role = "PATIENT"
-
       await prisma.user.create({
         data: {
           id: userId,
@@ -84,7 +97,7 @@ export async function GET(request: NextRequest) {
           designations: null,
           // Google-only accounts get an unusable password so email sign-in stays closed.
           password: randomBytes(32).toString("hex"),
-          profile_image: profile.picture,
+          profile_image: storedPhoto,
           updatedAt: new Date(),
         },
       })
@@ -104,6 +117,13 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error("Google sign-in failed:", error)
+    const message = error instanceof Error ? error.message : ""
+    if (message === "invalid_client_secret") {
+      return loginRedirect(request, "google_invalid_secret")
+    }
+    if (message === "redirect_uri_mismatch") {
+      return loginRedirect(request, "google_redirect_mismatch")
+    }
     return loginRedirect(request, "google_failed")
   }
 }
