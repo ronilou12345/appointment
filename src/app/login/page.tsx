@@ -2,15 +2,13 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { LoginForm } from "@/components/login-form"
 import { LoginSplash } from "@/components/login-splash"
-import { LoginDotWaves } from "@/components/login-dot-waves"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 
 export default function LoginPage() {
   return (
     <LoginSplash>
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
-        <LoginDotWaves />
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground dark:bg-black">
         <Button
           asChild
           variant="ghost"
