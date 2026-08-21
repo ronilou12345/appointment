@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import * as React from "react"
 
-import { Button } from "@/components/ui/button"
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -11,7 +11,28 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { SearchIcon, MailIcon } from "lucide-react"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { SearchIcon } from "lucide-react"
+import { useAppSearch } from "@/components/app-search"
+
+function SearchShortcut() {
+  const [isMac, setIsMac] = React.useState(false)
+
+  React.useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.userAgent))
+  }, [])
+
+  if (isMac) {
+    return <Kbd className="ml-auto bg-transparent">⌘K</Kbd>
+  }
+
+  return (
+    <KbdGroup className="ml-auto">
+      <Kbd className="bg-transparent">Ctrl</Kbd>
+      <Kbd className="bg-transparent">K</Kbd>
+    </KbdGroup>
+  )
+}
 
 export function NavMain({
   items,
@@ -24,6 +45,7 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  const { setOpen } = useAppSearch()
 
   return (
     <SidebarGroup>
@@ -31,13 +53,14 @@ export function NavMain({
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
-              tooltip="Quick Create"
-              className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+              tooltip="Search"
+              onClick={() => setOpen(true)}
+              className="min-w-8"
             >
               <SearchIcon />
               <span>Search</span>
+              <SearchShortcut />
             </SidebarMenuButton>
-           
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>

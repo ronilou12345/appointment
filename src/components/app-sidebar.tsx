@@ -17,7 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CalendarDays } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CalendarDays, ClipboardListIcon } from "lucide-react"
 
 interface AppSidebarUser {
   name: string
@@ -145,8 +145,8 @@ const data = {
     },
   ],
   navSecondary: [
+    { title: "Activity Logs", url: "/admin/activity-logs", icon: <ClipboardListIcon />, badge: "new" },
     { title: "Settings", url: "/admin/settings", icon: <Settings2Icon /> },
-    { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
   ],
   documents: [
     { name: "Medicine", url: "/admin/inventory", icon: <DatabaseIcon />, badge: "New" },
@@ -158,19 +158,40 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   // Determine navigation based on user role
   const navMain = user?.role === "DOCTOR" ? doctorNavMain : user?.role === "CLIENT" ? clientNavMain : adminNavMain
   const showDocuments = user?.role === "ADMIN" // Only show Inventory and Reports for admin users
-  const secondaryItems = [
-    {
-      title: "Settings",
-      url: user?.role === "DOCTOR" ? "/doctor/settings" : user?.role === "CLIENT" ? "/client/settings" : "/admin/settings",
-      icon: <Settings2Icon />,
-    },
-    {
-      title: user?.role === "CLIENT" ? "Add BMI" : "Get Help",
-      url: user?.role === "CLIENT" ? "/client/add-bmi" : "#",
-      icon: user?.role === "CLIENT" ? <ChartBarIcon /> : <CircleHelpIcon />,
-      badge: user?.role === "CLIENT" ? "new" : undefined,
-    },
-  ]
+  const secondaryItems =
+    user?.role === "ADMIN"
+      ? [
+          {
+            title: "Activity Logs",
+            url: "/admin/activity-logs",
+            icon: <ClipboardListIcon />,
+            badge: "new",
+          },
+          {
+            title: "Settings",
+            url: "/admin/settings",
+            icon: <Settings2Icon />,
+          },
+        ]
+      : [
+          {
+            title: "Settings",
+            url: user?.role === "DOCTOR" ? "/doctor/settings" : "/client/settings",
+            icon: <Settings2Icon />,
+          },
+          user?.role === "CLIENT"
+            ? {
+                title: "Add BMI",
+                url: "/client/add-bmi",
+                icon: <ChartBarIcon />,
+                badge: "new",
+              }
+            : {
+                title: "Get Help",
+                url: "#",
+                icon: <CircleHelpIcon />,
+              },
+        ]
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

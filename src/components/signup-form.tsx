@@ -109,8 +109,8 @@ export function SignupForm({
     <div className={cn("flex flex-col gap-6 bg-white px-4 py-6 text-foreground sm:px-6 dark:bg-slate-950 dark:text-white", className)} {...props}>
       <Card className="border-border bg-white/95 text-foreground shadow-2xl dark:border-white/10 dark:bg-zinc-950/95 dark:text-white">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl text-white">Create your account</CardTitle>
-          <CardDescription className="text-white/70">
+          <CardTitle className="text-xl">Create your account</CardTitle>
+          <CardDescription>
             Enter your email below to create your account
           </CardDescription>
         </CardHeader>
@@ -223,14 +223,14 @@ export function SignupForm({
                   />
                   <label
                     htmlFor="agree-terms"
-                    className="min-w-0 flex-1 text-left text-sm font-normal leading-5 text-white/70"
+                    className="min-w-0 flex-1 text-left text-sm font-normal leading-5 text-muted-foreground"
                   >
                     By clicking Continue, you agree to our{" "}
                     <a
                       href="/terms"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="whitespace-nowrap font-medium text-white underline-offset-4 hover:underline"
+                      className="whitespace-nowrap font-medium text-black underline-offset-4 hover:underline dark:text-white"
                       onClick={(event) => event.stopPropagation()}
                     >
                       Terms of Service
@@ -240,7 +240,7 @@ export function SignupForm({
                       href="/privacy"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="whitespace-nowrap font-medium text-white underline-offset-4 hover:underline"
+                      className="whitespace-nowrap font-medium text-black underline-offset-4 hover:underline dark:text-white"
                       onClick={(event) => event.stopPropagation()}
                     >
                       Privacy Policy
@@ -253,8 +253,8 @@ export function SignupForm({
                 <Button type="submit" disabled={loading || emailStatus === "taken" || emailStatus === "checking" || !agreedToTerms}>
                   {loading ? "Creating Account..." : "Create Account"}
                 </Button>
-                <FieldDescription className="text-center text-white/70">
-                  Already have an account? <a href="/login" className="font-medium text-white underline-offset-4 hover:underline">Sign in</a>
+                <FieldDescription className="text-center">
+                  Already have an account? <a href="/login" className="font-medium text-black underline-offset-4 hover:underline dark:text-white">Sign in</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

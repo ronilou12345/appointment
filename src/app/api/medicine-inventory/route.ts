@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { logCurrentUserActivity } from "@/lib/activity-log"
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +33,8 @@ export async function POST(request: NextRequest) {
         medicine_image: medicineImage,
       },
     })
+
+    await logCurrentUserActivity("Added medicine", medicineName, { type: "medicine", id: created.medicine_id })
 
     return NextResponse.json({ success: true, medicine: created })
   } catch (error) {

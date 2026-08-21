@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { AppSearchProvider } from "@/components/app-search"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getUserByRole, normalizeUserRole } from "@/lib/user-role"
@@ -31,11 +32,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
         } as React.CSSProperties
       }
     >
-      <AppSidebar user={user} variant="inset" />
-      <SidebarInset>
-        <SiteHeader user={user} />
-        {children}
-      </SidebarInset>
+      <AppSearchProvider role={role}>
+        <AppSidebar user={user} variant="inset" />
+        <SidebarInset>
+          <SiteHeader user={user} />
+          {children}
+        </SidebarInset>
+      </AppSearchProvider>
     </SidebarProvider>
   )
 }

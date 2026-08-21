@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { normalizeNextFollowUp } from "@/lib/utils"
+import { logCurrentUserActivity } from "@/lib/activity-log"
 
 export async function POST(request: Request) {
   try {
@@ -56,6 +57,11 @@ export async function POST(request: Request) {
       prescription ? String(prescription) : null,
       nextFollowUpValue
     )
+
+    await logCurrentUserActivity("Saved SOAP note", `Appointment #${appointmentId}`, {
+      type: "appointment",
+      id: appointmentId,
+    })
 
     return NextResponse.json({ success: true, note })
   } catch (error) {
@@ -116,7 +122,12 @@ export async function POST(request: Request) {
        nextFollowUpValue,
        Number(targetId)
      )
- 
+
+     await logCurrentUserActivity("Updated SOAP note", `Appointment #${appointmentId ?? targetId}`, {
+       type: "soap_note",
+       id: targetId,
+     })
+
      return NextResponse.json({ success: true })
    } catch (error) {
      console.error("SOAP note update failed", error)

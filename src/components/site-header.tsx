@@ -26,15 +26,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { logoutUser } from "@/lib/actions/auth"
 import type { AppNotification, NotificationType } from "@/lib/notifications"
@@ -249,7 +240,6 @@ export function SiteHeader({
   const pathname = usePathname()
   const router = useRouter()
   const [mounted, setMounted] = React.useState(false)
-  const [searchOpen, setSearchOpen] = React.useState(false)
   const [notifications, setNotifications] = React.useState<AppNotification[]>([])
   const [readIds, setReadIds] = React.useState<string[]>([])
   const [notificationsLoading, setNotificationsLoading] = React.useState(true)
@@ -342,18 +332,6 @@ export function SiteHeader({
 
   const theme = mounted ? (currentTheme === "system" ? "system" : currentTheme) : "system"
 
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault()
-        setSearchOpen(true)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
-
   const breadcrumbs = React.useMemo(() => {
     const segments = pathname.split("/").filter(Boolean)
     const dashboardByArea: Record<string, string> = {
@@ -374,6 +352,8 @@ export function SiteHeader({
       reports: "Reports",
       users: "Users",
       "manage-users": "Manage Users",
+      "activity-log": "Activity Logs",
+      "activity-logs": "Activity Logs",
       "add-specialties": "Add Specialties",
       "book-appointment": "Book Appointment",
       "all-appointments": "All Appointments",
@@ -390,28 +370,6 @@ export function SiteHeader({
 
     return [{ label: "Home", href: homeHref }, ...crumbs]
   }, [pathname])
-
-  const searchCommands = React.useMemo(
-    () => [
-      { label: "Admin Dashboard", href: "/admin/dashboard" },
-      { label: "Manage Users", href: "/admin/manage-users" },
-      { label: "All Appointments", href: "/admin/all-appointments" },
-      { label: "Client Dashboard", href: "/client/dashboard" },
-      { label: "Doctor Dashboard", href: "/doctor/dashboard" },
-      { label: "Book Appointment", href: "/client/book-appointment" },
-      { label: "Login", href: "/login" },
-      { label: "Sign Up", href: "/signup" },
-    ],
-    []
-  )
-
-  const handleNavigate = React.useCallback(
-    (href: string) => {
-      setSearchOpen(false)
-      router.push(href)
-    },
-    [router]
-  )
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/70 px-4 backdrop-blur-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -444,25 +402,6 @@ export function SiteHeader({
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <CommandDialog open={searchOpen} onOpenChange={setSearchOpen} title="Search pages" description="Find a page to navigate to.">
-            <Command>
-              <CommandInput placeholder="Type a page name..." />
-              <CommandList>
-                <CommandEmpty>No results found.</CommandEmpty>
-                <CommandGroup heading="Pages">
-                  {searchCommands.map((command) => (
-                    <CommandItem
-                      key={command.href}
-                      value={command.label}
-                      onSelect={() => handleNavigate(command.href)}
-                    >
-                      <span>{command.label}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </CommandDialog>
           <Popover
             open={notificationsOpen}
             onOpenChange={(open) => {

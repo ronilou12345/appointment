@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { NextResponse, type NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
+import { logCurrentUserActivity } from "@/lib/activity-log"
 
 function parsePositiveInteger(value: unknown): number | null {
   if (typeof value === "number") {
@@ -322,6 +323,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    await logCurrentUserActivity(
+      "Created session",
+      `${sessions.length} session${sessions.length === 1 ? "" : "s"} added`,
+      { type: "session" },
+    )
+
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -386,6 +393,14 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    await logCurrentUserActivity(
+      "Updated session",
+      [date, startTime && endTime ? `${startTime}–${endTime}` : null, requestedStatus]
+        .filter(Boolean)
+        .join(" · "),
+      { type: "session", id },
+    )
+
     return NextResponse.json({ success: true, status: requestedStatus })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -403,6 +418,8 @@ export async function DELETE(request: NextRequest) {
     if (!doctorId) return NextResponse.json({ success: false, error: 'No valid doctor' }, { status: 403 })
 
     await prisma.$executeRawUnsafe(`DELETE FROM "session_tbl" WHERE session_id = $1 AND doctor_id = $2`, id, doctorId)
+
+    await logCurrentUserActivity("Deleted session", undefined, { type: "session", id })
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { loginUser } from "@/lib/actions/auth"
+import { logActivity } from "@/lib/activity-log"
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +25,12 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7,
+    })
+
+    await logActivity({
+      userId: result.userId,
+      action: "Signed in",
+      details: "Signed in with email and password",
     })
 
     return response

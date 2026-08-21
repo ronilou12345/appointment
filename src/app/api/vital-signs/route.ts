@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
+import { logCurrentUserActivity } from "@/lib/activity-log"
 
 type Payload = {
   weight?: number | null
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
       body.heart_rate ?? null,
       body.body_temperature ?? null,
     )
+
+    await logCurrentUserActivity("Added BMI / vital signs")
 
     return NextResponse.json({ success: true, data: res })
   } catch (error) {

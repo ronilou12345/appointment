@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
@@ -8,6 +10,20 @@ export interface DialogProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function Dialog({ children, open, onOpenChange, className, ...props }: DialogProps) {
+  React.useEffect(() => {
+    if (!open) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        onOpenChange?.(false)
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [open, onOpenChange])
+
   if (!open) return null
 
   return (
@@ -16,15 +32,19 @@ export function Dialog({ children, open, onOpenChange, className, ...props }: Di
         "fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6",
         className,
       )}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onOpenChange?.(false)
-        }
-      }}
       {...props}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <div className="relative z-10 w-full max-w-3xl">{children}</div>
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={() => onOpenChange?.(false)}
+        aria-hidden
+      />
+      <div
+        className="relative z-10 w-full max-w-3xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {children}
+      </div>
     </div>
   )
 }

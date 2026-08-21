@@ -3,6 +3,8 @@
 import { randomUUID } from "crypto"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
+import { logActivity } from "@/lib/activity-log"
+import { getSession } from "@/lib/auth-utils"
 
 export async function loginUser(formData: FormData) {
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
@@ -85,6 +87,12 @@ export async function registerUser(formData: FormData) {
       },
     })
 
+    await logActivity({
+      userId,
+      action: "Created account",
+      details: `Signed up as a client (${email})`,
+    })
+
     return { success: true, error: "", userId }
   } catch (error) {
     if (
@@ -102,5 +110,12 @@ export async function registerUser(formData: FormData) {
 }
 
 export async function logoutUser() {
+  const session = await getSession()
+  if (session?.id) {
+    await logActivity({
+      actor: session,
+      action: "Signed out",
+    })
+  }
   redirect("/login")
 }

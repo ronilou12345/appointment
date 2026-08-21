@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { logCurrentUserActivity } from "@/lib/activity-log"
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
       DO UPDATE SET available_doctor = EXCLUDED.available_doctor, status = EXCLUDED.status
       RETURNING specialty_id, specialty_name, description, available_doctor, status
     `
+
+    await logCurrentUserActivity("Created specialty", name, { type: "specialty" })
 
     return NextResponse.json({ success: true, specialty: created })
   } catch (error) {
@@ -64,6 +67,8 @@ export async function PATCH(request: NextRequest) {
       RETURNING specialty_id, specialty_name, description, available_doctor, status
     `
 
+    await logCurrentUserActivity("Updated specialty", name, { type: "specialty", id })
+
     return NextResponse.json({ success: true, specialty: updated })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -84,6 +89,8 @@ export async function DELETE(request: NextRequest) {
       DELETE FROM public.specialties
       WHERE specialty_id = ${id}
     `
+
+    await logCurrentUserActivity("Deleted specialty", undefined, { type: "specialty", id })
 
     return NextResponse.json({ success: true })
   } catch (error) {

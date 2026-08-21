@@ -2,11 +2,12 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import prisma from "@/lib/prisma"
 import { getSession } from "@/lib/auth-utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import SOAPSheet from "@/components/soap-sheet"
 import ViewCancelReason from "@/components/view-cancel-reason"
 import { formatAppointmentTime } from "@/app/client/appointments/status"
+import { resolveProfileAvatar } from "@/lib/profile-image"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -53,7 +54,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   // Use a parameterized raw query to avoid Prisma date-parsing errors
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT a.*, u.name AS user_name,
+      SELECT a.*, u.name AS user_name, u.profile_image AS user_profile_image,
              d.prefix AS doctor_prefix, d.first_name AS doctor_first_name, d.middle_name AS doctor_middle_name, d.last_name AS doctor_last_name,
              s.appointment_type AS session_appointment_type,
              to_char(COALESCE(a.appointment_date, s.session_date), 'YYYY-MM-DD') AS appointment_date_text,
@@ -83,6 +84,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
 
   const patientName = appointment.user_name ?? "Unknown patient"
   const initials = getInitials(patientName)
+  const patientAvatar = resolveProfileAvatar(appointment.user_id, appointment.user_profile_image)
   const doctorName = [appointment.doctor_prefix, appointment.doctor_first_name, appointment.doctor_middle_name, appointment.doctor_last_name]
     .filter(Boolean)
     .join(" ") || "Doctor"
@@ -113,6 +115,9 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
             <div className="rounded-[32px] border border-border bg-muted/60 p-6 sm:p-8">
               <div className="flex flex-col gap-6 md:flex-row md:items-center">
                 <Avatar size="lg">
+                  {patientAvatar ? (
+                    <AvatarImage src={patientAvatar} alt={patientName} />
+                  ) : null}
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
                 <div>

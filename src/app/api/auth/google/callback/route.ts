@@ -9,6 +9,7 @@ import {
 } from "@/lib/google-oauth"
 import { getDashboardPath } from "@/lib/user-role"
 import { isRemoteProfileImage, saveRemoteProfileImage } from "@/lib/profile-image"
+import { logActivity } from "@/lib/activity-log"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 
@@ -113,6 +114,12 @@ export async function GET(request: NextRequest) {
       maxAge: SESSION_MAX_AGE,
     })
     response.cookies.set({ name: GOOGLE_STATE_COOKIE, value: "", path: "/", maxAge: 0 })
+
+    await logActivity({
+      userId,
+      action: existing ? "Signed in with Google" : "Created account with Google",
+      details: profile.email,
+    })
 
     return response
   } catch (error) {

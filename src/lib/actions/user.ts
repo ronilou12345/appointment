@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
 import { saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
+import { logActivity } from "@/lib/activity-log"
 
 type UserRole = "ADMIN" | "NURSE" | "PATIENT"
 type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED"
@@ -57,6 +58,12 @@ export async function updateUserProfileAction(formData: FormData) {
   await prisma.user.update({
     where: { id: userId },
     data: updateData,
+  })
+
+  await logActivity({
+    userId,
+    action: "Updated profile",
+    details: email,
   })
 
   revalidatePath(redirectPath)

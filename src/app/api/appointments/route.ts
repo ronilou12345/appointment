@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
 import { sendAppointmentEmail, sendAppointmentStatusEmail } from "@/lib/appointment-email"
+import { sendAppointmentSms } from "@/lib/appointment-sms"
+import { logActivity } from "@/lib/activity-log"
 
 // Date and time columns come back as UTC-anchored Date objects, so the calendar
 // parts have to be read off the ISO string rather than local getters.
@@ -163,122 +165,6 @@ type AppointmentPayload = {
   additionalNotes?: string | null
 }
 
-function normalizeContactNumber(value: string): string | null {
-  return normalizePhilippineMobile(value)
-}
-
-async function sendAppointmentSms(contactNumber: string | null, details: {
-  patientName?: string
-  doctorName?: string
-  date?: string | null
-  time?: string | null
-  appointmentType?: string | null
-  reasonForVisit?: string | null
-}) {
-  if (!contactNumber) return { success: false, reason: "missing-contact-number" }
-
-  const apiKey = process.env.SEMAPHORE_API_KEY
-  if (!apiKey) {
-    console.warn("SEMAPHORE_API_KEY is not configured; skipping SMS notification.")
-    return { success: false, reason: "missing-api-key" }
-  }
-
-  const normalizedNumber = normalizeContactNumber(contactNumber)
-  if (!normalizedNumber) {
-    return { success: false, reason: "invalid-contact-number" }
-  }
-
-  const patientName = details.patientName?.trim() || "Patient"
-  const doctorName = details.doctorName?.trim() || "Doctor"
-  const appointmentDate = details.date || "[Date]"
-  const appointmentTime = details.time || "[Time]"
-
-  const message = `Hello, ${patientName}!
-
-Your appointment request at C2M Family Clinic has been received and is currently **pending doctor confirmation**.
-
-📅 Date: ${appointmentDate}
-🕒 Time: ${appointmentTime}
-👨‍⚕️ Doctor: Dr. ${doctorName}
-
-Please wait for confirmation. **You will receive another text message once your appointment has been confirmed.**
-
-— C2M Family Clinic`
-
-  const configuredSenderName = process.env.SEMAPHORE_SENDER_NAME?.trim()
-
-  const attemptSend = async (senderName?: string) => {
-    const payload: Record<string, string> = {
-      apikey: apiKey,
-      number: normalizedNumber,
-      message,
-    }
-
-    if (senderName) {
-      payload.sendername = senderName
-    }
-
-    const response = await fetch("https://api.semaphore.co/api/v4/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-    })
-
-    const responseText = await response.text()
-
-    if (!response.ok) {
-      const errorPayload = responseText ? responseText : "No response body returned"
-      return {
-        success: false,
-        reason: "provider-error",
-        status: response.status,
-        providerResponse: errorPayload,
-      }
-    }
-
-    return { success: true, response: responseText }
-  }
-
-  try {
-    const primaryAttempt = await attemptSend(configuredSenderName)
-
-    if (primaryAttempt.success) {
-      return primaryAttempt
-    }
-
-    const providerText = String(primaryAttempt.providerResponse || "")
-    const senderRejected = configuredSenderName && (
-      providerText.toLowerCase().includes("sender") ||
-      providerText.toLowerCase().includes("invalid") ||
-      providerText.toLowerCase().includes("not allowed") ||
-      providerText.toLowerCase().includes("rejected")
-    )
-
-    if (senderRejected) {
-      console.warn("Semaphore sender rejected; retrying without sendername:", providerText)
-      const fallbackAttempt = await attemptSend()
-      if (fallbackAttempt.success) {
-        return fallbackAttempt
-      }
-
-      return {
-        success: false,
-        reason: fallbackAttempt.reason,
-        status: fallbackAttempt.status,
-        providerResponse: fallbackAttempt.providerResponse,
-      }
-    }
-
-    return primaryAttempt
-  } catch (error) {
-    console.error("Semaphore SMS error:", error)
-    return { success: false, reason: "request-failed" }
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -425,7 +311,7 @@ export async function POST(request: NextRequest) {
     })
 
     const [smsResult, emailResult] = await Promise.all([
-      sendAppointmentSms(savedContactNumber, appointmentDetails),
+      sendAppointmentSms(savedContactNumber, appointmentDetails, "Pending"),
       sendAppointmentEmail(user.email ?? null, appointmentDetails),
     ])
 
@@ -436,6 +322,19 @@ export async function POST(request: NextRequest) {
     if (!emailResult.success) {
       console.warn("Appointment booked, email skipped or failed:", emailResult)
     }
+
+    await logActivity({
+      actor: user,
+      action: "Booked appointment",
+      details: [
+        appointmentDetails.doctorName ? `Doctor: ${appointmentDetails.doctorName}` : null,
+        appointmentDetails.date ? `Date: ${appointmentDetails.date}` : null,
+        appointmentDetails.time ? `Time: ${appointmentDetails.time}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      entityType: "appointment",
+    })
 
     return NextResponse.json({ success: true, smsSent: smsResult.success, emailSent: emailResult.success })
   } catch (error) {
@@ -479,6 +378,7 @@ export async function PATCH(request: NextRequest) {
         reason_for_visit: true,
         appointment_date: true,
         appointment_time: true,
+        contact_number: true,
         user: { select: { name: true, email: true } },
         doctor: { select: { first_name: true, last_name: true } },
         session_tbl: { select: { session_date: true, start_time: true } },
@@ -514,7 +414,7 @@ export async function PATCH(request: NextRequest) {
       .filter(Boolean)
       .join(" ")
       .trim()
-    const emailResult = await sendAppointmentStatusEmail(appointment.user?.email ?? null, targetStatus, {
+    const statusDetails = {
       patientName: appointment.user?.name ?? undefined,
       doctorName,
       date: isoDatePart(appointment.appointment_date ?? appointment.session_tbl?.session_date),
@@ -522,16 +422,34 @@ export async function PATCH(request: NextRequest) {
       appointmentType: appointment.appointment_type,
       reasonForVisit: appointment.reason_for_visit,
       cancelReason: shouldCancel ? reasonCancel || appointment.reason_cancel : null,
-    })
+    }
+
+    const [smsResult, emailResult] = await Promise.all([
+      sendAppointmentSms(appointment.contact_number, statusDetails, targetStatus),
+      sendAppointmentStatusEmail(appointment.user?.email ?? null, targetStatus, statusDetails),
+    ])
+
+    if (!smsResult.success) {
+      console.warn(`Appointment ${targetStatus.toLowerCase()}, SMS skipped or failed:`, smsResult)
+    }
 
     if (!emailResult.success) {
       console.warn(`Appointment ${targetStatus.toLowerCase()}, email skipped or failed:`, emailResult)
     }
 
+    await logActivity({
+      actor: user,
+      action: `${targetStatus} appointment`,
+      details: `Patient: ${appointment.user?.name ?? "Unknown"}`,
+      entityType: "appointment",
+      entityId: appointmentId,
+    })
+
     return NextResponse.json({
       success: true,
       status: updatedAppointment.appointment_status,
       emailSent: emailResult.success,
+      smsSent: smsResult.success,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

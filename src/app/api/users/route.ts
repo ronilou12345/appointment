@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createUserAction } from "@/lib/actions/user"
 import prisma from "@/lib/prisma"
 import { saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
+import { logCurrentUserActivity } from "@/lib/activity-log"
 
 function normalizeRole(value: string | null) {
   const role = (value ?? "PATIENT").toString().trim().toUpperCase()
@@ -81,6 +82,13 @@ export async function POST(request: NextRequest) {
       const imageUrl = await saveProfileImageFile(result.userId, profileImage)
       await updateUserProfileImage(result.userId, imageUrl)
     }
+
+    const createdName = [body.firstName, body.middleName, body.lastName].filter(Boolean).join(" ").trim() || body.email
+    await logCurrentUserActivity(
+      "Created user",
+      `${createdName} (${String(body.email ?? "").trim()}) as ${String(body.userType ?? "PATIENT")}`,
+      { type: "user", id: result.userId },
+    )
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -195,6 +203,8 @@ export async function PATCH(request: NextRequest) {
       await updateUserProfileImage(userId, imageUrl)
     }
 
+    await logCurrentUserActivity("Updated user", `${name} (${email})`, { type: "user", id: userId })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -211,7 +221,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing user id" }, { status: 400 })
     }
 
-    const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, name: true, email: true },
+    })
     if (targetUser?.role === 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Cannot delete ADMIN account' }, { status: 403 })
     }
@@ -224,6 +237,12 @@ export async function DELETE(request: NextRequest) {
       // delete user
       await tx.user.delete({ where: { id: userId } })
     })
+
+    await logCurrentUserActivity(
+      "Deleted user",
+      `${targetUser?.name ?? "User"} (${targetUser?.email ?? userId})`,
+      { type: "user", id: userId },
+    )
 
     return NextResponse.json({ success: true })
   } catch (error) {
