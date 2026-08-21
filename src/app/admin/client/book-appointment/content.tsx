@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Stepper, type StepperItem } from "@/components/ui/stepper"
 import { User, Calendar as CalendarIcon, FileText, CheckCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
 
@@ -991,93 +992,141 @@ export function BookAppointmentContent() {
         {/* Step 4: Confirmation */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-semibold mb-2">Confirm Appointment</h2>
-              <p className="text-muted-foreground">
-                Please review your appointment details before confirming.
-              </p>
-            </div>
+            {(() => {
+              const selectedDoctor = doctors.find((d) => d.id.toString() === formData.doctorId)
+              const doctorName = selectedDoctor?.name || "Not selected"
+              const doctorInitials = doctorName
+                .split(" ")
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join("")
+                .toUpperCase() || "DR"
+              const patientLabel =
+                formData.patientRelationship === "Other" && formData.patientRelationshipOther
+                  ? `Other — ${formData.patientRelationshipOther}`
+                  : formData.patientRelationship || "Not selected"
 
-            <div className="space-y-4 bg-muted/50 p-6 rounded-lg">
-              <div>
-                <p className="text-sm text-muted-foreground">Doctor</p>
-                <p className="font-semibold">
-                  {doctors.find((d) => d.id.toString() === formData.doctorId)?.name || "Not selected"}
-                </p>
-              </div>
+              return (
+                <>
+                  <div>
+                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Confirmation</p>
+                    <h2 className="mt-2 text-2xl font-semibold">Review and confirm</h2>
+                    <p className="mt-2 text-muted-foreground">
+                      Please review your appointment details before confirming.
+                    </p>
+                  </div>
 
-              <div>
-                <p className="text-sm text-muted-foreground">Appointment Type</p>
-                <p className="font-semibold">
-                  {formData.appointmentType || "Not selected"}
-                </p>
-              </div>
+                  <Separator />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Date</p>
-                  <p className="font-semibold">
-                    {formData.date || "Not selected"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Time</p>
-                  <p className="font-semibold">
-                    {formData.time || "Not selected"}
-                  </p>
-                </div>
-              </div>
+                  <div className="overflow-hidden rounded-2xl border border-border bg-muted/30">
+                    <div className="flex items-center gap-4 bg-card p-5 sm:p-6">
+                      <Avatar className="h-14 w-14 border border-border">
+                        {selectedDoctor?.avatar ? (
+                          <AvatarImage src={selectedDoctor.avatar} alt={doctorName} />
+                        ) : null}
+                        <AvatarFallback className="bg-primary/10 text-primary">{doctorInitials}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Doctor</p>
+                        <p className="mt-1 truncate text-lg font-semibold">
+                          {doctorName}
+                          {selectedDoctor?.credential ? `, ${selectedDoctor.credential}` : ""}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {selectedDoctor?.specialty || selectedDoctor?.specialties?.join(", ") || "Specialty not selected"}
+                        </p>
+                      </div>
+                    </div>
 
-              <div>
-                <p className="text-sm text-muted-foreground">Reason for Visit</p>
-                <p className="font-semibold">{formData.reason || "Not provided"}</p>
-              </div>
+                    <Separator />
 
-              <div>
-                <p className="text-sm text-muted-foreground">Who is the Patient?</p>
-                <p className="font-semibold">{formData.patientRelationship || "Not selected"}</p>
-              </div>
+                    <div className="grid gap-0 sm:grid-cols-3">
+                      <div className="p-5 sm:p-6">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Appointment type</p>
+                        <p className="mt-2 font-semibold">{formData.appointmentType || "Not selected"}</p>
+                      </div>
+                      <div className="border-t border-border p-5 sm:border-t-0 sm:border-l sm:p-6">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Date</p>
+                        <p className="mt-2 font-semibold">{formData.date || "Not selected"}</p>
+                      </div>
+                      <div className="border-t border-border p-5 sm:border-t-0 sm:border-l sm:p-6">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Time</p>
+                        <p className="mt-2 font-semibold">{formData.time || "Not selected"}</p>
+                      </div>
+                    </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">Age</p>
-                  <p className="font-semibold">{formData.age || "Not provided"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Gender</p>
-                  <p className="font-semibold">{formData.gender || "Not provided"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Contact Number</p>
-                  <p className="font-semibold">{formData.contactNumber || "Not provided"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pain Level</p>
-                  <p className="font-semibold">{formData.painLevel ? `Level ${formData.painLevel}` : "Not provided"}</p>
-                </div>
-              </div>
+                    <Separator />
 
-              {formData.symptoms && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Symptoms</p>
-                  <p className="font-semibold">{formData.symptoms}</p>
-                </div>
-              )}
+                    <div className="space-y-4 p-5 sm:p-6">
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Patient</p>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Who is the patient?</p>
+                          <p className="mt-1 font-semibold">{patientLabel}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Contact number</p>
+                          <p className="mt-1 font-semibold">{formData.contactNumber || "Not provided"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Age</p>
+                          <p className="mt-1 font-semibold">{formData.age || "Not provided"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Gender</p>
+                          <p className="mt-1 font-semibold">{formData.gender || "Not provided"}</p>
+                        </div>
+                      </div>
+                    </div>
 
-              {formData.durationOfSymptoms && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Duration of Symptoms</p>
-                  <p className="font-semibold">{formData.durationOfSymptoms}</p>
-                </div>
-              )}
+                    <Separator />
 
-              {formData.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Additional Notes</p>
-                  <p className="font-semibold">{formData.notes}</p>
-                </div>
-              )}
-            </div>
+                    <div className="space-y-4 p-5 sm:p-6">
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Visit details</p>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Reason for visit</p>
+                        <p className="mt-1 font-semibold">{formData.reason || "Not provided"}</p>
+                      </div>
+                      {formData.symptoms ? (
+                        <>
+                          <Separator />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Symptoms</p>
+                            <p className="mt-1 font-semibold">{formData.symptoms}</p>
+                          </div>
+                        </>
+                      ) : null}
+                      {formData.durationOfSymptoms ? (
+                        <>
+                          <Separator />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Duration of symptoms</p>
+                            <p className="mt-1 font-semibold">{formData.durationOfSymptoms}</p>
+                          </div>
+                        </>
+                      ) : null}
+                      <Separator />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Pain level</p>
+                        <p className="mt-1 font-semibold">
+                          {formData.painLevel ? `Level ${formData.painLevel}` : "Not provided"}
+                        </p>
+                      </div>
+                      {formData.notes ? (
+                        <>
+                          <Separator />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Additional notes</p>
+                            <p className="mt-1 font-semibold">{formData.notes}</p>
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         )}
       </Card>

@@ -20,6 +20,8 @@ const getStatusVariant = (status: string) => {
     case "pending":
       return "secondary"
     case "cancelled":
+    case "canceled":
+    case "cancel":
     case "declined":
       return "destructive"
     default:
@@ -105,7 +107,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   const physicalExamination = soapNote?.physical_examination || "No physical examination recorded."
   const diagnosis = soapNote?.diagnosis || "No diagnosis recorded."
   const followUpNote = soapNote?.next_follow_up || "No follow-up plan recorded."
-  const cancellationReason = appointment.cancellation_reason || appointment.additional_notes || "No cancellation reason recorded."
+  const cancellationReason = appointment.reason_cancel?.trim() || "No cancellation reason recorded."
+  const isCancelled = ["cancelled", "canceled", "cancel"].includes(String(statusText).toLowerCase())
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -136,11 +139,11 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
                 </div>
                 <div className="rounded-3xl border border-border bg-card p-5">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Review Cancellation</p>
-                  <div className="mt-2">
-                    {['cancelled','canceled'].includes(String(statusText).toLowerCase()) ? (
+                  <div className="mt-3">
+                    {isCancelled ? (
                       <ViewCancelReason reason={cancellationReason} />
                     ) : (
-                      <p className="mt-2 font-semibold">{cancellationReason === 'No cancellation reason recorded.' ? 'No cancellation recorded.' : cancellationReason}</p>
+                      <p className="font-semibold">No cancellation recorded.</p>
                     )}
                   </div>
                 </div>

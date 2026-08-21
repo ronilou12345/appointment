@@ -199,7 +199,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
-              <a href="#" title="Empowered Health and Wellness Clinic" className="flex items-center gap-2">
+              <a href="#" title="Doctor ng Bawat Pamilyang Pilipino" className="flex items-center gap-2">
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden bg-white p-2 transition-[border-radius] dark:bg-slate-900 rounded-[var(--radius)]">
                   <Image
                     src="/logo1.jpg"
