@@ -19,6 +19,12 @@ import {
   Stethoscope,
   HeartPulse,
   Monitor,
+  Pill,
+  Plus,
+  CalendarDays,
+  Syringe,
+  Star,
+  Facebook,
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 
@@ -27,6 +33,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ThemeCustomizer } from "@/components/theme-customizer"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,10 +81,58 @@ export default function LandingPage() {
 
   const isDark = mounted ? resolvedTheme === "dark" : false
 
+  const clientFeedback = [
+    {
+      name: "Maria Santos",
+      role: "Patient, Sinacaban",
+      avatar: "https://images.unsplash.com/photo-1573884084196-a3b5bdf87676?auto=format&fit=crop&w=256&h=256&q=80&crop=faces",
+      quote: "Booking an appointment is so easy now. I can check my schedule, see my doctor, and get updates without waiting at the clinic all morning.",
+    },
+    {
+      name: "Juan Dela Cruz",
+      role: "Father of two",
+      avatar: "https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?auto=format&fit=crop&w=256&h=256&q=80&crop=faces",
+      quote: "C2M takes care of our whole family. The doctors are kind, the pharmacy is ready, and we always know when our next visit is.",
+    },
+    {
+      name: "Ana Reyes",
+      role: "Regular patient",
+      avatar: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=256&h=256&q=80&crop=faces",
+      quote: "I love that I can view my records and prescriptions in one place. Follow-up care feels organized and I never miss an appointment.",
+    },
+    {
+      name: "Carlos Mendoza",
+      role: "Patient, Poblacion",
+      avatar: "https://images.unsplash.com/photo-1566753323558-f4e0952af115?auto=format&fit=crop&w=256&h=256&q=80&crop=faces",
+      quote: "The staff treated me with respect from the first visit. Check-in was fast and my consultation started on time.",
+    },
+    {
+      name: "Liza Navarro",
+      role: "Mother",
+      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&h=256&q=80&crop=faces",
+      quote: "Bringing my children here is stress-free. The clinic is clean, the doctors explain everything clearly, and the pharmacy has what we need.",
+    },
+    {
+      name: "Roberto Villanueva",
+      role: "Senior patient",
+      avatar: "https://images.unsplash.com/photo-1545167622-3a6ac756afa4?auto=format&fit=crop&w=256&h=256&q=80&crop=faces",
+      quote: "I appreciate the patient and careful care. They remind me of my visits and I feel looked after every time I come in.",
+    },
+  ]
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background font-sans text-foreground transition-colors duration-500">
-      {/* Background Patterns */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-40 dark:opacity-20">
+      {/* Background elements */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute -top-32 -left-24 size-[28rem] rounded-full bg-primary/12 blur-3xl dark:bg-primary/10" />
+        <div className="absolute top-[22%] -right-28 size-[24rem] rounded-full bg-primary/10 blur-3xl dark:bg-primary/8" />
+        <div className="absolute bottom-[-12%] left-[20%] size-[26rem] rounded-full bg-muted/70 blur-3xl dark:bg-muted/30" />
+
+        <div className="absolute inset-0 opacity-[0.35] dark:opacity-[0.18]" style={{
+          backgroundImage: "radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }} />
+
         <div className="absolute top-[-10%] left-[-10%] size-[40%] rounded-full border border-muted/50" />
         <div className="absolute top-[20%] right-[-5%] size-[30%] rounded-full border border-muted/30" />
         <div className="absolute bottom-[-15%] left-[15%] size-[45%] rounded-full border border-muted/40" />
@@ -89,7 +144,18 @@ export default function LandingPage() {
         <div className="absolute bottom-1/4 right-20 size-10 rounded-full border border-muted/40" />
 
         <div className="absolute top-0 left-1/2 h-full w-px bg-gradient-to-b from-transparent via-muted/30 to-transparent" />
-        <div className="absolute top-1/3 left-0 w-full h-px bg-gradient-to-r from-transparent via-muted/20 to-transparent" />
+        <div className="absolute top-1/3 left-0 h-px w-full bg-gradient-to-r from-transparent via-muted/20 to-transparent" />
+
+        <Stethoscope className="landing-float absolute top-28 left-[7%] size-16 text-primary/20 dark:text-primary/25" />
+        <HeartPulse className="landing-float-delayed absolute top-[16%] right-[8%] size-14 text-primary/20 dark:text-primary/25" />
+        <ActivityIcon className="landing-float-delayed-2 absolute top-[48%] left-[5%] size-12 text-primary/15 dark:text-primary/20" />
+        <Pill className="landing-float absolute top-[58%] right-[6%] size-12 rotate-12 text-primary/20 dark:text-primary/25" />
+        <Plus className="landing-float-delayed absolute bottom-[22%] left-[12%] size-10 text-primary/20 dark:text-primary/25" />
+        <CalendarDays className="landing-float-delayed-2 absolute bottom-[18%] right-[14%] size-12 text-primary/15 dark:text-primary/20" />
+        <Syringe className="landing-float absolute top-[38%] right-[18%] size-11 -rotate-12 text-primary/15 dark:text-primary/20" />
+        <ShieldCheck className="landing-float-delayed absolute bottom-[8%] left-[42%] size-14 text-primary/12 dark:text-primary/18" />
+        <Plus className="landing-float-delayed-2 absolute top-[72%] left-[28%] size-7 text-primary/15" />
+        <HeartPulse className="landing-float absolute bottom-[32%] right-[28%] size-8 text-primary/12" />
       </div>
 
       {/* Navbar */}
@@ -105,6 +171,7 @@ export default function LandingPage() {
           <nav className="hidden items-center gap-8 md:flex">
             <Link href="#home" className="text-sm font-medium transition-colors hover:text-primary">Home</Link>
             <Link href="#about" className="text-sm font-medium transition-colors hover:text-primary">About</Link>
+            <Link href="#feedback" className="text-sm font-medium transition-colors hover:text-primary">Feedback</Link>
             <Link href="#contact" className="text-sm font-medium transition-colors hover:text-primary">Contact</Link>
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-2">
@@ -161,6 +228,7 @@ export default function LandingPage() {
             <nav className="flex flex-col gap-4">
               <Link href="#home" className="text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Home</Link>
               <Link href="#about" className="text-lg font-medium" onClick={() => setIsMenuOpen(false)}>About</Link>
+              <Link href="#feedback" className="text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Feedback</Link>
               <Link href="#contact" className="text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Contact</Link>
               <div className="flex items-center justify-between pt-4 border-t">
                 <div className="flex items-center gap-2">
@@ -351,6 +419,57 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Client Feedback */}
+      <section id="feedback" className="relative z-10 py-24">
+        <div className="container mx-auto max-w-6xl px-4 lg:px-8">
+          <div className="mb-16 text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              What Our Clients <span className="text-primary">Say About Us</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+              Trusted by families in our community for compassionate care, clear communication, and reliable clinic services.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {clientFeedback.map((item) => {
+              const initials = item.name
+                .split(" ")
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join("")
+
+              return (
+                <article
+                  key={item.name}
+                  className="flex flex-col rounded-2xl border border-border bg-card/80 p-6 shadow-sm backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={item.avatar} alt={item.name} />
+                      <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold text-foreground">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">{item.role}</p>
+                    </div>
+                  </div>
+                  <p className="mt-4 flex-1 text-sm leading-6 text-muted-foreground">
+                    “{item.quote}”
+                  </p>
+                  <div className="mt-5 flex items-center gap-1" aria-label="5 out of 5 stars">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star key={index} className="size-4 fill-primary text-primary" />
+                    ))}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Contact Section */}
       <section id="contact" className="relative z-10 py-24">
         <div className="container mx-auto px-4 lg:px-8 max-w-4xl text-center">
@@ -415,6 +534,43 @@ export default function LandingPage() {
             © 2026 C2M Clinic System  All rights reserved.
           </p>
           <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Link
+                href="https://www.facebook.com/profile.php?id=61590264128141"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-[#1877F2] hover:text-[#1877F2]"
+              >
+                <Facebook className="size-4" />
+              </Link>
+              <Link
+                href="https://www.google.com/maps?q=C2M+Family+Clinic+%26+Pharmacy,+Poblacion,+Sinacaban"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Google"
+                className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4" aria-hidden>
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.99 10.99 0 0 0 1 12c0 1.78.43 3.45 1.18 4.93l3.66-2.84z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+              </Link>
+            </div>
             <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">Privacy Policy</Link>
             <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">Terms of Service</Link>
           </div>
