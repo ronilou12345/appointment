@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeApplier } from "@/components/theme-applier";
+import { PageLoadProgress } from "@/components/page-load-progress";
 
 export default function RootLayout({
   children,
@@ -39,6 +40,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ThemeApplier />
+          <PageLoadProgress />
           <TooltipProvider>
             {children}
             <Toaster richColors closeButton position="bottom-right" />

@@ -302,6 +302,13 @@ export function SiteHeader({
     return "/client/appointments"
   }, [pathname])
 
+  const settingsHref = React.useMemo(() => {
+    const area = pathname.split("/").filter(Boolean)[0]
+    if (area === "admin") return "/admin/settings"
+    if (area === "doctor") return "/doctor/settings"
+    return "/client/settings"
+  }, [pathname])
+
   const readIdSet = React.useMemo(() => new Set(readIds), [readIds])
   const unreadNotifications = notifications.filter((notification) => !readIdSet.has(notification.id))
   const readNotifications = notifications.filter((notification) => readIdSet.has(notification.id))
@@ -564,7 +571,7 @@ export function SiteHeader({
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push(settingsHref)}>
                 <Settings2Icon className="size-4" />
                 Settings
               </DropdownMenuItem>

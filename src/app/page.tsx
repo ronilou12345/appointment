@@ -159,7 +159,7 @@ export default function LandingPage() {
       </div>
 
       {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
+      <header className="relative sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
           <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
             <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-900">

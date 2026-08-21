@@ -1,5 +1,6 @@
 "use client"
 
+import { usePathname, useRouter } from "next/navigation"
 import {
   Avatar,
   AvatarFallback,
@@ -8,7 +9,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -20,7 +20,29 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { EllipsisVerticalIcon, CircleUserRoundIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { logoutUser } from "@/lib/actions/auth"
+import {
+  EllipsisVerticalIcon,
+  CircleUserRoundIcon,
+  LogOutIcon,
+} from "lucide-react"
+
+function getSettingsHref(pathname: string, role?: string) {
+  const area = pathname.split("/").filter(Boolean)[0]
+  if (area === "admin" || area === "doctor" || area === "client") {
+    return `/${area}/settings`
+  }
+
+  switch ((role ?? "").toUpperCase()) {
+    case "ADMIN":
+      return "/admin/settings"
+    case "DOCTOR":
+    case "NURSE":
+      return "/doctor/settings"
+    default:
+      return "/client/settings"
+  }
+}
 
 export function NavUser({
   user,
@@ -29,9 +51,13 @@ export function NavUser({
     name: string
     email: string
     avatar: string
+    role?: string
   }
 }) {
   const { isMobile } = useSidebar()
+  const pathname = usePathname()
+  const router = useRouter()
+  const settingsHref = getSettingsHref(pathname, user.role)
   const initials = (user.name || "U")
     .split(" ")
     .filter(Boolean)
@@ -82,17 +108,17 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <CircleUserRoundIcon
-                />
-                Account
-              </DropdownMenuItem>
-             
-            
-
-            <DropdownMenuItem>
-              <LogOutIcon
-              />
+            <DropdownMenuItem onSelect={() => router.push(settingsHref)}>
+              <CircleUserRoundIcon />
+              Account
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={async () => {
+                await logoutUser()
+              }}
+            >
+              <LogOutIcon />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { LoginDotWaves } from "@/components/login-dot-waves"
 import { Progress } from "@/components/ui/progress"
 
 const SPLASH_MS = 2000
@@ -49,12 +50,13 @@ export function LoginSplash({ children }: { children: React.ReactNode }) {
       {visible ? (
         <div
           className={cn(
-            "fixed inset-0 z-50 flex flex-col items-center justify-center bg-background transition-all duration-500 ease-out",
+            "fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-background transition-all duration-500 ease-out",
             leaving ? "pointer-events-none scale-105 opacity-0" : "scale-100 opacity-100"
           )}
           aria-hidden={!visible}
         >
-          <div className="flex w-full max-w-[16rem] flex-col items-center gap-5 px-6 text-center">
+          <LoginDotWaves />
+          <div className="relative z-10 flex w-full max-w-[16rem] flex-col items-center gap-5 px-6 text-center">
             <div className="relative flex size-28 items-center justify-center">
               <span className="splash-ring pointer-events-none absolute inset-0 rounded-[var(--radius)] border border-foreground/25" />
               <div className="splash-logo relative z-10 flex size-28 items-center justify-center overflow-hidden rounded-[var(--radius)] bg-white p-3 shadow-sm dark:bg-slate-900">
