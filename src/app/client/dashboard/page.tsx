@@ -2,6 +2,7 @@ import { PatientDashboard } from "@/components/patient-dashboard"
 import { getUserByRole } from "@/lib/user-role"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
+import { ensureVitalSignsColumns, toVitalNumber } from "@/lib/vital-signs"
 
 async function getNextPendingAppointment(userId: string) {
   const today = new Date()
@@ -41,6 +42,70 @@ async function getNextPendingAppointment(userId: string) {
   }
 }
 
+function latestMetric(rows: any[], key: string) {
+  for (const row of rows) {
+    const value = toVitalNumber(row[key])
+    if (value != null) return value
+  }
+  return null
+}
+
+async function getPatientVitals(userId: string) {
+  try {
+    await ensureVitalSignsColumns()
+    const rows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT
+          v.heart_rate,
+          v.body_temperature,
+          v.weight,
+          v.height,
+          v.blood_sugar,
+          v.created_at
+        FROM "vital_signs" v
+        LEFT JOIN "appointment" a ON a.appointment_id = v.appointment_id
+        WHERE v.user_id = $1 OR a.user_id = $1
+        ORDER BY v.created_at DESC NULLS LAST
+        LIMIT 14`,
+      userId,
+    )
+
+    const latest = {
+      heartRate: latestMetric(rows, "heart_rate"),
+      bodyTemperature: latestMetric(rows, "body_temperature"),
+      weight: latestMetric(rows, "weight"),
+      height: latestMetric(rows, "height"),
+      bloodSugar: latestMetric(rows, "blood_sugar"),
+    }
+
+    const trend = [...rows]
+      .reverse()
+      .map((row) => {
+        const recordedAt = row.created_at ? new Date(row.created_at) : null
+        return {
+          day: recordedAt && !Number.isNaN(recordedAt.getTime())
+            ? recordedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+            : "—",
+          bpm: toVitalNumber(row.heart_rate),
+          temp: toVitalNumber(row.body_temperature),
+        }
+      })
+      .filter((point) => point.bpm != null)
+
+    return { latest, trend }
+  } catch {
+    return {
+      latest: {
+        heartRate: null,
+        bodyTemperature: null,
+        weight: null,
+        height: null,
+        bloodSugar: null,
+      },
+      trend: [],
+    }
+  }
+}
+
 export default async function ClientDashboardPage() {
   const session = await getSession()
   const fallbackUser = getUserByRole("CLIENT")
@@ -53,28 +118,18 @@ export default async function ClientDashboardPage() {
     : fallbackUser
 
   const nextPending = session?.id ? await getNextPendingAppointment(session.id) : null
-
-  const getLatestVitals = async (userId: string | number) => {
-    try {
-      const rows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT weight, height, heart_rate, body_temperature, created_at FROM "vital_signs" WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
-        String(userId),
-      )
-      if (!rows?.length) return null
-      const r = rows[0]
-      return {
-        weight: r.weight ?? null,
-        height: r.height ?? null,
-        heartRate: r.heart_rate ?? null,
-        bodyTemperature: r.body_temperature ?? null,
-        recordedAt: r.created_at ?? null,
+  const vitals = session?.id
+    ? await getPatientVitals(session.id)
+    : {
+        latest: {
+          heartRate: null,
+          bodyTemperature: null,
+          weight: null,
+          height: null,
+          bloodSugar: null,
+        },
+        trend: [],
       }
-    } catch {
-      return null
-    }
-  }
 
-  const latestVitals = session?.id ? await getLatestVitals(session.id) : null
-
-  return <PatientDashboard user={userProp} nextPending={nextPending} latestVitals={latestVitals} />
+  return <PatientDashboard user={userProp} nextPending={nextPending} latestVitals={vitals.latest} healthTrend={vitals.trend} />
 }

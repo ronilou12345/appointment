@@ -198,21 +198,19 @@ export function AllDoctorsContent({ rows }: { rows: DoctorRow[] }) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground">All Doctors</h1>
-            <p className="mt-2 text-muted-foreground">
-              View and manage all doctors in the system. You can check availability, specialty, and profile details here.
-            </p>
-          </div>
-          <div className="flex-shrink-0">
-            <CreateDoctorDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-          </div>
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-foreground">All Doctors</h1>
+          <p className="mt-2 text-muted-foreground">
+            View and manage all doctors in the system. You can check availability, specialty, and profile details here.
+          </p>
         </div>
-        <DataTable columns={columns} data={rows} />
+        <div className="flex-shrink-0">
+          <CreateDoctorDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+        </div>
       </div>
+      <DataTable columns={columns} data={rows} />
       <EditDoctorSheet open={editOpen} onOpenChange={setEditOpen} doctor={selectedDoctor} />
     </div>
   )

@@ -8,6 +8,7 @@ import { columns, type SessionRow } from "./columns"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
 import { Calendar } from "@/components/ui/calendar"
+import { Pencil } from "lucide-react"
 
 const appointmentTypeOptions = [
   "General Consultation",
@@ -32,10 +33,10 @@ const parseDateValue = (value: string) => {
   return new Date(year, month - 1, day)
 }
 
-const sanitizeSlotCount = (value: unknown) => {
+const sanitizeSlotCount = (value: unknown, min = 1) => {
   const parsed = typeof value === "string" ? Number(value.trim()) : Number(value)
-  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
-    return 1
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < min) {
+    return min
   }
   return parsed
 }
@@ -95,7 +96,9 @@ export default function AddSessionPage() {
     },
   ])
   const [customValues, setCustomValues] = useState<Record<string, string>>({})
+  const [editingDraftCustom, setEditingDraftCustom] = useState<Record<string, string>>({})
   const [editCustomValue, setEditCustomValue] = useState("")
+  const [editingEditCustom, setEditingEditCustom] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string>("")
   const [calendarOpenFor, setCalendarOpenFor] = useState<string | null>(null)
 
@@ -169,27 +172,64 @@ export default function AddSessionPage() {
     setCustomValues((prev) => ({ ...prev, [tempId]: value }))
   }
 
+  const getCustomAppointmentEntries = (appointmentTypes: string[] | undefined) =>
+    (appointmentTypes ?? []).filter((item) => typeof item === "string" && item.trim() && !appointmentTypeOptions.includes(item) && item !== "Others___")
+
+  const recordCustomAppointmentType = (current: string[] | undefined, nextValue: string, replacing?: string | null) => {
+    const trimmed = nextValue.trim()
+    if (!trimmed) return current ?? []
+
+    const types = (current ?? []).filter(Boolean)
+    const presetItems = types.filter((item) => appointmentTypeOptions.includes(item) && item !== "Others___")
+    const existingCustomItems = getCustomAppointmentEntries(types)
+    const nextCustomItems = replacing
+      ? existingCustomItems.map((item) => (item === replacing ? trimmed : item))
+      : [...existingCustomItems.filter((item) => item !== trimmed), trimmed]
+
+    return Array.from(new Set([...presetItems, "Others___", ...nextCustomItems.filter(Boolean)]))
+  }
+
   const addCustomAppointmentType = (tempId: string, value: string) => {
     const trimmed = value.trim()
     if (!trimmed) return
 
+    const replacing = editingDraftCustom[tempId] || null
+
     setDrafts((d) =>
       d.map((x) => {
         if (x.tempId !== tempId) return x
-
-        const current = (x.appointmentTypes ?? []).filter(Boolean)
-        const presetItems = current.filter((item) => appointmentTypeOptions.includes(item))
-        const existingCustomItems = current.filter((item) => !appointmentTypeOptions.includes(item) && item !== "Others___")
-        const withoutCustom = [...presetItems, ...existingCustomItems.filter((item) => item !== trimmed)]
-        return { ...x, appointmentTypes: Array.from(new Set([...withoutCustom, trimmed])) }
+        return { ...x, appointmentTypes: recordCustomAppointmentType(x.appointmentTypes, trimmed, replacing) }
       }),
     )
+    setEditingDraftCustom((prev) => {
+      const next = { ...prev }
+      delete next[tempId]
+      return next
+    })
+    setCustomValues((prev) => ({ ...prev, [tempId]: "" }))
+  }
+
+  const startEditDraftCustomType = (tempId: string, value: string) => {
+    setEditingDraftCustom((prev) => ({ ...prev, [tempId]: value }))
+    setCustomValues((prev) => ({ ...prev, [tempId]: value }))
+  }
+
+  const removeCustomAppointmentType = (tempId: string, value: string) => {
+    setDrafts((d) =>
+      d.map((x) => {
+        if (x.tempId !== tempId) return x
+        return { ...x, appointmentTypes: (x.appointmentTypes ?? []).filter((item) => item !== value) }
+      }),
+    )
+    setEditingDraftCustom((prev) => {
+      if (prev[tempId] !== value) return prev
+      const next = { ...prev }
+      delete next[tempId]
+      return next
+    })
   }
 
   const getOtherTextValue = (tempId: string) => customValues[tempId] ?? ""
-
-  const getCustomAppointmentEntries = (appointmentTypes: string[] | undefined) =>
-    (appointmentTypes ?? []).filter((item) => typeof item === "string" && item.trim() && !appointmentTypeOptions.includes(item) && item !== "Others___")
 
   const addCustomAppointmentTypeToEditSession = () => {
     if (!editSession) return
@@ -197,14 +237,29 @@ export default function AddSessionPage() {
     const trimmed = editCustomValue.trim()
     if (!trimmed) return
 
-    const current = (editSession.appointmentTypes ?? []).filter(Boolean)
-    const presetItems = current.filter((item) => appointmentTypeOptions.includes(item))
-    const existingCustomItems = current.filter((item) => !appointmentTypeOptions.includes(item) && item !== "Others___")
-    const withoutCustom = [...presetItems, ...existingCustomItems.filter((item) => item !== trimmed)]
-    const nextItems = Array.from(new Set([...withoutCustom, trimmed, "Others___"]))
-
-    setEditSession({ ...editSession, appointmentTypes: nextItems })
+    setEditSession({
+      ...editSession,
+      appointmentTypes: recordCustomAppointmentType(editSession.appointmentTypes, trimmed, editingEditCustom),
+    })
     setEditCustomValue("")
+    setEditingEditCustom(null)
+  }
+
+  const startEditSessionCustomType = (value: string) => {
+    setEditingEditCustom(value)
+    setEditCustomValue(value)
+  }
+
+  const removeEditSessionCustomType = (value: string) => {
+    if (!editSession) return
+    setEditSession({
+      ...editSession,
+      appointmentTypes: (editSession.appointmentTypes ?? []).filter((item) => item !== value),
+    })
+    if (editingEditCustom === value) {
+      setEditingEditCustom(null)
+      setEditCustomValue("")
+    }
   }
 
   const resetDrafts = () => {
@@ -221,6 +276,7 @@ export default function AddSessionPage() {
       },
     ])
     setCustomValues({})
+    setEditingDraftCustom({})
     setErrorMessage("")
   }
 
@@ -247,9 +303,14 @@ export default function AddSessionPage() {
     const onEdit = (e: Event) => {
       const detail = (e as CustomEvent).detail as SessionRow
       if (detail) {
-        const customValue = getCustomAppointmentEntries(detail.appointmentTypes)[0] ?? ""
-        setEditSession(detail)
-        setEditCustomValue(customValue)
+        const customItems = getCustomAppointmentEntries(detail.appointmentTypes)
+        const types = detail.appointmentTypes ?? []
+        setEditSession({
+          ...detail,
+          appointmentTypes: customItems.length && !types.includes("Others___") ? [...types, "Others___"] : types,
+        })
+        setEditCustomValue("")
+        setEditingEditCustom(null)
         setEditOpen(true)
       }
     }
@@ -304,7 +365,9 @@ export default function AddSessionPage() {
       const hasEndTime = Boolean(draft.endTime?.trim())
       const hasSlots = sanitizeSlotCount(draft.slots) > 0
       const hasStatus = ["Active", "Inactive", "Cancelled"].includes(String(draft.status ?? "").trim())
-      const hasAppointmentType = Array.isArray(draft.appointmentTypes) && draft.appointmentTypes.some((item) => Boolean(String(item).trim()))
+      const pendingOther = (customValues[draft.tempId] ?? "").trim()
+      const recordedTypes = (draft.appointmentTypes ?? []).filter((item) => item !== "Others___" && Boolean(String(item).trim()))
+      const hasAppointmentType = recordedTypes.length > 0 || Boolean(pendingOther)
 
       return !hasDate || !hasStartTime || !hasEndTime || !hasSlots || !hasStatus || !hasAppointmentType
     })
@@ -393,7 +456,14 @@ export default function AddSessionPage() {
             endTime: draft.endTime,
             slots: sanitizeSlotCount(draft.slots),
             status: normalizeSessionStatus(draft.status),
-            appointmentTypes: (draft.appointmentTypes ?? []).length ? draft.appointmentTypes : ["General Consultation"],
+            appointmentTypes: (() => {
+              const pendingOther = (customValues[draft.tempId] ?? "").trim()
+              const recorded = pendingOther
+                ? recordCustomAppointmentType(draft.appointmentTypes, pendingOther)
+                : (draft.appointmentTypes ?? [])
+              const visible = recorded.filter((item) => item !== "Others___" && Boolean(String(item).trim()))
+              return visible.length ? visible : ["General Consultation"]
+            })(),
           })),
         }),
       })
@@ -415,8 +485,13 @@ export default function AddSessionPage() {
   const handleEditSave = async () => {
     if (!editSession) return
 
+    const pendingOther = editCustomValue.trim()
+    const recordedTypes = pendingOther
+      ? recordCustomAppointmentType(editSession.appointmentTypes, pendingOther, editingEditCustom)
+      : (editSession.appointmentTypes ?? [])
+    const visibleTypes = recordedTypes.filter((item) => item !== "Others___" && Boolean(String(item).trim()))
     const normalizedStatus = normalizeSessionStatus(editSession.status)
-    const sessionName = String((editSession.appointmentTypes ?? [])[0] ?? "").trim() || "General Consultation"
+    const sessionName = String(visibleTypes[0] ?? "").trim() || "General Consultation"
 
     try {
       const response = await fetch('/api/sessions', {
@@ -427,9 +502,9 @@ export default function AddSessionPage() {
           date: editSession.date,
           startTime: editSession.startTime,
           endTime: editSession.endTime,
-          slots: sanitizeSlotCount(editSession.slots),
+          slots: sanitizeSlotCount(editSession.slots, 0),
           appointmentType: sessionName,
-          appointmentTypes: editSession.appointmentTypes ?? [sessionName],
+          appointmentTypes: visibleTypes.length ? visibleTypes : [sessionName],
           status: normalizedStatus,
         }),
       })
@@ -441,14 +516,16 @@ export default function AddSessionPage() {
         date: editSession.date,
         startTime: editSession.startTime,
         endTime: editSession.endTime,
-        slots: sanitizeSlotCount(editSession.slots),
+        slots: sanitizeSlotCount(editSession.slots, 0),
         status: normalizedStatus,
-        appointmentTypes: editSession.appointmentTypes ?? [],
+        appointmentTypes: visibleTypes.length ? visibleTypes : [sessionName],
       } : row))
 
       await loadSessions()
       setEditOpen(false)
       setEditSession(null)
+      setEditCustomValue("")
+      setEditingEditCustom(null)
       toast.success("Session successfully updated")
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to update session')
@@ -456,21 +533,19 @@ export default function AddSessionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground">Add Session</h1>
-            <p className="mt-2 text-muted-foreground">Create new consultation sessions and set your availability for patients.</p>
-          </div>
-          <div>
-            <Button onClick={() => setOpen(true)} className="bg-primary">Add Session</Button>
-          </div>
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-foreground">Add Session</h1>
+          <p className="mt-2 text-muted-foreground">Create new consultation sessions and set your availability for patients.</p>
         </div>
+        <div>
+          <Button onClick={() => setOpen(true)} className="bg-primary">Add Session</Button>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {loading ? <div className="text-sm text-muted-foreground">Loading sessions…</div> : <DataTable columns={columns} data={data} />}
-        </div>
+      <div className="grid grid-cols-1 gap-6">
+        {loading ? <div className="text-sm text-muted-foreground">Loading sessions…</div> : <DataTable columns={columns} data={data} />}
       </div>
 
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
@@ -556,25 +631,38 @@ export default function AddSessionPage() {
                                   addCustomAppointmentType(d.tempId, e.currentTarget.value)
                                 }
                               }}
-                              placeholder="Enter other appointment type"
+                              placeholder={editingDraftCustom[d.tempId] ? "Edit other appointment type" : "Enter other appointment type"}
                               className="mt-1 w-full rounded-lg border px-2 py-1 text-sm"
                             />
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                addCustomAppointmentType(d.tempId, getOtherTextValue(d.tempId))
-                                setCustomValues((prev) => ({ ...prev, [d.tempId]: "" }))
-                              }}
+                              onClick={() => addCustomAppointmentType(d.tempId, getOtherTextValue(d.tempId))}
                             >
-                              Add
+                              {editingDraftCustom[d.tempId] ? "Update" : "Add"}
                             </Button>
                           </div>
-                          {(d.appointmentTypes ?? []).filter((item) => item !== "__custom__" && item !== "Others___").map((item) => (
-                            <div key={item} className="flex items-center gap-2 text-sm">
-                              <input type="checkbox" checked readOnly />
-                              <span>{item}</span>
+                          {getCustomAppointmentEntries(d.appointmentTypes).map((item) => (
+                            <div key={item} className="flex items-center justify-between gap-2 text-sm">
+                              <label className="flex min-w-0 items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked
+                                  onChange={() => removeCustomAppointmentType(d.tempId, item)}
+                                />
+                                <span className="truncate">{item}</span>
+                              </label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() => startEditDraftCustomType(d.tempId, item)}
+                              >
+                                <Pencil className="mr-1 h-3.5 w-3.5" />
+                                Edit
+                              </Button>
                             </div>
                           ))}
                         </div>
@@ -598,7 +686,7 @@ export default function AddSessionPage() {
         </DialogContent>
       </Dialog>
 
-      <Sheet open={editOpen} onOpenChange={(o) => { if (!o) setEditSession(null); setEditOpen(o) }}>
+      <Sheet open={editOpen} onOpenChange={(o) => { if (!o) { setEditSession(null); setEditCustomValue(""); setEditingEditCustom(null) }; setEditOpen(o) }}>
         <SheetContent side="right">
           <SheetHeader>
             <SheetTitle>Edit Session</SheetTitle>
@@ -634,7 +722,7 @@ export default function AddSessionPage() {
 
               <div>
                 <label className="text-sm text-muted-foreground">Slots</label>
-                <input type="number" min={1} value={editSession.slots} onChange={(e) => setEditSession({ ...editSession, slots: sanitizeSlotCount(e.target.value) })} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                <input type="number" min={0} value={editSession.slots} onChange={(e) => setEditSession({ ...editSession, slots: sanitizeSlotCount(e.target.value, 0) })} className="mt-1 w-full rounded-lg border px-2 py-1" />
               </div>
 
               <div>
@@ -654,7 +742,7 @@ export default function AddSessionPage() {
                       <span>{option}</span>
                     </label>
                   ))}
-                  {(editSession.appointmentTypes ?? []).includes("Others___") && (
+                  {((editSession.appointmentTypes ?? []).includes("Others___") || getCustomAppointmentEntries(editSession.appointmentTypes).length > 0) && (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <input
@@ -667,7 +755,7 @@ export default function AddSessionPage() {
                               addCustomAppointmentTypeToEditSession()
                             }
                           }}
-                          placeholder="Enter other appointment type"
+                          placeholder={editingEditCustom ? "Edit other appointment type" : "Enter other appointment type"}
                           className="mt-1 w-full rounded-lg border px-2 py-1 text-sm"
                         />
                         <Button
@@ -676,13 +764,29 @@ export default function AddSessionPage() {
                           size="sm"
                           onClick={addCustomAppointmentTypeToEditSession}
                         >
-                          Add
+                          {editingEditCustom ? "Update" : "Add"}
                         </Button>
                       </div>
                       {getCustomAppointmentEntries(editSession.appointmentTypes).map((item) => (
-                        <div key={item} className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" checked readOnly />
-                          <span>{item}</span>
+                        <div key={item} className="flex items-center justify-between gap-2 text-sm">
+                          <label className="flex min-w-0 items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked
+                              onChange={() => removeEditSessionCustomType(item)}
+                            />
+                            <span className="truncate">{item}</span>
+                          </label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            onClick={() => startEditSessionCustomType(item)}
+                          >
+                            <Pencil className="mr-1 h-3.5 w-3.5" />
+                            Edit
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -692,7 +796,7 @@ export default function AddSessionPage() {
 
               <SheetFooter>
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => { setEditOpen(false); setEditSession(null) }}>Cancel</Button>
+                  <Button variant="outline" onClick={() => { setEditOpen(false); setEditSession(null); setEditCustomValue(""); setEditingEditCustom(null) }}>Cancel</Button>
                   <Button className="bg-primary" onClick={handleEditSave}>Save changes</Button>
                 </div>
               </SheetFooter>

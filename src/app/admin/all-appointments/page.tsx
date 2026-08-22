@@ -124,10 +124,8 @@ export default async function Page() {
   const data = await getAppointments()
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <AllAppointmentsClient appointments={data} />
-      </div>
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <AllAppointmentsClient appointments={data} />
     </div>
   )
 }

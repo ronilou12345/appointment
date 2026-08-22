@@ -38,7 +38,7 @@ const clientPages: SearchPage[] = [
   { label: "All Doctors", href: "/client/all-doctors", keywords: "physicians specialists" },
   { label: "Book Appointment", href: "/client/book-appointment", keywords: "schedule visit consult" },
   { label: "My Appointments", href: "/client/appointments", keywords: "bookings visits records" },
-  { label: "Add BMI", href: "/client/add-bmi", keywords: "body mass index health" },
+  { label: "Add Vitals", href: "/client/add-bmi", keywords: "bmi body mass index health vitals" },
   { label: "Settings", href: "/client/settings", keywords: "profile account password" },
 ]
 

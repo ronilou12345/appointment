@@ -84,7 +84,8 @@ export default async function AppointmentDetailPage({ params }: Props) {
       a.reason_for_visit,
       a.relationship,
       a.symptoms,
-      a.additional_notes
+      a.additional_notes,
+      a.reason_cancel
     FROM "appointment" a
     JOIN "session_tbl" s ON s.session_id = a.session_id
     JOIN "doctor" d ON d.doctor_id = a.doctor_id
@@ -120,6 +121,8 @@ export default async function AppointmentDetailPage({ params }: Props) {
 
   const doctorName = String(appointment.doctor_name || "Doctor")
   const doctorAvatar = resolveProfileAvatar(appointment.doctor_user_id, appointment.doctor_profile_image)
+  const statusLabel = formatAppointmentStatus(String(appointment.status || "Pending"))
+  const cancellationReason = String(appointment.reason_cancel || "").trim()
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -163,7 +166,7 @@ export default async function AppointmentDetailPage({ params }: Props) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
-                <p className="font-medium">{formatAppointmentStatus(String(appointment.status || "Pending"))}</p>
+                <p className="font-medium">{statusLabel}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Relationship</p>
@@ -190,6 +193,13 @@ export default async function AppointmentDetailPage({ params }: Props) {
               <div className="px-0 py-4">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Additional notes</p>
                 <p className="mt-3 text-sm leading-7 text-foreground">{String(appointment.additional_notes || "No additional notes.")}</p>
+              </div>
+
+              <div className="px-0 py-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Cancellation reason</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">
+                  {cancellationReason || "No cancellation reason recorded."}
+                </p>
               </div>
             </div>
           </div>

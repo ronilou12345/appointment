@@ -175,6 +175,7 @@ export async function getReportsData(): Promise<ReportsData> {
       _count: { appointment_id: true },
     }),
     prisma.medicine_inventory.findMany({
+      where: { NOT: { status: { equals: "Deleted", mode: "insensitive" } } },
       select: {
         quantity: true,
         reorder_level: true,

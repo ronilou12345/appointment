@@ -29,7 +29,7 @@ export function Dialog({ children, open, onOpenChange, className, ...props }: Di
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6",
+        "fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6",
         className,
       )}
       {...props}
@@ -40,7 +40,7 @@ export function Dialog({ children, open, onOpenChange, className, ...props }: Di
         aria-hidden
       />
       <div
-        className="relative z-10 w-full max-w-3xl"
+        className="relative z-10 flex w-full justify-center"
         onClick={(event) => event.stopPropagation()}
       >
         {children}
@@ -50,7 +50,7 @@ export function Dialog({ children, open, onOpenChange, className, ...props }: Di
 }
 
 export function DialogContent({ className, showCloseButton: _showCloseButton, ...props }: DialogProps) {
-  return <div className={cn("rounded-3xl border border-border bg-background p-6 shadow-lg", className)} {...props} />
+  return <div className={cn("w-full max-w-3xl rounded-3xl border border-border bg-background p-6 shadow-lg", className)} {...props} />
 }
 
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

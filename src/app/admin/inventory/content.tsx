@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { DataTable } from "@/components/data-table"
 import { columns, MedicineRow } from "./columns"
+import { salesColumns, MedicineSaleRow } from "./sales-columns"
 import { AddMedicineDialog } from "@/components/add-medicine-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -181,7 +182,7 @@ function DeleteMedicineDialog({
         <DialogHeader>
           <DialogTitle>Delete medicine</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete {medicine?.name ? `"${medicine.name}"` : "this medicine"}? This action cannot be undone.
+            Are you sure you want to delete {medicine?.name ? `"${medicine.name}"` : "this medicine"}? Existing sales records will be kept. This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -197,7 +198,7 @@ function DeleteMedicineDialog({
   )
 }
 
-export function InventoryContent({ rows }: { rows: MedicineRow[] }) {
+export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: MedicineSaleRow[] }) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -390,7 +391,7 @@ export function InventoryContent({ rows }: { rows: MedicineRow[] }) {
         throw new Error(result.error || "Unable to complete checkout")
       }
 
-      toast.success("Checkout complete. Inventory updated.")
+      toast.success("Checkout complete. Inventory and sales updated.")
       setCartItems([])
       setCheckoutOpen(false)
       setCartOpen(false)
@@ -430,64 +431,72 @@ export function InventoryContent({ rows }: { rows: MedicineRow[] }) {
   }, [rows, addToCart])
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-7xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground">Medicine Inventory</h1>
-            <p className="mt-2 text-muted-foreground">
-              Manage medical supplies and medicine stock levels. Monitor expiry dates and reorder as needed.
-            </p>
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-foreground">Medicine Inventory</h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage medical supplies and medicine stock levels. Monitor expiry dates and reorder as needed.
+          </p>
+        </div>
+        <div className="flex flex-shrink-0 gap-3">
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-md shadow-primary/20 hover:from-orange-500 hover:to-orange-600"
+            onClick={() => setCartOpen(true)}
+          >
+            <ShoppingCart className="size-4 mr-2" />
+            Add to Cart
+          </Button>
+          <AddMedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="rounded-lg border border-border bg-background p-4">
+            <div className="text-sm text-muted-foreground">Total Items</div>
+            <div className="mt-2 flex items-center gap-3">
+              <Box className="size-5 text-foreground/80" />
+              <div className="text-2xl font-semibold">{filteredRows.length}</div>
+            </div>
           </div>
-          <div className="flex flex-shrink-0 gap-3">
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-md shadow-primary/20 hover:from-orange-500 hover:to-orange-600"
-              onClick={() => setCartOpen(true)}
-            >
-              <ShoppingCart className="size-4 mr-2" />
-              Add to Cart
-            </Button>
-            <AddMedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+          <div className="rounded-lg border border-border bg-background p-4">
+            <div className="text-sm text-muted-foreground">In Stock</div>
+            <div className="mt-2 flex items-center gap-3">
+              <CheckCircle className="size-5 text-green-500" />
+              <div className="text-2xl font-semibold text-green-500">{filteredRows.filter(m => m.status === "In Stock").length}</div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-background p-4">
+            <div className="text-sm text-muted-foreground">Low Stock</div>
+            <div className="mt-2 flex items-center gap-3">
+              <AlertTriangle className="size-5 text-orange-500" />
+              <div className="text-2xl font-semibold text-orange-500">{filteredRows.filter(m => m.status === "Low Stock").length}</div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-background p-4">
+            <div className="text-sm text-muted-foreground">Out of Stock</div>
+            <div className="mt-2 flex items-center gap-3">
+              <XCircle className="size-5 text-red-500" />
+              <div className="text-2xl font-semibold text-red-500">{filteredRows.filter(m => m.status === "Out of Stock").length}</div>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="rounded-lg border border-border bg-background p-4">
-              <div className="text-sm text-muted-foreground">Total Items</div>
-              <div className="mt-2 flex items-center gap-3">
-                <Box className="size-5 text-foreground/80" />
-                <div className="text-2xl font-semibold">{filteredRows.length}</div>
-              </div>
-            </div>
-            <div className="rounded-lg border border-border bg-background p-4">
-              <div className="text-sm text-muted-foreground">In Stock</div>
-              <div className="mt-2 flex items-center gap-3">
-                <CheckCircle className="size-5 text-green-500" />
-                <div className="text-2xl font-semibold text-green-500">{filteredRows.filter(m => m.status === "In Stock").length}</div>
-              </div>
-            </div>
-            <div className="rounded-lg border border-border bg-background p-4">
-              <div className="text-sm text-muted-foreground">Low Stock</div>
-              <div className="mt-2 flex items-center gap-3">
-                <AlertTriangle className="size-5 text-orange-500" />
-                <div className="text-2xl font-semibold text-orange-500">{filteredRows.filter(m => m.status === "Low Stock").length}</div>
-              </div>
-            </div>
-            <div className="rounded-lg border border-border bg-background p-4">
-              <div className="text-sm text-muted-foreground">Out of Stock</div>
-              <div className="mt-2 flex items-center gap-3">
-                <XCircle className="size-5 text-red-500" />
-                <div className="text-2xl font-semibold text-red-500">{filteredRows.filter(m => m.status === "Out of Stock").length}</div>
-              </div>
-            </div>
-          </div>
+        {/* Data Table */}
+        <DataTable columns={columns} data={filteredRows} />
+      </div>
 
-          {/* Data Table */}
-          <DataTable columns={columns} data={filteredRows} />
+      <div className="mt-10">
+        <div className="mb-6">
+          <h2 className="text-3xl font-semibold text-foreground">Medicine Sales</h2>
+          <p className="mt-2 text-muted-foreground">
+            Medicines sold at checkout. Each checkout line is recorded with quantity, price, and who processed the sale.
+          </p>
         </div>
+        <DataTable columns={salesColumns} data={sales} />
       </div>
 
       {/* Shopping Cart Sheet */}

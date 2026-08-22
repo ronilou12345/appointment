@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 
+import { StatusBadge } from "@/app/admin/manage-users/columns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 
@@ -78,11 +79,6 @@ function formatExperience(createdAt: string) {
     return "< 1 year"
   }
   return `${years} year${years > 1 ? "s" : ""}`
-}
-
-function getStatusVariant(status?: string | null) {
-  if (status === "ACTIVE") return "default"
-  return "secondary"
 }
 
 export default function DoctorProfileList({ doctors }: { doctors: DoctorProfile[] }) {
@@ -191,9 +187,7 @@ export default function DoctorProfileList({ doctors }: { doctors: DoctorProfile[
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Badge variant={getStatusVariant(selectedDoctor.status)}>
-              {selectedDoctor.status || "Unknown"}
-            </Badge>
+            <StatusBadge status={selectedDoctor.status ?? "Active"} />
             <Link
               href={`/client/all-doctors/${selectedDoctor.id}`}
               className="rounded-full border border-border px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/5"

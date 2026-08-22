@@ -14,7 +14,6 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table"
 import {
-  ArrowUpDownIcon,
   GripVertical,
   Columns3Icon,
   EllipsisIcon,
@@ -38,6 +37,8 @@ import {
   LockIcon,
 } from "lucide-react"
 
+import { DataTableToolbar } from "@/components/data-table-toolbar"
+import { DataTableSortIcon } from "@/components/data-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -133,11 +134,11 @@ function SortableHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-3 h-8 gap-1 font-medium text-muted-foreground hover:text-foreground"
+      className="-ml-3 h-8 gap-1 font-medium text-foreground hover:bg-transparent hover:text-foreground"
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
     >
       {children}
-      <ArrowUpDownIcon className="size-3.5 opacity-60" />
+      <DataTableSortIcon active={Boolean(column.getIsSorted())} />
     </Button>
   )
 }
@@ -584,75 +585,57 @@ export function UserManagement({ initialUsers }: { initialUsers: User[] }) {
         </Alert>
       )}
 
-      {/* ── Toolbar ────────────────────────────────────────────────────── */}
-      <div className="mb-3 flex items-center justify-between gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-xs">
-          <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/60" />
-          <Input
-            placeholder="Search..."
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="h-8 pl-8 pr-8 text-sm"
-          />
-          {globalFilter && (
-            <button
-              onClick={() => setGlobalFilter("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground"
+      <DataTableToolbar
+        searchValue={globalFilter}
+        onSearchChange={setGlobalFilter}
+        activeFilterCount={columnFilters.length}
+        filterContent={
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Filters</p>
+              {columnFilters.length > 0 ? (
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => table.resetColumnFilters()}>
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+            {table
+              .getAllColumns()
+              .filter((column) => column.getCanFilter() && !["drag", "select", "actions"].includes(column.id))
+              .map((column) => (
+                <div key={column.id} className="grid gap-1.5">
+                  <label className="text-xs font-medium capitalize text-muted-foreground">{column.id}</label>
+                  <Input
+                    value={String(column.getFilterValue() ?? "")}
+                    onChange={(event) => column.setFilterValue(event.target.value)}
+                    placeholder={`Filter ${column.id}...`}
+                    className="h-8"
+                  />
+                </div>
+              ))}
+          </div>
+        }
+        columnsContent={table
+          .getAllColumns()
+          .filter((col) => typeof col.accessorFn !== "undefined" && col.getCanHide())
+          .map((col) => (
+            <DropdownMenuCheckboxItem
+              key={col.id}
+              className="capitalize text-sm"
+              checked={col.getIsVisible()}
+              onCheckedChange={(value) => col.toggleVisibility(!!value)}
             >
-              <XIcon className="size-3.5" />
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Column Customization */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-                <Columns3Icon className="size-3.5" />
-                Column Customization
-                <span className="text-muted-foreground/50 text-[10px]">⌃</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {table
-                .getAllColumns()
-                .filter(
-                  (col) =>
-                    typeof col.accessorFn !== "undefined" && col.getCanHide()
-                )
-                .map((col) => (
-                  <DropdownMenuCheckboxItem
-                    key={col.id}
-                    className="capitalize text-sm"
-                    checked={col.getIsVisible()}
-                    onCheckedChange={(value) => col.toggleVisibility(!!value)}
-                  >
-                    {col.id.charAt(0).toUpperCase() + col.id.slice(1)}
-                  </DropdownMenuCheckboxItem>
-                ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Refresh */}
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Refresh"
-          >
-            <RefreshCwIcon className="size-3.5" />
-          </Button>
-        </div>
-      </div>
+              {col.id.charAt(0).toUpperCase() + col.id.slice(1)}
+            </DropdownMenuCheckboxItem>
+          ))}
+      />
 
       {/* ── Table ──────────────────────────────────────────────────────── */}
       <div className="rounded-lg border border-border/60 overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="hover:bg-transparent border-b border-border/60">
+              <TableRow key={headerGroup.id} className="hover:bg-transparent border-b border-border/60 text-foreground">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}

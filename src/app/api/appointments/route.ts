@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
-import { sendAppointmentEmail, sendAppointmentStatusEmail, sendCancellationRequestEmail } from "@/lib/appointment-email"
+import { sendAppointmentEmail, sendAppointmentRescheduledEmail, sendAppointmentStatusEmail, sendCancellationRequestEmail } from "@/lib/appointment-email"
 import { sendAppointmentSms } from "@/lib/appointment-sms"
 import { logActivity } from "@/lib/activity-log"
 
@@ -387,12 +387,28 @@ export async function PATCH(request: NextRequest) {
       }
 
       const appointment = await prisma.appointment.findFirst({
-        where: { appointment_id: appointmentId, user_id: user.id },
+        where: {
+          appointment_id: appointmentId,
+          OR: [{ user_id: user.id }, { doctor: { user_id: user.id } }],
+        },
         select: {
           appointment_id: true,
           appointment_status: true,
           session_id: true,
           doctor_id: true,
+          user_id: true,
+          appointment_type: true,
+          reason_for_visit: true,
+          contact_number: true,
+          user: { select: { name: true, email: true } },
+          doctor: {
+            select: {
+              doctor_id: true,
+              first_name: true,
+              last_name: true,
+              user: { select: { id: true } },
+            },
+          },
         },
       })
 
@@ -400,9 +416,14 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Appointment not found" }, { status: 404 })
       }
 
+      const isDoctorActor = appointment.doctor?.user?.id === user.id
       const currentStatus = String(appointment.appointment_status || "").trim().toLowerCase()
       if (["cancelled", "canceled", "completed"].includes(currentStatus)) {
         return NextResponse.json({ success: false, error: "This appointment can no longer be rescheduled." }, { status: 400 })
+      }
+
+      if (isDoctorActor && !reasonCancel) {
+        return NextResponse.json({ success: false, error: "Please provide a reason for cancellation." }, { status: 400 })
       }
 
       const sessionRows = await prisma.$queryRawUnsafe<any[]>(
@@ -423,6 +444,10 @@ export async function PATCH(request: NextRequest) {
       const session = sessionRows[0]
       if (!session) {
         return NextResponse.json({ success: false, error: "Selected session is not available for this doctor." }, { status: 400 })
+      }
+
+      if (isDoctorActor && Number(session.doctor_id) !== Number(appointment.doctor_id)) {
+        return NextResponse.json({ success: false, error: "Please choose one of your own available session times." }, { status: 400 })
       }
 
       const sessionStatus = String(session.status ?? "Active").trim().toLowerCase()
@@ -479,14 +504,19 @@ export async function PATCH(request: NextRequest) {
            AND a.appointment_id <> $4
            AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
          LIMIT 1`,
-        user.id,
+        appointment.user_id,
         nextDoctorId,
         sessionDate,
         appointmentId,
       )
 
       if (conflict?.length) {
-        return NextResponse.json({ success: false, error: "You already have an appointment with this doctor on that date." }, { status: 409 })
+        return NextResponse.json({
+          success: false,
+          error: isDoctorActor
+            ? "This patient already has an appointment with you on that date."
+            : "You already have an appointment with this doctor on that date.",
+        }, { status: 409 })
       }
 
       if (appointmentTime) {
@@ -518,6 +548,7 @@ export async function PATCH(request: NextRequest) {
              appointment_date = $3::date,
              appointment_time = $4::time,
              appointment_status = 'Pending',
+             reason_cancel = CASE WHEN $6 <> '' THEN $6 ELSE reason_cancel END,
              updated_at = now()
          WHERE appointment_id = $5`,
         sessionId,
@@ -525,7 +556,30 @@ export async function PATCH(request: NextRequest) {
         sessionDate,
         appointmentTime ? `${appointmentTime}:00` : null,
         appointmentId,
+        reasonCancel,
       )
+
+      const doctorName = [appointment.doctor?.first_name, appointment.doctor?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim()
+      const rescheduleDetails = {
+        patientName: appointment.user?.name ?? undefined,
+        doctorName,
+        date: sessionDate,
+        time: appointmentTime,
+        appointmentType: appointment.appointment_type,
+        reasonForVisit: appointment.reason_for_visit,
+        cancelReason: reasonCancel || null,
+      }
+
+      const emailResult = isDoctorActor
+        ? await sendAppointmentRescheduledEmail(appointment.user?.email ?? null, rescheduleDetails)
+        : { success: false, reason: "skipped" }
+
+      if (isDoctorActor && !emailResult.success) {
+        console.warn("Appointment rescheduled, email skipped or failed:", emailResult)
+      }
 
       await logActivity({
         actor: user,
@@ -535,7 +589,13 @@ export async function PATCH(request: NextRequest) {
         entityId: appointmentId,
       })
 
-      return NextResponse.json({ success: true, status: "Pending", date: sessionDate, time: appointmentTime })
+      return NextResponse.json({
+        success: true,
+        status: "Pending",
+        date: sessionDate,
+        time: appointmentTime,
+        emailSent: emailResult.success,
+      })
     }
 
     const shouldCancel = action === "Cancel"

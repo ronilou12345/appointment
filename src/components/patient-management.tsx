@@ -28,6 +28,8 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { DataTableToolbar } from "@/components/data-table-toolbar"
+import { DataTableSortIcon } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -165,11 +167,15 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
   const [registerOpen, setRegisterOpen] = React.useState(false)
   const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(null)
   const [selectedIds, setSelectedIds] = React.useState<string[]>([])
+  const [statusFilter, setStatusFilter] = React.useState("")
 
-  const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredPatients = patients.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.email.toLowerCase().includes(search.toLowerCase())
+    const matchesStatus = statusFilter ? p.status.toLowerCase() === statusFilter.toLowerCase() : true
+    return matchesSearch && matchesStatus
+  })
   const allVisibleSelected =
     filteredPatients.length > 0 && filteredPatients.every((patient) => selectedIds.includes(patient.id))
   const someVisibleSelected = filteredPatients.some((patient) => selectedIds.includes(patient.id))
@@ -212,12 +218,38 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
         </Alert>
       )}
 
-      <div className="flex items-center gap-2 mb-2">
-        <div className="relative w-full max-w-sm">
-          <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
-          <Input placeholder="Search patients by name or ID..." className="pl-8 bg-background" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-      </div>
+      <DataTableToolbar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search"
+        activeFilterCount={statusFilter ? 1 : 0}
+        filterContent={
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Filters</p>
+              {statusFilter ? (
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setStatusFilter("")}>
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+            <div className="grid gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <Select value={statusFilter || "all"} onValueChange={(value) => setStatusFilter(value === "all" ? "" : value)}>
+                <SelectTrigger className="h-8">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        }
+      />
 
       <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
         <Table>
@@ -234,10 +266,30 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
                   />
                 </div>
               </TableHead>
-              <TableHead>Patient</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date Added</TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">
+                  Patient
+                  <DataTableSortIcon />
+                </span>
+              </TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">
+                  Email
+                  <DataTableSortIcon />
+                </span>
+              </TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">
+                  Status
+                  <DataTableSortIcon />
+                </span>
+              </TableHead>
+              <TableHead>
+                <span className="inline-flex items-center gap-1.5">
+                  Date Added
+                  <DataTableSortIcon />
+                </span>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>

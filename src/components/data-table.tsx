@@ -16,13 +16,8 @@ import {
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
+import { DataTableToolbar } from "@/components/data-table-toolbar"
 import {
   Table,
   TableBody,
@@ -41,7 +36,35 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { Checkbox } from "@/components/ui/checkbox"
-import { GripVertical } from "lucide-react"
+import { ArrowUpDown, GripVertical } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+const NON_SORTABLE_COLUMN_IDS = new Set(["drag", "select", "actions", "addToCart", "image"])
+
+export function DataTableSortIcon({ active = false }: { active?: boolean }) {
+  return (
+    <ArrowUpDown
+      aria-hidden="true"
+      className={cn(
+        "size-4 shrink-0 text-foreground",
+        active ? "opacity-80" : "opacity-45",
+      )}
+    />
+  )
+}
+
+function getColumnId<TData, TValue>(column: ColumnDef<TData, TValue>) {
+  if (column.id) return column.id
+  if ("accessorKey" in column && column.accessorKey != null) return String(column.accessorKey)
+  return ""
+}
+
+function shouldEnableSorting<TData, TValue>(column: ColumnDef<TData, TValue>) {
+  if (column.enableSorting === false) return false
+  if (NON_SORTABLE_COLUMN_IDS.has(getColumnId(column))) return false
+  if (column.header === "" || column.header == null) return false
+  return true
+}
 
 function getRowControlColumns<TData, TValue>(): ColumnDef<TData, TValue>[] {
   return [
@@ -136,7 +159,13 @@ export function DataTable<TData, TValue>({
       })) as ColumnDef<TData, TValue>[]
     })()
 
-    return [...getRowControlColumns<TData, TValue>(), ...baseColumns]
+    return [
+      ...getRowControlColumns<TData, TValue>(),
+      ...baseColumns.map((column) => ({
+        ...column,
+        enableSorting: shouldEnableSorting(column),
+      })),
+    ]
   }, [columns, data])
 
   const table = useReactTable({
@@ -169,48 +198,59 @@ export function DataTable<TData, TValue>({
     onSelectedRowsChange?.(table.getFilteredSelectedRowModel().rows.map((row) => row.original))
   }, [onSelectedRowsChange, rowSelection])
 
+  const filterableColumns = table
+    .getAllColumns()
+    .filter((column) => column.getCanFilter() && !["drag", "select", "actions"].includes(column.id))
+
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-sm bg-background text-foreground border-border placeholder:text-muted-foreground"
-        />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">Columns</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                >
-                  {column.id}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-          </span>
-        </div>
-      </div>
+      <DataTableToolbar
+        searchValue={globalFilter}
+        onSearchChange={setGlobalFilter}
+        activeFilterCount={columnFilters.length}
+        filterContent={
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Filters</p>
+              {columnFilters.length > 0 ? (
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => table.resetColumnFilters()}>
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+            {filterableColumns.map((column) => (
+              <div key={column.id} className="grid gap-1.5">
+                <label className="text-xs font-medium capitalize text-muted-foreground">{column.id}</label>
+                <Input
+                  value={String(column.getFilterValue() ?? "")}
+                  onChange={(event) => column.setFilterValue(event.target.value)}
+                  placeholder={`Filter ${column.id}...`}
+                  className="h-8"
+                />
+              </div>
+            ))}
+          </div>
+        }
+        columnsContent={table
+          .getAllColumns()
+          .filter((column) => column.getCanHide())
+          .map((column) => (
+            <DropdownMenuCheckboxItem
+              key={column.id}
+              className="capitalize"
+              checked={column.getIsVisible()}
+              onCheckedChange={(value) => column.toggleVisibility(!!value)}
+            >
+              {column.id}
+            </DropdownMenuCheckboxItem>
+          ))}
+      />
 
       <div className="overflow-hidden rounded-md border border-border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-muted">
+              <TableRow key={headerGroup.id} className="bg-muted hover:bg-muted">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
@@ -220,9 +260,18 @@ export function DataTable<TData, TValue>({
                         : "text-foreground"
                     }
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                      <button
+                        type="button"
+                        className="inline-flex cursor-pointer items-center gap-1.5 text-foreground select-none"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        <DataTableSortIcon active={Boolean(header.column.getIsSorted())} />
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
                   </TableHead>
                 ))}
               </TableRow>

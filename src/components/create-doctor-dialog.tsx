@@ -98,18 +98,28 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
     loadSpecialties()
   }, [open])
 
-  const handleUserSelect = (value: string) => {
-    const selectedUser = users.find((user) => user.id === value)
+  const selectedUser = users.find((user) => user.id === selectedUserId)
 
-    if (!selectedUser) {
+  const handleUserSelect = (value: string) => {
+    const nextUser = users.find((user) => user.id === value)
+
+    if (!nextUser) {
       setSelectedUserId("")
       setSelectedName("")
       return
     }
 
     setSelectedUserId(value)
-    setSelectedName(selectedUser.name)
+    setSelectedName(nextUser.name)
   }
+
+  const userInitials = (name: string) =>
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "U"
 
   const toggleDesignation = (designation: string, checked: boolean) => {
     setSelectedDesignations((current) =>
@@ -180,16 +190,30 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
               <div className="space-y-2">
                 <Label htmlFor="name">Select a user</Label>
                 <Select value={selectedUserId} onValueChange={handleUserSelect}>
-                  <SelectTrigger id="name">
-                    <SelectValue placeholder={isLoadingUsers ? "Loading users..." : "Select a user"} />
+                  <SelectTrigger id="name" className="h-11 w-full">
+                    {selectedUser ? (
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Avatar size="sm" className="size-7">
+                          {selectedUser.avatar ? (
+                            <AvatarImage src={selectedUser.avatar} alt={selectedUser.name} className="object-cover" />
+                          ) : null}
+                          <AvatarFallback>{userInitials(selectedUser.name)}</AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{selectedUser.name}</span>
+                      </span>
+                    ) : (
+                      <SelectValue placeholder={isLoadingUsers ? "Loading users..." : "Select a user"} />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         <div className="flex items-center gap-2">
-                          <Avatar size="sm">
-                            {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
-                            <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                          <Avatar size="sm" className="size-7">
+                            {user.avatar ? (
+                              <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
+                            ) : null}
+                            <AvatarFallback>{userInitials(user.name)}</AvatarFallback>
                           </Avatar>
                           <span>{user.name}</span>
                         </div>

@@ -9,6 +9,7 @@ import {
   HeartPulseIcon, 
   ThermometerIcon, 
   WeightIcon,
+  ArrowDownRightIcon,
   ArrowUpRightIcon,
   PlusIcon
 } from "lucide-react"
@@ -24,16 +25,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
-const healthData = [
-  { day: "Mon", bpm: 72, temp: 36.6 },
-  { day: "Tue", bpm: 75, temp: 36.7 },
-  { day: "Wed", bpm: 70, temp: 36.5 },
-  { day: "Thu", bpm: 82, temp: 36.8 },
-  { day: "Fri", bpm: 74, temp: 36.6 },
-  { day: "Sat", bpm: 68, temp: 36.4 },
-  { day: "Sun", bpm: 71, temp: 36.5 },
-]
-
 interface PatientDashboardProps {
   user: {
     name: string
@@ -47,15 +38,65 @@ interface PatientDashboardProps {
     time?: string
   } | null
   latestVitals?: {
-    weight?: number | null
-    height?: number | null
     heartRate?: number | null
     bodyTemperature?: number | null
-    recordedAt?: string | null
+    weight?: number | null
+    height?: number | null
+    bloodSugar?: number | null
   } | null
+  healthTrend?: {
+    day: string
+    bpm: number | null
+    temp: number | null
+  }[]
 }
 
-export function PatientDashboard({ user, nextPending, latestVitals }: PatientDashboardProps) {
+function formatVitalValue(value?: number | null, digits = 0) {
+  if (value == null || Number.isNaN(value)) return "—"
+  if (digits === 0) return String(Math.round(value))
+  return Number(value).toFixed(digits)
+}
+
+function inRange(value: number | null | undefined, min: number, max: number) {
+  if (value == null || Number.isNaN(value)) return null
+  return value >= min && value <= max
+}
+
+function classifyVitalStatus(kind: "heartRate" | "bodyTemperature" | "weight" | "bloodSugar", vitals?: PatientDashboardProps["latestVitals"]) {
+  if (!vitals) return null
+
+  if (kind === "heartRate") {
+    const normal = inRange(vitals.heartRate, 60, 100)
+    if (normal == null) return null
+    return { normal, range: "60–100 bpm" }
+  }
+
+  if (kind === "bodyTemperature") {
+    const normal = inRange(vitals.bodyTemperature, 36.1, 37.5)
+    if (normal == null) return null
+    return { normal, range: "36.1–37.5 °C" }
+  }
+
+  if (kind === "bloodSugar") {
+    const normal = inRange(vitals.bloodSugar, 70, 140)
+    if (normal == null) return null
+    return { normal, range: "70–140 mg/dL" }
+  }
+
+  if (vitals.weight == null) return null
+  if (vitals.height == null || vitals.height <= 0) {
+    return { normal: null, range: "Needs height for BMI" }
+  }
+
+  const heightM = vitals.height / 100
+  const bmi = vitals.weight / (heightM * heightM)
+  return {
+    normal: bmi >= 18.5 && bmi <= 24.9,
+    range: `BMI ${Math.round(bmi * 10) / 10} · 18.5–24.9`,
+  }
+}
+
+export function PatientDashboard({ user, nextPending, latestVitals, healthTrend = [] }: PatientDashboardProps) {
   const router = useRouter()
   const formatTime = (time24?: string) => {
     if (!time24) return ""
@@ -79,13 +120,6 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
     return `Your health journey is looking great. You have an upcoming appointment this ${weekday} at ${time}.`
   }
 
-  const computeBmi = (weight?: number | null, heightCm?: number | null) => {
-    if (!weight || !heightCm) return null
-    const heightM = heightCm / 100
-    if (heightM <= 0) return null
-    const bmi = weight / (heightM * heightM)
-    return Math.round(bmi * 10) / 10
-  }
   return (
     <div className="flex flex-col gap-6 p-4 lg:p-8 max-w-7xl mx-auto w-full">
       {/* Hero Section */}
@@ -101,18 +135,6 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
             <p className="max-w-xl text-sm text-primary-foreground/80 leading-6">
               Stay on top of your health with quick and easy access to your appointments, medical records, and personalized care. We're here to support your wellness every step of the way.
             </p>
-            {latestVitals ? (
-              <div className="mt-3 rounded-lg bg-white/10 p-3 text-sm">
-                <div className="font-medium">Latest vitals</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {latestVitals.weight ? `Weight: ${latestVitals.weight} kg` : "Weight: —"} • {latestVitals.height ? `Height: ${latestVitals.height} cm` : "Height: —"}
-                  {latestVitals.heartRate ? ` • HR: ${latestVitals.heartRate} bpm` : ""}{latestVitals.bodyTemperature ? ` • Temp: ${latestVitals.bodyTemperature}°C` : ""}
-                </div>
-                {computeBmi(latestVitals.weight ?? null, latestVitals.height ?? null) ? (
-                  <div className="mt-1 text-sm">BMI: {computeBmi(latestVitals.weight ?? null, latestVitals.height ?? null)}</div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" className="rounded-full shadow-lg" onClick={() => router.push('/client/book-appointment')}>
@@ -133,12 +155,23 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
       {/* Vitals Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Heart Rate", value: "72", unit: "bpm", icon: HeartPulseIcon, color: "text-red-500", bg: "bg-red-50" },
-          { label: "Body Temp", value: "36.6", unit: "°C", icon: ThermometerIcon, color: "text-orange-500", bg: "bg-orange-50" },
-          { label: "Weight", value: "68.5", unit: "kg", icon: WeightIcon, color: "text-blue-500", bg: "bg-blue-50" },
-          { label: "Blood Sugar", value: "94", unit: "mg/dL", icon: ActivityIcon, color: "text-emerald-500", bg: "bg-emerald-50" },
-        ].map((vital, i) => (
-          <Card key={i} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow">
+          { label: "Heart Rate", value: formatVitalValue(latestVitals?.heartRate), unit: "bpm", icon: HeartPulseIcon, color: "text-red-500", bg: "bg-red-50 dark:bg-red-950/30", status: classifyVitalStatus("heartRate", latestVitals) },
+          { label: "Body Temp", value: formatVitalValue(latestVitals?.bodyTemperature, 1), unit: "°C", icon: ThermometerIcon, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/30", status: classifyVitalStatus("bodyTemperature", latestVitals) },
+          { label: "Weight", value: formatVitalValue(latestVitals?.weight, 1), unit: "kg", icon: WeightIcon, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30", status: classifyVitalStatus("weight", latestVitals) },
+          { label: "Blood Sugar", value: formatVitalValue(latestVitals?.bloodSugar, 1), unit: "mg/dL", icon: ActivityIcon, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/30", status: classifyVitalStatus("bloodSugar", latestVitals) },
+        ].map((vital) => {
+          const isNormal = vital.status?.normal === true
+          const isNotNormal = vital.status?.normal === false
+          const statusLabel = !vital.status
+            ? "No record yet"
+            : vital.status.normal == null
+              ? vital.status.range
+              : isNormal
+                ? "Within range"
+                : "Out of range"
+
+          return (
+          <Card key={vital.label} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <p className="text-sm font-medium text-muted-foreground">{vital.label}</p>
@@ -150,13 +183,24 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
                 <div className="text-2xl font-bold">{vital.value}</div>
                 <div className="text-xs text-muted-foreground font-medium">{vital.unit}</div>
               </div>
-              <div className="mt-4 flex items-center text-xs text-emerald-600 font-medium">
-                <ArrowUpRightIcon className="mr-1 size-3" />
-                Normal Range
+              <div className={`mt-4 flex items-center text-xs font-medium ${
+                isNormal
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : isNotNormal
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-muted-foreground"
+              }`}>
+                {isNormal ? <ArrowUpRightIcon className="mr-1 size-3" /> : null}
+                {isNotNormal ? <ArrowDownRightIcon className="mr-1 size-3" /> : null}
+                <span>{statusLabel}</span>
               </div>
+              {vital.status && vital.status.normal != null ? (
+                <p className="mt-1 text-[11px] text-muted-foreground">{vital.status.range}</p>
+              ) : null}
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-7">
@@ -164,12 +208,13 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
         <Card className="lg:col-span-4 border-none shadow-sm">
           <CardHeader>
             <CardTitle>Health Trends</CardTitle>
-            <CardDescription>Your heart rate activity over the last 7 days</CardDescription>
+            <CardDescription>Your heart rate from recorded vitals</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={healthData}>
+              {healthTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={healthTrend}>
                   <defs>
                     <linearGradient id="colorBpm" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#2563eb" stopOpacity={0.24} />
@@ -197,7 +242,12 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
                     fill="url(#colorBpm)"
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Record vitals to see your heart rate trend.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -227,28 +277,6 @@ export function PatientDashboard({ user, nextPending, latestVitals }: PatientDas
                   </div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm bg-muted/30">
-            <CardHeader>
-              <CardTitle className="text-lg">Medications</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-               {[
-                 { name: "Amoxicillin", dose: "500mg, twice daily", remaining: "4 days left" },
-                 { name: "Vitamine C", dose: "1000mg, once daily", remaining: "Ongoing" },
-               ].map((med, i) => (
-                 <div key={i} className="flex justify-between items-center text-sm">
-                   <div className="space-y-0.5">
-                     <p className="font-semibold">{med.name}</p>
-                     <p className="text-xs text-muted-foreground">{med.dose}</p>
-                   </div>
-                   <div className="text-[10px] font-bold uppercase tracking-wider bg-white px-2 py-1 rounded border shadow-sm">
-                     {med.remaining}
-                   </div>
-                 </div>
-               ))}
             </CardContent>
           </Card>
         </div>

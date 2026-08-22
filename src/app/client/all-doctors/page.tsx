@@ -35,17 +35,15 @@ export default async function ClientAllDoctorsPage() {
   }))
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold text-foreground">All Doctors</h1>
-          <p className="mt-2 text-muted-foreground">
-            Browse and select from our qualified doctors.
-          </p>
-        </div>
-
-        <DataTable columns={columns} data={rows} />
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <div className="mb-6">
+        <h1 className="text-3xl font-semibold text-foreground">All Doctors</h1>
+        <p className="mt-2 text-muted-foreground">
+          Browse and select from our qualified doctors.
+        </p>
       </div>
+
+      <DataTable columns={columns} data={rows} />
     </div>
   )
 }

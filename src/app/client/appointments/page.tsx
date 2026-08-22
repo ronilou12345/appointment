@@ -10,11 +10,9 @@ export default async function Page() {
 
   if (!user?.id) {
     return (
-      <div className="min-h-screen bg-background p-6 text-foreground">
-        <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-          <h1 className="text-3xl font-semibold">My Appointments</h1>
-          <p className="mt-2 text-muted-foreground">Please sign in to view your appointments.</p>
-        </div>
+      <div className="min-h-screen w-full bg-background p-6 text-foreground">
+        <h1 className="text-3xl font-semibold">My Appointments</h1>
+        <p className="mt-2 text-muted-foreground">Please sign in to view your appointments.</p>
       </div>
     )
   }
@@ -55,17 +53,15 @@ export default async function Page() {
   }))
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold">My Appointments</h1>
-          <p className="mt-2 text-muted-foreground">
-            View your appointments with doctors. Click the doctor name to view your medical record and prescription details.
-          </p>
-        </div>
-
-        {appointments.length ? <DataTable columns={columns} data={appointments} /> : <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">You do not have any appointments yet.</div>}
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <div className="mb-6">
+        <h1 className="text-3xl font-semibold">My Appointments</h1>
+        <p className="mt-2 text-muted-foreground">
+          View your appointments with doctors. Click the doctor name to view your medical record and prescription details.
+        </p>
       </div>
+
+      {appointments.length ? <DataTable columns={columns} data={appointments} /> : <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">You do not have any appointments yet.</div>}
     </div>
   )
 }

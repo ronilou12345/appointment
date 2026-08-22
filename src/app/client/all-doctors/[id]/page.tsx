@@ -1,8 +1,8 @@
 import prisma from "@/lib/prisma"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { StatusBadge } from "@/app/admin/manage-users/columns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -15,17 +15,6 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .map((part) => part[0].toUpperCase())
     .join("") || "DR"
-
-const getStatusVariant = (status?: string | null) => {
-  switch (status?.toLowerCase()) {
-    case "active":
-      return "default"
-    case "inactive":
-      return "secondary"
-    default:
-      return "outline"
-  }
-}
 
 const knownPrefixes = new Set(["Dr.", "Dr", "Mr.", "Mr", "Mrs.", "Mrs", "Ms.", "Ms", "Prof.", "Prof"])
 const knownSuffixes = new Set(["Jr.", "Jr", "Sr.", "Sr", "II", "III", "IV", "MD", "PhD", "DO", "DDS"])
@@ -203,9 +192,7 @@ export default async function ClientDoctorPage({ params }: Props) {
                     {sessions.length ? `${sessions.length} upcoming session${sessions.length > 1 ? "s" : ""}` : "No upcoming sessions"}
                   </p>
                 </div>
-                <Badge variant={getStatusVariant(profileUser.status)} className="capitalize">
-                  {profileUser.status || "Unknown"}
-                </Badge>
+                <StatusBadge status={profileUser.status ?? "Active"} />
               </div>
             </div>
 

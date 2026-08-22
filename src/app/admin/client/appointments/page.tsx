@@ -34,9 +34,9 @@ export default function ClientAppointmentsPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <div className="space-y-6">
+        <div>
           <div className="mb-6">
             <h1 className="text-3xl font-semibold text-foreground">My Appointments</h1>
             <p className="mt-2 text-muted-foreground">
@@ -61,7 +61,7 @@ export default function ClientAppointmentsPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+          <div>
             <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold">Upcoming Appointments</h2>
@@ -72,7 +72,7 @@ export default function ClientAppointmentsPage() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+            <div>
               <h2 className="text-2xl font-semibold">Last Visit Summary</h2>
               <p className="mt-2 text-sm text-muted-foreground">Quick summary from your most recent doctor visit.</p>
 

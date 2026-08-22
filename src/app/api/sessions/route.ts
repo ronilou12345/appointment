@@ -19,6 +19,22 @@ function parsePositiveInteger(value: unknown): number | null {
   return null
 }
 
+function parseNonNegativeInteger(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && Number.isInteger(value) && value >= 0 ? value : null
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 0 ? parsed : null
+  }
+
+  return null
+}
+
 async function getDoctorIdFromRequest(request: NextRequest) {
   const cookieStore = await cookies()
   const userId = cookieStore.get("user_id")?.value
@@ -354,9 +370,9 @@ export async function PUT(request: NextRequest) {
     const date = body?.date
     const startTime = body?.startTime
     const endTime = body?.endTime
-    const slots = parsePositiveInteger(body?.slots)
-    if (!slots) {
-      return NextResponse.json({ success: false, error: "Slots must be a whole number greater than zero" }, { status: 400 })
+    const slots = parseNonNegativeInteger(body?.slots)
+    if (slots === null) {
+      return NextResponse.json({ success: false, error: "Slots must be a whole number of 0 or more" }, { status: 400 })
     }
 
     const typedSessionName = body?.sessionName || body?.appointmentType || (Array.isArray(body?.appointmentTypes) ? body.appointmentTypes[0] : "")

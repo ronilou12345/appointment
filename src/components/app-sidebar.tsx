@@ -181,7 +181,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           },
           user?.role === "CLIENT"
             ? {
-                title: "Add BMI",
+                title: "Add Vitals",
                 url: "/client/add-bmi",
                 icon: <ChartBarIcon />,
                 badge: "new",

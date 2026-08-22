@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUserAction } from "@/lib/actions/user"
 import prisma from "@/lib/prisma"
-import { saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
+import { resolveProfileAvatar, saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
 import { logCurrentUserActivity } from "@/lib/activity-log"
 
 function normalizeRole(value: string | null) {
@@ -33,11 +33,18 @@ export async function GET(request: NextRequest) {
         designations: true,
         role: true,
         status: true,
+        profile_image: true,
       },
       orderBy: { name: "asc" },
     })
 
-    return NextResponse.json({ success: true, users })
+    return NextResponse.json({
+      success: true,
+      users: users.map((user) => ({
+        ...user,
+        avatar: resolveProfileAvatar(user.id, user.profile_image),
+      })),
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ success: false, error: message }, { status: 500 })

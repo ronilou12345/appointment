@@ -28,17 +28,25 @@ export function ThemeApplier() {
     root.style.setProperty("--radius", `${config.radius}rem`)
     
     // Apply gray scale to relevant variables
-    // We try to derive some basic shadcn-like variables from the base gray color
-    root.style.setProperty("--muted-foreground", gray.hsl)
-    root.style.setProperty("--border", gray.hsl) 
-    root.style.setProperty("--input", gray.hsl)
-    
-    // For things like secondary/muted/accent, we'd ideally want a lighter version
-    // For now, we use the base gray or a simple alpha version if using Tailwind v4
-    // But setting them as raw HSL is safer for consistency.
-    root.style.setProperty("--secondary", gray.hsl) 
-    root.style.setProperty("--muted", gray.hsl)
-    root.style.setProperty("--accent", gray.hsl)
+    if (isDark) {
+      root.style.setProperty("--muted", "0 0% 14.9%")
+      root.style.setProperty("--muted-foreground", "0 0% 63.9%")
+      root.style.setProperty("--secondary", "0 0% 14.9%")
+      root.style.setProperty("--secondary-foreground", "0 0% 98%")
+      root.style.setProperty("--accent", "0 0% 14.9%")
+      root.style.setProperty("--accent-foreground", "0 0% 98%")
+      root.style.setProperty("--border", gray.hsl)
+      root.style.setProperty("--input", gray.hsl)
+    } else {
+      root.style.setProperty("--muted", "0 0% 96.1%")
+      root.style.setProperty("--muted-foreground", "0 0% 45.1%")
+      root.style.setProperty("--secondary", "0 0% 96.1%")
+      root.style.setProperty("--secondary-foreground", "0 0% 9%")
+      root.style.setProperty("--accent", "0 0% 96.1%")
+      root.style.setProperty("--accent-foreground", "0 0% 9%")
+      root.style.setProperty("--border", "0 0% 89.8%")
+      root.style.setProperty("--input", "0 0% 89.8%")
+    }
     
   }, [config, isDark])
 

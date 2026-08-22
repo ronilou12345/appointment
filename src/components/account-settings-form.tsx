@@ -68,6 +68,7 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
   const [validateTimer, setValidateTimer] = useState<number | null>(null)
 
   const getLevel = (len: number, match?: boolean) => {
+    if (match === false) return { cls: "bg-red-500", width: 100 }
     if (match === true) return { cls: "bg-emerald-500", width: 100 }
     if (len === 0) return { cls: "bg-muted/40", width: 0 }
     if (len < 4) return { cls: "bg-red-500", width: Math.min(100, (len / 8) * 100) }
@@ -189,8 +190,8 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
                     return <div className={`h-2 rounded ${lvl.cls}`} style={{ width: `${lvl.width}%` }} />
                   })()}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {currentPasswordMatch === null ? 'Enter current password to validate.' : currentPasswordMatch ? 'Password matches.' : 'Password does not match.'}
+                <p className={`mt-1 text-xs ${currentPasswordMatch === false ? "text-red-600 dark:text-red-400" : currentPasswordMatch ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                  {currentPasswordMatch === null ? "Enter current password to validate." : currentPasswordMatch ? "Password matches." : "Password does not match."}
                 </p>
               </div>
             </div>
@@ -213,11 +214,6 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
                 <p className="mt-1 text-xs text-muted-foreground">Must be at least 8 characters long.</p>
               </div>
             </div>
-          </div>
-
-          <div className="rounded-lg border border-border/60 bg-muted/40 p-4 text-sm text-muted-foreground">
-            <p><span className="font-medium text-foreground">Role:</span> {user.role ?? "USER"}</p>
-            <p><span className="font-medium text-foreground">Status:</span> {user.status ?? "ACTIVE"}</p>
           </div>
 
           <div className="flex justify-end">

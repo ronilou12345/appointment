@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { logCurrentUserActivity } from "@/lib/activity-log"
+import { getSession } from "@/lib/auth-utils"
 
 function inventoryStatus(quantity: number, reorderLevel: number) {
   if (quantity <= 0) return "Out of Stock"
@@ -29,7 +30,10 @@ export async function POST(request: NextRequest) {
     }
 
     const medicines = await prisma.medicine_inventory.findMany({
-      where: { medicine_id: { in: items.map((item) => item.id) } },
+      where: {
+        medicine_id: { in: items.map((item) => item.id) },
+        NOT: { status: { equals: "Deleted", mode: "insensitive" } },
+      },
     })
     const byId = new Map(medicines.map((medicine) => [medicine.medicine_id, medicine]))
 
@@ -49,12 +53,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const session = await getSession()
+    const soldBy = session?.name?.trim().slice(0, 150) || null
     const deducted: Array<{
       id: number
       previousQuantity: number
       previousStatus: string
       name: string
       quantity: number
+      unitPrice: number
     }> = []
 
     try {
@@ -85,8 +92,16 @@ export async function POST(request: NextRequest) {
           previousStatus: medicine.status,
           name: medicine.medicine_name,
           quantity: item.quantity,
+          unitPrice: Number(medicine.unit_price),
         })
         byId.set(item.id, { ...medicine, quantity: remaining })
+      }
+
+      for (const item of deducted) {
+        await prisma.$executeRaw`
+          INSERT INTO medicine_sales (medicine_id, quantity_sold, unit_price, sold_by)
+          VALUES (${item.id}, ${item.quantity}, ${item.unitPrice}, ${soldBy})
+        `
       }
     } catch (error) {
       await Promise.all(

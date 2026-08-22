@@ -121,8 +121,8 @@ export function ReportsClient({ data }: { data: ReportsData }) {
             ]
 
   return (
-    <div className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+      <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium uppercase tracking-[0.24em] text-muted-foreground">Analytics</p>
           <h1 className="text-3xl font-semibold tracking-tight">Reports</h1>

@@ -165,11 +165,16 @@ export async function GET(request: NextRequest) {
         safeSearch(async () => {
           const rows = await prisma.medicine_inventory.findMany({
             where: {
-              OR: [
-                { medicine_name: textFilter(q) },
-                { category: textFilter(q) },
-                { supplier: textFilter(q) },
-                { status: textFilter(q) },
+              AND: [
+                { NOT: { status: { equals: "Deleted", mode: "insensitive" } } },
+                {
+                  OR: [
+                    { medicine_name: textFilter(q) },
+                    { category: textFilter(q) },
+                    { supplier: textFilter(q) },
+                    { status: textFilter(q) },
+                  ],
+                },
               ],
             },
             take: LIMIT,

@@ -48,6 +48,7 @@ import {
   RotateCcwIcon,
   CalendarRangeIcon,
   ClipboardListIcon,
+  HouseIcon,
 } from "lucide-react"
 
 const NOTIFICATION_POLL_MS = 60_000
@@ -378,9 +379,8 @@ export function SiteHeader({
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mx-2 h-6" />
         </div>
-        <div className="flex min-w-0 flex-1 items-center">
-          <div className="hidden rounded-full border border-border/60 bg-background/80 px-3 py-2 shadow-sm md:flex">
-            <Breadcrumb>
+        <div className="hidden min-w-0 flex-1 items-center md:flex">
+          <Breadcrumb>
               <BreadcrumbList>
                 {breadcrumbs.map((crumb, index) => {
                   const isLast = index === breadcrumbs.length - 1
@@ -388,9 +388,17 @@ export function SiteHeader({
                     <React.Fragment key={`${crumb.href}-${index}`}>
                       <BreadcrumbItem>
                         {isLast ? (
-                          <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                          <BreadcrumbPage>
+                            {crumb.label === "Home" ? (
+                              <HouseIcon className="size-4" aria-label="Home" />
+                            ) : (
+                              crumb.label
+                            )}
+                          </BreadcrumbPage>
                         ) : (
-                          <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
+                          <BreadcrumbLink href={crumb.href} aria-label={crumb.label === "Home" ? "Home" : undefined}>
+                            {crumb.label === "Home" ? <HouseIcon className="size-4" /> : crumb.label}
+                          </BreadcrumbLink>
                         )}
                       </BreadcrumbItem>
                       {!isLast ? <BreadcrumbSeparator /> : null}
@@ -399,7 +407,6 @@ export function SiteHeader({
                 })}
               </BreadcrumbList>
             </Breadcrumb>
-          </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Popover

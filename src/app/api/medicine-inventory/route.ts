@@ -96,9 +96,29 @@ export async function DELETE(request: NextRequest) {
       select: { medicine_name: true },
     })
 
-    await prisma.medicine_inventory.delete({
-      where: { medicine_id: id },
-    })
+    if (!existing) {
+      return NextResponse.json({ success: false, error: "Medicine not found" }, { status: 404 })
+    }
+
+    const sales = await prisma.$queryRaw<Array<{ c: number }>>`
+      SELECT COUNT(*)::int AS c FROM medicine_sales WHERE medicine_id = ${id}
+    `
+    const hasSales = Number(sales[0]?.c ?? 0) > 0
+
+    if (hasSales) {
+      await prisma.medicine_inventory.update({
+        where: { medicine_id: id },
+        data: {
+          status: "Deleted",
+          quantity: 0,
+          updated_at: new Date(),
+        },
+      })
+    } else {
+      await prisma.medicine_inventory.delete({
+        where: { medicine_id: id },
+      })
+    }
 
     await logCurrentUserActivity("Deleted medicine", existing?.medicine_name, { type: "medicine", id })
 

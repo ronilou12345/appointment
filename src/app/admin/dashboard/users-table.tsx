@@ -15,21 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-const getStatusClasses = (status?: string) => {
-  const normalized = (status ?? "active").toLowerCase()
-
-  switch (normalized) {
-    case "active":
-      return "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800/60"
-    case "inactive":
-      return "bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:ring-slate-700"
-    case "suspended":
-      return "bg-rose-100 text-rose-800 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-800/60"
-    default:
-      return "bg-amber-100 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800/60"
-  }
-}
+import { StatusBadge } from "@/app/admin/manage-users/columns"
 
 const isInitialToken = (value: string) => /^[A-Za-z]\.?$/.test(value.trim())
 const normalizeInitial = (value: string) => `${value.trim()[0].toUpperCase()}.`
@@ -124,18 +110,7 @@ const columns: ColumnDef<RowType, any>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => {
-      const status = String(row.getValue("status") || "Active")
-      return (
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(
-            status,
-          )}`}
-        >
-          {status}
-        </span>
-      )
-    },
+    cell: ({ row }) => <StatusBadge status={String(row.getValue("status") || "Active")} />,
   },
   {
     id: "actions",

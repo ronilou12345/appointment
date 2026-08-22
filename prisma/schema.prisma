@@ -79,18 +79,31 @@ model doctor {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model medicine_inventory {
-  medicine_id    Int       @id @default(autoincrement())
-  medicine_name  String    @db.VarChar(150)
-  category       String    @db.VarChar(100)
-  quantity       Int       @default(0)
-  reorder_level  Int       @default(10)
-  expiry_date    DateTime  @db.Date
-  unit_price     Decimal   @db.Decimal(10, 2)
-  status         String    @default("Available") @db.VarChar(30)
-  supplier       String    @db.VarChar(150)
+  medicine_id    Int              @id @default(autoincrement())
+  medicine_name  String           @db.VarChar(150)
+  category       String           @db.VarChar(100)
+  quantity       Int              @default(0)
+  reorder_level  Int              @default(10)
+  expiry_date    DateTime         @db.Date
+  unit_price     Decimal          @db.Decimal(10, 2)
+  status         String           @default("Available") @db.VarChar(30)
+  supplier       String           @db.VarChar(150)
   medicine_image String?
-  created_at     DateTime? @default(now()) @db.Timestamp(6)
-  updated_at     DateTime? @default(now()) @db.Timestamp(6)
+  created_at     DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(6)
+  medicine_sales medicine_sales[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model medicine_sales {
+  sale_id            Int                 @id @default(autoincrement())
+  medicine_id        Int
+  quantity_sold      Int
+  unit_price         Decimal             @db.Decimal(10, 2)
+  total_amount       Decimal?            @default(dbgenerated("((quantity_sold)::numeric * unit_price)")) @db.Decimal(10, 2)
+  sale_date          DateTime            @default(now()) @db.Timestamp(6)
+  sold_by            String?             @db.VarChar(150)
+  medicine_inventory medicine_inventory  @relation(fields: [medicine_id], references: [medicine_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -138,15 +151,17 @@ model specialties {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model vital_signs {
-  vital_id         Int         @id @default(autoincrement())
-  appointment_id   Int
+  vital_id         Int          @id @default(autoincrement())
+  appointment_id   Int?
+  user_id          String?
   heart_rate       Int?
-  body_temperature Decimal?    @db.Decimal(4, 1)
-  weight           Decimal?    @db.Decimal(5, 2)
-  blood_sugar      Decimal?    @db.Decimal(5, 2)
-  created_at       DateTime?   @default(now()) @db.Timestamp(6)
-  updated_at       DateTime?   @default(now()) @db.Timestamp(6)
-  appointment      appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_vital_appointment")
+  body_temperature Decimal?     @db.Decimal(4, 1)
+  weight           Decimal?     @db.Decimal(5, 2)
+  height           Decimal?     @db.Decimal(5, 2)
+  blood_sugar      Decimal?     @db.Decimal(5, 2)
+  created_at       DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?    @default(now()) @db.Timestamp(6)
+  appointment      appointment? @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_vital_appointment")
 }
 
 enum user_role {

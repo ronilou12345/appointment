@@ -63,7 +63,10 @@ function buildRows(details: AppointmentEmailDetails, status: string) {
     ["Status", status],
   ]
 
-  if ((status === "Cancelled" || status === "Cancellation requested") && details.cancelReason?.trim()) {
+  if (
+    (status === "Cancelled" || status === "Cancellation requested" || status === "Rescheduled") &&
+    details.cancelReason?.trim()
+  ) {
     rows.push(["Reason for cancellation", details.cancelReason.trim()])
   }
 
@@ -222,6 +225,23 @@ export async function sendAppointmentStatusEmail(
   if (!to?.trim()) return { success: false, reason: "missing-email" }
 
   return deliver(to.trim(), details, statusCopy(status, details))
+}
+
+export async function sendAppointmentRescheduledEmail(to: string | null, details: AppointmentEmailDetails) {
+  if (!to?.trim()) return { success: false, reason: "missing-email" }
+
+  const when = formatDate(details.date)
+
+  return deliver(to.trim(), details, {
+    subject: `Your appointment was rescheduled - ${when}`,
+    heading: "Appointment rescheduled",
+    intro: `Your appointment at ${CLINIC_NAME} has been moved to a new available time.`,
+    status: "Rescheduled",
+    closing: [
+      "Please wait for confirmation of this new schedule. You will receive another message once it has been confirmed.",
+      "If the new time does not work for you, kindly let us know so we can arrange another visit.",
+    ],
+  })
 }
 
 export async function sendCancellationRequestEmail(to: string | null, details: AppointmentEmailDetails) {
