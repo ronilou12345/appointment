@@ -22,8 +22,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PlusIcon, CameraIcon } from "lucide-react"
+import { type MedicineRow } from "@/app/admin/inventory/columns"
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+const emptyForm = {
+  medicineName: "",
+  category: "",
+  quantity: "0",
+  reorderLevel: "0",
+  expiryDate: "",
+  price: "0.00",
+  supplier: "",
+  status: "In Stock",
+}
 
 function readImageFile(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -43,20 +54,44 @@ function readImageFile(file: File) {
   })
 }
 
-export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function AddMedicineDialog({
+  open,
+  onOpenChange,
+  medicine,
+  showTrigger = true,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  medicine?: MedicineRow | null
+  showTrigger?: boolean
+}) {
   const router = useRouter()
+  const isEditing = Boolean(medicine?.id)
+  const fieldId = (name: string) => (isEditing ? `edit-${name}` : name)
   const [loading, setLoading] = React.useState(false)
   const [medicineImage, setMedicineImage] = React.useState("")
-  const [form, setForm] = React.useState({
-    medicineName: "",
-    category: "",
-    quantity: "0",
-    reorderLevel: "0",
-    expiryDate: "",
-    price: "0.00",
-    supplier: "",
-    status: "In Stock",
-  })
+  const [form, setForm] = React.useState(emptyForm)
+
+  React.useEffect(() => {
+    if (!open) return
+    if (medicine) {
+      setForm({
+        medicineName: medicine.name,
+        category: medicine.category,
+        quantity: String(medicine.quantity ?? 0),
+        reorderLevel: String(medicine.reorderLevel ?? 0),
+        expiryDate: medicine.expiryDate && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
+        price: Number(medicine.price ?? 0).toFixed(2),
+        supplier: medicine.supplier,
+        status: medicine.status || "In Stock",
+      })
+      setMedicineImage(medicine.image || "")
+      return
+    }
+
+    setForm(emptyForm)
+    setMedicineImage("")
+  }, [open, medicine])
 
   const handleChange = (key: string, value: string) => setForm((s) => ({ ...s, [key]: value }))
 
@@ -75,6 +110,7 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
     setLoading(true)
     try {
       const payload = {
+        id: medicine?.id,
         medicineName: form.medicineName,
         category: form.category,
         quantity: Number.parseInt(form.quantity || "0", 10) || 0,
@@ -83,21 +119,23 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
         price: Number(form.price) || 0,
         supplier: form.supplier,
         status: form.status,
-        medicineImage: medicineImage.startsWith("data:image/") ? medicineImage : "",
+        medicineImage: medicineImage.startsWith("data:image/") ? medicineImage : medicineImage || "",
       }
 
       const res = await fetch('/api/medicine-inventory', {
-        method: 'POST',
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
       const result = await res.json()
-      if (!res.ok || !result.success) throw new Error(result.error || 'Unable to add medicine')
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || (isEditing ? 'Unable to update medicine' : 'Unable to add medicine'))
+      }
 
-      toast.success('Successfully added')
+      toast.success(isEditing ? 'Medicine updated' : 'Successfully added')
       onOpenChange(false)
-      setMedicineImage("")
+      if (!isEditing) setMedicineImage("")
       router.refresh()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -109,22 +147,26 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
 
   return (
     <>
-      <Button size="sm" className="shadow-md shadow-primary/20" onClick={() => onOpenChange(true)}>
-        <PlusIcon className="size-4 mr-2" />
-        New
-      </Button>
+      {showTrigger ? (
+        <Button size="sm" className="shadow-md shadow-primary/20" onClick={() => onOpenChange(true)}>
+          <PlusIcon className="size-4 mr-2" />
+          New
+        </Button>
+      ) : null}
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add Medicine</DialogTitle>
+            <DialogTitle>{isEditing ? "Edit Medicine" : "Add Medicine"}</DialogTitle>
             <DialogDescription>
-              Add a new medicine to the inventory system.
+              {isEditing
+                ? "Update medicine details and stock information."
+                : "Add a new medicine to the inventory system."}
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Medicine Image Upload */}
             <div className="flex flex-col items-center justify-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
-              <label htmlFor="medicineImage" className="relative flex cursor-pointer items-center justify-center">
+              <label htmlFor={fieldId("medicineImage")} className="relative flex cursor-pointer items-center justify-center">
                 <Avatar size="lg" className="mx-auto">
                   {medicineImage ? <AvatarImage src={medicineImage} alt={form.medicineName || "Medicine"} /> : null}
                   <AvatarFallback>{getInitials(form.medicineName || "Medicine")}</AvatarFallback>
@@ -134,10 +176,10 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                 </span>
               </label>
               <div className="grid gap-1 place-items-center text-center sm:place-items-start sm:text-left">
-                <Label htmlFor="medicineImage" className="text-center sm:text-left">Medicine Image</Label>
+                <Label htmlFor={fieldId("medicineImage")} className="text-center sm:text-left">Medicine Image</Label>
                 <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, or GIF up to 2MB.</p>
                 <Input
-                  id="medicineImage"
+                  id={fieldId("medicineImage")}
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/gif"
                   className="h-9 max-w-xs cursor-pointer text-sm"
@@ -158,9 +200,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
             {/* Medicine Name and Category */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="medicineName">Medicine Name</Label>
+                <Label htmlFor={fieldId("medicineName")}>Medicine Name</Label>
                 <Input
-                  id="medicineName"
+                  id={fieldId("medicineName")}
                   name="medicineName"
                   placeholder="e.g., Amoxicillin 500mg"
                   required
@@ -169,9 +211,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor={fieldId("category")}>Category</Label>
                 <Input
-                  id="category"
+                  id={fieldId("category")}
                   name="category"
                   placeholder="e.g., Antibiotics"
                   required
@@ -184,9 +226,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
             {/* Quantity and Reorder Level */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity</Label>
+                <Label htmlFor={fieldId("quantity")}>Quantity</Label>
                 <Input
-                  id="quantity"
+                  id={fieldId("quantity")}
                   name="quantity"
                   type="number"
                   placeholder="Number of units"
@@ -197,9 +239,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reorderLevel">Reorder Level</Label>
+                <Label htmlFor={fieldId("reorderLevel")}>Reorder Level</Label>
                 <Input
-                  id="reorderLevel"
+                  id={fieldId("reorderLevel")}
                   name="reorderLevel"
                   type="number"
                   placeholder="Minimum stock level"
@@ -214,9 +256,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
             {/* Expiry Date and Unit Price */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="expiryDate">Expiry Date</Label>
+                <Label htmlFor={fieldId("expiryDate")}>Expiry Date</Label>
                 <Input
-                  id="expiryDate"
+                  id={fieldId("expiryDate")}
                   name="expiryDate"
                   type="date"
                   required
@@ -225,9 +267,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="price">Unit Price (₱)</Label>
+                <Label htmlFor={fieldId("price")}>Unit Price (₱)</Label>
                 <Input
-                  id="price"
+                  id={fieldId("price")}
                   name="price"
                   type="number"
                   placeholder="0.00"
@@ -243,9 +285,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
             {/* Supplier and Status */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="supplier">Supplier</Label>
+                <Label htmlFor={fieldId("supplier")}>Supplier</Label>
                 <Input
-                  id="supplier"
+                  id={fieldId("supplier")}
                   name="supplier"
                   placeholder="e.g., PharmaCare Inc."
                   required
@@ -254,9 +296,9 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor={fieldId("status")}>Status</Label>
                 <Select name="status" value={form.status} onValueChange={(v) => handleChange('status', v)}>
-                  <SelectTrigger id="status">
+                  <SelectTrigger id={fieldId("status")}>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -279,7 +321,7 @@ export function AddMedicineDialog({ open, onOpenChange }: { open: boolean; onOpe
                 Cancel
               </Button>
               <Button className="bg-orange-500 hover:bg-orange-600" type="submit" disabled={loading}>
-                {loading ? 'Adding...' : 'Add Medicine'}
+                {loading ? (isEditing ? 'Saving...' : 'Adding...') : isEditing ? 'Save changes' : 'Add Medicine'}
               </Button>
             </div>
           </form>
