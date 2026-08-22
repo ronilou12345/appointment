@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { printSingleAppointment } from "./print-appointments"
 
 export type AppointmentRow = {
   id: string
@@ -22,6 +23,25 @@ export type AppointmentRow = {
   date: string
   time: string
   status: string
+  reasonForVisit: string
+  appointmentType: string
+  relationship: string
+  age: string
+  gender: string
+  contactNumber: string
+  symptoms: string
+  durationOfSymptoms: string
+  painLevel: string
+  additionalNotes: string
+  heartRate: string
+  bodyTemperature: string
+  weight: string
+  bloodSugar: string
+  chiefComplaints: string
+  physicalExamination: string
+  diagnosis: string
+  prescription: string
+  nextFollowUp: string
 }
 
 const getInitials = (name: string) =>
@@ -119,6 +139,7 @@ export const columns: ColumnDef<AppointmentRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem>View details</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => printSingleAppointment(appt)}>Print</DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigator.clipboard.writeText(appt.id)}>Copy ID</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

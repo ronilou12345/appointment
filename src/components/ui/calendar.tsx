@@ -10,9 +10,10 @@ export type CalendarProps = {
   onSelect?: (date: Date | null) => void
   className?: string
   disabled?: (date: Date) => boolean
+  getIndicator?: (date: Date) => "available" | "unavailable" | null
 }
 
-export function Calendar({ selected, onSelect, className, disabled }: CalendarProps) {
+export function Calendar({ selected, onSelect, className, disabled, getIndicator }: CalendarProps) {
   const [viewDate, setViewDate] = React.useState(() => selected ?? new Date())
 
   React.useEffect(() => {
@@ -60,6 +61,7 @@ export function Calendar({ selected, onSelect, className, disabled }: CalendarPr
           const isCurrentMonth = day.getMonth() === viewDate.getMonth()
           const isSelected = selected && day.toDateString() === selected.toDateString()
           const isDisabled = disabled ? disabled(day) : false
+          const indicator = getIndicator?.(day) ?? null
 
           return (
             <button
@@ -68,7 +70,7 @@ export function Calendar({ selected, onSelect, className, disabled }: CalendarPr
               disabled={isDisabled}
               onClick={() => onSelect?.(day)}
               className={cn(
-                "h-8 rounded-md text-sm transition-colors",
+                "relative h-9 rounded-md text-sm transition-colors",
                 !isCurrentMonth && "text-muted-foreground/50",
                 isSelected && "bg-primary text-primary-foreground",
                 !isSelected && !isDisabled && "hover:bg-accent",
@@ -76,6 +78,14 @@ export function Calendar({ selected, onSelect, className, disabled }: CalendarPr
               )}
             >
               {day.getDate()}
+              {indicator ? (
+                <span
+                  className={cn(
+                    "absolute bottom-0.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full",
+                    indicator === "available" ? "bg-emerald-500" : "bg-red-500"
+                  )}
+                />
+              ) : null}
             </button>
           )
         })}

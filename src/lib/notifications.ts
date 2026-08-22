@@ -292,6 +292,19 @@ function buildStatusNotification(view: AppointmentView, role: UserRole): AppNoti
     }
   }
 
+  if (view.status === "Awaiting cancellation") {
+    return {
+      ...base,
+      type: "cancelled",
+      title: role === "DOCTOR" ? "Cancellation request" : "Cancellation requested",
+      message:
+        role === "DOCTOR"
+          ? `${summary}. Please approve or keep this appointment.`
+          : `${summary}. Waiting for the doctor to approve the cancellation.`,
+      createdAt: view.updatedAt.toISOString(),
+    }
+  }
+
   if (view.status === "Confirmed") {
     return {
       ...base,

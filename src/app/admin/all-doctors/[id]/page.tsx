@@ -1,8 +1,9 @@
 import prisma from "@/lib/prisma"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { resolveProfileAvatar } from "@/lib/profile-image"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -90,6 +91,7 @@ export default async function AdminDoctorDetailPage({ params }: Props) {
     : getBoardCertificates(credentials)
   const specialties = getSpecialties(credentials)
   const yearsOfExperience = formatExperience(doctor.years_of_experience)
+  const avatar = resolveProfileAvatar(doctor.user.id, doctor.user.profile_image)
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -110,8 +112,11 @@ export default async function AdminDoctorDetailPage({ params }: Props) {
           <div className="grid gap-6 p-6 lg:grid-cols-[280px_1fr]">
             <div className="rounded-3xl border border-border bg-background p-6 text-center">
               <div className="flex flex-col items-center justify-center gap-5">
-                <Avatar size="lg">
-                  <AvatarFallback>{getInitials(doctor.user.name)}</AvatarFallback>
+                <Avatar size="lg" className="size-28 ring-2 ring-border">
+                  {avatar ? (
+                    <AvatarImage src={avatar} alt={doctor.user.name} className="object-cover" />
+                  ) : null}
+                  <AvatarFallback className="text-2xl">{getInitials(doctor.user.name)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="text-lg font-semibold text-foreground">{doctor.user.name}</p>

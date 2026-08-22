@@ -71,14 +71,17 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    const profileImage = String(body.profileImage ?? "").trim()
+    if (!profileImage.startsWith("data:image/")) {
+      return NextResponse.json({ success: false, error: "Profile image is required." }, { status: 400 })
+    }
+
     const result = await createUserAction(formData)
 
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 })
     }
-
-    const profileImage = String(body.profileImage ?? "").trim()
-    if (profileImage.startsWith("data:image/") && result.userId) {
+    if (result.userId) {
       const imageUrl = await saveProfileImageFile(result.userId, profileImage)
       await updateUserProfileImage(result.userId, imageUrl)
     }
@@ -90,7 +93,10 @@ export async function POST(request: NextRequest) {
       { type: "user", id: result.userId },
     )
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      verificationSent: Boolean(result.verificationSent),
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ success: false, error: message }, { status: 500 })

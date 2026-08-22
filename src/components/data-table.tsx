@@ -40,43 +40,103 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import { Checkbox } from "@/components/ui/checkbox"
+import { GripVertical } from "lucide-react"
+
+function getRowControlColumns<TData, TValue>(): ColumnDef<TData, TValue>[] {
+  return [
+    {
+      id: "drag",
+      header: () => null,
+      cell: () => (
+        <button
+          type="button"
+          className="flex cursor-grab items-center justify-center text-muted-foreground/70 active:cursor-grabbing"
+          aria-label="Reorder row"
+          tabIndex={-1}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      id: "select",
+      header: ({ table }) => (
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Select all"
+            className="size-[18px] rounded-[5px] border-muted-foreground/35"
+          />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+            className="size-[18px] rounded-[5px] border-muted-foreground/35"
+          />
+        </div>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ]
+}
 
 interface DataTableProps<TData, TValue> {
   columns?: ColumnDef<TData, TValue>[]
   data: TData[]
+  getRowId?: (originalRow: TData, index: number) => string
+  onSelectedRowsChange?: (rows: TData[]) => void
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  getRowId,
+  onSelectedRowsChange,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
   })
 
   const tableColumns = React.useMemo<ColumnDef<TData, TValue>[]>(() => {
-    if (columns && columns.length > 0) {
-      return columns
-    }
+    const baseColumns = (() => {
+      if (columns && columns.length > 0) {
+        return columns.filter((column) => column.id !== "drag" && column.id !== "select")
+      }
 
-    const firstRow = data[0] as Record<string, unknown> | undefined
+      const firstRow = data[0] as Record<string, unknown> | undefined
 
-    if (!firstRow) {
-      return []
-    }
+      if (!firstRow) {
+        return []
+      }
 
-    return Object.keys(firstRow).map((key) => ({
-      accessorKey: key as keyof TData,
-      header: key
-        .replace(/([A-Z])/g, " $1")
-        .replace(/^./, (char) => char.toUpperCase()),
-      cell: ({ row }: any) => String(row.getValue(key) ?? ""),
-    })) as ColumnDef<TData, TValue>[]
+      return Object.keys(firstRow).map((key) => ({
+        accessorKey: key as keyof TData,
+        header: key
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (char) => char.toUpperCase()),
+        cell: ({ row }: any) => String(row.getValue(key) ?? ""),
+      })) as ColumnDef<TData, TValue>[]
+    })()
+
+    return [...getRowControlColumns<TData, TValue>(), ...baseColumns]
   }, [columns, data])
 
   const table = useReactTable({
@@ -87,8 +147,12 @@ export function DataTable<TData, TValue>({
       sorting,
       columnFilters,
       columnVisibility,
+      rowSelection,
       pagination,
     },
+    enableRowSelection: true,
+    getRowId,
+    onRowSelectionChange: setRowSelection,
     globalFilterFn: "includesString",
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
@@ -100,6 +164,10 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
+
+  React.useEffect(() => {
+    onSelectedRowsChange?.(table.getFilteredSelectedRowModel().rows.map((row) => row.original))
+  }, [onSelectedRowsChange, rowSelection])
 
   return (
     <div>
@@ -144,7 +212,14 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="bg-muted">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-foreground">
+                  <TableHead
+                    key={header.id}
+                    className={
+                      header.column.id === "drag" || header.column.id === "select"
+                        ? "w-8 px-1.5 text-foreground"
+                        : "text-foreground"
+                    }
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -156,9 +231,20 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="border-b border-border last:border-b-0 hover:bg-muted/50">
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() ? "selected" : undefined}
+                  className="border-b border-border last:border-b-0 hover:bg-muted/50 data-[state=selected]:bg-muted/60"
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="text-foreground">
+                    <TableCell
+                      key={cell.id}
+                      className={
+                        cell.column.id === "drag" || cell.column.id === "select"
+                          ? "w-8 px-1.5 text-foreground"
+                          : "text-foreground"
+                      }
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

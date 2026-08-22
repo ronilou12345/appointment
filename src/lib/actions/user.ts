@@ -1,11 +1,15 @@
 "use server"
 
 import { randomUUID } from "crypto"
+import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
 import { saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
 import { logActivity } from "@/lib/activity-log"
+import { issueEmailVerificationToken } from "@/lib/email-verification"
+import { sendVerificationEmail } from "@/lib/verification-email"
+import { loopbackEquivalent, resolveOrigin } from "@/lib/google-oauth"
 
 type UserRole = "ADMIN" | "NURSE" | "PATIENT"
 type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED"
@@ -86,8 +90,32 @@ export async function createUserAction(formData: FormData) {
   const yearsOfExperience = formData.get("yearsofexperience")?.toString().trim() ?? ""
   const address = formData.get("address")?.toString().trim() ?? ""
 
-  if (!firstName || !lastName || !email || !password) {
-    return { success: false, error: "First name, last name, email, and password are required." }
+  if (!email) {
+    return { success: false, error: "Personal email is required." }
+  }
+
+  if (!email.includes("@")) {
+    return { success: false, error: "Please enter a valid personal email." }
+  }
+
+  if (!firstName) {
+    return { success: false, error: "First name is required." }
+  }
+
+  if (!lastName) {
+    return { success: false, error: "Last name is required." }
+  }
+
+  if (!prefix) {
+    return { success: false, error: "Prefix is required." }
+  }
+
+  if (!address) {
+    return { success: false, error: "Address is required." }
+  }
+
+  if (!password) {
+    return { success: false, error: "Password is required." }
   }
 
   if (password.length < 8) {
@@ -129,14 +157,16 @@ export async function createUserAction(formData: FormData) {
 
     const userId = randomUUID()
     const role = normalizeRole(userType)
-    const normalizedStatus = normalizeStatus(status)
+    const requestedStatus = normalizeStatus(status)
+    const normalizedStatus = requestedStatus === "SUSPENDED" ? "SUSPENDED" : "INACTIVE"
+    const displayName = fullName || email
 
     await prisma.$transaction(async (tx) => {
       await tx.user.create({
         data: {
           id: userId,
           email,
-          name: fullName || email,
+          name: displayName,
           role,
           status: normalizedStatus,
           designations: null,
@@ -165,7 +195,18 @@ export async function createUserAction(formData: FormData) {
       }
     })
 
-    return { success: true, error: "", userId }
+    const headerList = await headers()
+    const resolvedOrigin = resolveOrigin(headerList, "http://localhost:3000")
+    const origin = loopbackEquivalent(resolvedOrigin) ?? resolvedOrigin
+    const issued = await issueEmailVerificationToken(userId, email)
+    const verifyUrl = `${origin}/api/auth/verify-email?token=${issued.token}`
+    const emailed = await sendVerificationEmail(email, displayName, verifyUrl)
+
+    if (!emailed.success) {
+      console.warn("Verification email skipped or failed:", emailed)
+    }
+
+    return { success: true, error: "", userId, verificationSent: emailed.success }
   } catch (error: unknown) {
     console.error("createUserAction error:", error)
 

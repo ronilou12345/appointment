@@ -3,7 +3,7 @@ import { DataTable } from "@/components/data-table"
 import { getSession } from "@/lib/auth-utils"
 import { normalizeUserRole } from "@/lib/user-role"
 import { columns } from "./columns"
-import { formatAppointmentTime } from "@/app/client/appointments/status"
+import { formatAppointmentStatus, formatAppointmentTime } from "@/app/client/appointments/status"
 
 async function getDoctorAppointments(userId: string) {
   const doctor = await prisma.doctor.findUnique({
@@ -72,7 +72,7 @@ async function getDoctorAppointments(userId: string) {
       specialty,
       date,
       time: formatAppointmentTime(String(time || "")),
-      status: appointment.appointment_status ?? "Pending",
+      status: formatAppointmentStatus(appointment.appointment_status ?? "Pending"),
     }
   })
 }

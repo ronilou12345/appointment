@@ -9,6 +9,15 @@ export const formatAppointmentStatus = (value: string | null | undefined) => {
     return "Cancelled"
   }
 
+  if (
+    normalized === "cancel requested" ||
+    normalized === "cancellation requested" ||
+    normalized === "pending cancellation" ||
+    normalized === "awaiting cancellation"
+  ) {
+    return "Awaiting cancellation"
+  }
+
   if (normalized === "completed" || normalized === "complete" || normalized === "done") {
     return "Completed"
   }

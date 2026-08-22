@@ -63,7 +63,7 @@ function buildRows(details: AppointmentEmailDetails, status: string) {
     ["Status", status],
   ]
 
-  if (status === "Cancelled" && details.cancelReason?.trim()) {
+  if ((status === "Cancelled" || status === "Cancellation requested") && details.cancelReason?.trim()) {
     rows.push(["Reason for cancellation", details.cancelReason.trim()])
   }
 
@@ -131,14 +131,14 @@ ${copy.closing.join("\n\n")}
 — ${CLINIC_NAME}`
 }
 
-async function deliver(to: string, details: AppointmentEmailDetails, copy: EmailCopy) {
+async function deliver(to: string, details: AppointmentEmailDetails, copy: EmailCopy, greetingName?: string) {
   const transporter = getTransporter()
   if (!transporter) {
     console.warn("SMTP_USER/SMTP_PASSWORD are not configured; skipping appointment email.")
     return { success: false, reason: "missing-credentials" }
   }
 
-  const patientName = details.patientName?.trim() || "there"
+  const patientName = greetingName?.trim() || details.patientName?.trim() || "there"
 
   try {
     await transporter.sendMail({
@@ -222,4 +222,28 @@ export async function sendAppointmentStatusEmail(
   if (!to?.trim()) return { success: false, reason: "missing-email" }
 
   return deliver(to.trim(), details, statusCopy(status, details))
+}
+
+export async function sendCancellationRequestEmail(to: string | null, details: AppointmentEmailDetails) {
+  if (!to?.trim()) return { success: false, reason: "missing-email" }
+
+  const patientName = details.patientName?.trim() || "A patient"
+  const doctorGreeting = details.doctorName?.trim() ? `Dr. ${details.doctorName.trim()}` : "Doctor"
+  const when = formatDate(details.date)
+
+  return deliver(
+    to.trim(),
+    details,
+    {
+      subject: `Cancellation request from ${patientName} - ${when}`,
+      heading: "Cancellation request",
+      intro: `${patientName} has requested to cancel this appointment. Please review the request and approve it in your appointments list.`,
+      status: "Cancellation requested",
+      closing: [
+        "The appointment will stay scheduled until you approve this cancellation.",
+        "Open your doctor appointments page to approve or keep the visit.",
+      ],
+    },
+    doctorGreeting
+  )
 }

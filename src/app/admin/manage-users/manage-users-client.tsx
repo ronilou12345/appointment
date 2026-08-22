@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { columns, UserRow } from "./columns"
+import { columns, getStatusDotClass, normalizeUserStatus, UserRow } from "./columns"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
-import { CameraIcon, MailIcon, UserIcon, LockIcon, HashIcon, CheckIcon, XIcon } from "lucide-react"
+import { CameraIcon, MailIcon, UserIcon, LockIcon, HashIcon, CheckIcon, XIcon, Eye, EyeOff } from "lucide-react"
 
 export type CreateUserForm = {
   userType: string
@@ -111,11 +111,13 @@ function AvatarUploadField({
   preview,
   name,
   inputId,
+  required = false,
   onSelect,
 }: {
   preview: string
   name: string
   inputId: string
+  required?: boolean
   onSelect: (dataUrl: string) => void
 }) {
   return (
@@ -130,7 +132,10 @@ function AvatarUploadField({
         </span>
       </label>
       <div className="grid gap-1 place-items-center text-center sm:place-items-start sm:text-left">
-        <Label htmlFor={inputId} className="text-center sm:text-left">Profile image</Label>
+        <Label htmlFor={inputId} className="text-center sm:text-left">
+          Profile image
+          {required ? <span className="text-destructive"> *</span> : null}
+        </Label>
         <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, or GIF up to 2MB.</p>
         <Input
           id={inputId}
@@ -166,6 +171,7 @@ function CreateUserModal({
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
+  const [showPassword, setShowPassword] = React.useState(false)
   const [profileImage, setProfileImage] = React.useState("")
   const [form, setForm] = React.useState<CreateUserForm>({
     userType: "PATIENT",
@@ -236,13 +242,42 @@ function CreateUserModal({
     })
     setProfileImage("")
     setErrorMsg("")
+    setShowPassword(false)
     autoEmailRef.current = ""
   }, [])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setLoading(true)
     setErrorMsg("")
+
+    const requiredError =
+      !profileImage.trim()
+        ? "Please upload a profile image."
+        : !form.email.trim()
+          ? "Please enter a personal email."
+          : !form.email.includes("@")
+            ? "Please enter a valid personal email."
+            : !form.firstName.trim()
+              ? "Please enter a first name."
+              : !form.lastName.trim()
+                ? "Please enter a last name."
+                : !form.prefix.trim()
+                  ? "Please enter a prefix."
+                  : !form.address.trim()
+                    ? "Please enter an address."
+                    : !form.password.trim()
+                      ? "Please enter a password."
+                      : form.password.length < 8
+                        ? "Password must be at least 8 characters long."
+                        : ""
+
+    if (requiredError) {
+      setErrorMsg(requiredError)
+      toast.error(requiredError, { id: "create-user-required" })
+      return
+    }
+
+    setLoading(true)
 
     const response = await fetch("/api/users", {
       method: "POST",
@@ -256,8 +291,13 @@ function CreateUserModal({
     setLoading(false)
 
     if (result.success) {
-      toast.success("User account created successfully")
-      onSuccess("User account created successfully.")
+      if (result.verificationSent) {
+        toast.success("User account created. A verification email was sent.")
+        onSuccess("User account created. A verification email was sent.")
+      } else {
+        toast.warning("User account created, but the verification email could not be sent.")
+        onSuccess("User account created, but the verification email could not be sent.")
+      }
       resetForm()
       onOpenChange(false)
       setTimeout(() => router.refresh(), 100)
@@ -280,7 +320,7 @@ function CreateUserModal({
               <div>
                 <DialogTitle className="text-lg font-semibold">Create User</DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground">
-                  Create the basic details for your user account.
+                  Create the account details. A verification email will be sent after creation.
                 </DialogDescription>
               </div>
             </div>
@@ -299,6 +339,7 @@ function CreateUserModal({
                 inputId="create-profile-image"
                 preview={profileImage}
                 name={[form.firstName, form.lastName].filter(Boolean).join(" ")}
+                required
                 onSelect={setProfileImage}
               />
             </div>
@@ -329,7 +370,7 @@ function CreateUserModal({
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="email">
-                      {form.userType === "DOCTOR" ? "Institutional Email" : "Personal Email"}
+                      Personal Email <span className="text-destructive">*</span>
                     </FieldLabel>
                     <div className="relative">
                       <MailIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
@@ -338,7 +379,8 @@ function CreateUserModal({
                         name="create-user-email"
                         type="email"
                         autoComplete="off"
-                        placeholder={form.userType === "DOCTOR" ? "firstname.lastname@ckcm.edu.ph" : "username@school.edu"}
+                        required
+                        placeholder="name@example.com"
                         className="h-10 pl-10 text-sm"
                         value={form.email}
                         onChange={(e) => handleChange("email", e.target.value)}
@@ -360,11 +402,30 @@ function CreateUserModal({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="Active">Active</SelectItem>
-                        <SelectItem value="Suspended">Suspended</SelectItem>
+                        <SelectItem value="Active">
+                          <span className="flex items-center gap-2">
+                            <span className={`size-2 rounded-full ${getStatusDotClass("Active")}`} />
+                            <span className="text-emerald-700 dark:text-emerald-300">Active</span>
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="Inactive">
+                          <span className="flex items-center gap-2">
+                            <span className={`size-2 rounded-full ${getStatusDotClass("Inactive")}`} />
+                            <span className="text-slate-600 dark:text-slate-300">Inactive</span>
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="Suspended">
+                          <span className="flex items-center gap-2">
+                            <span className={`size-2 rounded-full ${getStatusDotClass("Suspended")}`} />
+                            <span className="text-rose-700 dark:text-rose-300">Suspended</span>
+                          </span>
+                        </SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    The account stays inactive until the user verifies their email.
+                  </p>
                 </Field>
                 <Field className="sm:pt-6" />
               </FieldGroup>
@@ -384,6 +445,7 @@ function CreateUserModal({
                       id="firstName"
                       placeholder="First name"
                       className="h-10 text-sm"
+                      required
                       value={form.firstName}
                       onChange={(e) => handleChange("firstName", e.target.value)}
                     />
@@ -406,6 +468,7 @@ function CreateUserModal({
                       id="lastName"
                       placeholder="Last name"
                       className="h-10 text-sm"
+                      required
                       value={form.lastName}
                       onChange={(e) => handleChange("lastName", e.target.value)}
                     />
@@ -416,19 +479,20 @@ function CreateUserModal({
               <FieldGroup className="grid-cols-1 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="prefix">
-                    Prefix<span className="text-destructive">*</span>
+                    Prefix <span className="text-destructive">*</span>
                   </FieldLabel>
                   <Input
                     id="prefix"
                     placeholder="e.g. Mr., Ms., Dr."
                     className="h-10 text-sm"
+                    required
                     value={form.prefix}
                     onChange={(e) => handleChange("prefix", e.target.value)}
                   />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="suffix">
-                    Suffix<span className="text-destructive">*</span>
+                    Suffix<span className="text-destructive"></span>
                   </FieldLabel>
                   <Input
                     id="suffix"
@@ -442,12 +506,13 @@ function CreateUserModal({
 
               <Field>
                 <FieldLabel htmlFor="address">
-                  Address<span className="text-destructive">*</span>
+                  Address <span className="text-destructive">*</span>
                 </FieldLabel>
                 <Input
                   id="address"
                   placeholder="Enter full address"
                   className="h-10 text-sm"
+                  required
                   value={form.address}
                   onChange={(e) => handleChange("address", e.target.value)}
                 />
@@ -456,7 +521,7 @@ function CreateUserModal({
               <FieldGroup className="grid-cols-1 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="credentials">
-                    Credentials<span className="text-destructive">*</span>
+                    Credentials<span className="text-destructive"></span>
                   </FieldLabel>
                   <Input
                     id="credentials"
@@ -468,18 +533,28 @@ function CreateUserModal({
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="password">
-                    Password<span className="text-destructive">*</span>
+                    Password <span className="text-destructive">*</span>
                   </FieldLabel>
                   <div className="relative">
                     <LockIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
                     <Input
                       id="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="Enter password"
-                      className="h-10 pl-10 text-sm"
+                      className="h-10 pl-10 pr-10 text-sm"
+                      required
+                      minLength={8}
                       value={form.password}
                       onChange={(e) => handleChange("password", e.target.value)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
                   </div>
                 </Field>
               </FieldGroup>
@@ -599,7 +674,7 @@ function EditUserSheet({
       id: user.id,
       name: user.name ?? "",
       email: user.email ?? "",
-      status: user.status ?? "Active",
+      status: normalizeUserStatus(user.status),
       role: user.role ?? "PATIENT",
       address: user.address ?? "",
       prefix: user.prefix ?? "",
@@ -691,9 +766,24 @@ function EditUserSheet({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="Active">Active</SelectItem>
-                        <SelectItem value="Inactive">Inactive</SelectItem>
-                        <SelectItem value="Suspended">Suspended</SelectItem>
+                        <SelectItem value="Active">
+                          <span className="flex items-center gap-2">
+                            <span className={`size-2 rounded-full ${getStatusDotClass("Active")}`} />
+                            <span className="text-emerald-700 dark:text-emerald-300">Active</span>
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="Inactive">
+                          <span className="flex items-center gap-2">
+                            <span className={`size-2 rounded-full ${getStatusDotClass("Inactive")}`} />
+                            <span className="text-slate-600 dark:text-slate-300">Inactive</span>
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="Suspended">
+                          <span className="flex items-center gap-2">
+                            <span className={`size-2 rounded-full ${getStatusDotClass("Suspended")}`} />
+                            <span className="text-rose-700 dark:text-rose-300">Suspended</span>
+                          </span>
+                        </SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>

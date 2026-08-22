@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
-import { sendAppointmentEmail, sendAppointmentStatusEmail } from "@/lib/appointment-email"
+import { sendAppointmentEmail, sendAppointmentStatusEmail, sendCancellationRequestEmail } from "@/lib/appointment-email"
 import { sendAppointmentSms } from "@/lib/appointment-sms"
 import { logActivity } from "@/lib/activity-log"
 
@@ -56,11 +56,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing doctor or date" }, { status: 400 })
     }
 
+    const excludeAppointmentId = Number(request.nextUrl.searchParams.get("excludeAppointmentId"))
+
     const existing = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT 1 FROM "appointment" a JOIN "session_tbl" s ON s.session_id = a.session_id WHERE a.user_id = $1 AND s.doctor_id = $2 AND s.session_date = $3 LIMIT 1`,
+      `SELECT 1
+       FROM "appointment" a
+       JOIN "session_tbl" s ON s.session_id = a.session_id
+       WHERE a.user_id = $1
+         AND s.doctor_id = $2
+         AND s.session_date = $3
+         AND ($4::int IS NULL OR a.appointment_id <> $4)
+         AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+       LIMIT 1`,
       user.id,
       doctorId,
       selectedDate,
+      Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
     )
 
     let bookedTimes: string[] = []
@@ -70,10 +81,15 @@ export async function GET(request: NextRequest) {
           to_char(a.appointment_time, 'HH24:MI') AS appointment_time
         FROM "appointment" a
         INNER JOIN "session_tbl" s ON s.session_id = a.session_id
-        WHERE s.doctor_id = $1 AND s.session_date = $2 AND a.appointment_time IS NOT NULL
+        WHERE s.doctor_id = $1
+          AND s.session_date = $2
+          AND a.appointment_time IS NOT NULL
+          AND ($3::int IS NULL OR a.appointment_id <> $3)
+          AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
         ORDER BY to_char(a.appointment_time, 'HH24:MI') ASC`,
         doctorId,
         selectedDate,
+        Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
       )
 
       bookedTimes = appointmentTimeRows
@@ -356,10 +372,170 @@ export async function PATCH(request: NextRequest) {
     const appointmentId = Number(body.appointmentId)
     const action = String(body.action || "").trim()
     const reasonCancel = typeof body.reasonCancel === "string" ? body.reasonCancel.trim().slice(0, 1000) : ""
-    const allowedActions = ["Confirm", "Complete", "Cancel"]
+    const allowedActions = ["Confirm", "Complete", "Cancel", "Reschedule"]
 
     if (!appointmentId || !allowedActions.includes(action)) {
       return NextResponse.json({ success: false, error: "Invalid appointment action" }, { status: 400 })
+    }
+
+    if (action === "Reschedule") {
+      const sessionId = Number(body.sessionId)
+      const requestedTime = typeof body.appointmentTime === "string" ? body.appointmentTime.trim().slice(0, 5) : ""
+
+      if (!sessionId) {
+        return NextResponse.json({ success: false, error: "Please select an available session." }, { status: 400 })
+      }
+
+      const appointment = await prisma.appointment.findFirst({
+        where: { appointment_id: appointmentId, user_id: user.id },
+        select: {
+          appointment_id: true,
+          appointment_status: true,
+          session_id: true,
+          doctor_id: true,
+        },
+      })
+
+      if (!appointment) {
+        return NextResponse.json({ success: false, error: "Appointment not found" }, { status: 404 })
+      }
+
+      const currentStatus = String(appointment.appointment_status || "").trim().toLowerCase()
+      if (["cancelled", "canceled", "completed"].includes(currentStatus)) {
+        return NextResponse.json({ success: false, error: "This appointment can no longer be rescheduled." }, { status: 400 })
+      }
+
+      const sessionRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT
+          session_id,
+          doctor_id,
+          slots,
+          status,
+          to_char(session_date, 'YYYY-MM-DD') AS session_date,
+          to_char(start_time, 'HH24:MI') AS start_time,
+          to_char(end_time, 'HH24:MI') AS end_time
+         FROM "session_tbl"
+         WHERE session_id = $1
+         LIMIT 1`,
+        sessionId,
+      )
+
+      const session = sessionRows[0]
+      if (!session) {
+        return NextResponse.json({ success: false, error: "Selected session is not available for this doctor." }, { status: 400 })
+      }
+
+      const sessionStatus = String(session.status ?? "Active").trim().toLowerCase()
+      if (sessionStatus === "inactive" || sessionStatus === "cancelled") {
+        return NextResponse.json({ success: false, error: "This session is inactive or not available." }, { status: 400 })
+      }
+
+      const sessionDate = String(session.session_date ?? "").slice(0, 10)
+      const startTime = String(session.start_time ?? "").slice(0, 5)
+      const endTime = String(session.end_time ?? "").slice(0, 5)
+      const appointmentTime = /^\d{1,2}:\d{2}$/.test(requestedTime) ? requestedTime : startTime
+
+      if (appointmentTime) {
+        const selectedMinutes = parseTimeToMinutes(appointmentTime)
+        const startMinutes = parseTimeToMinutes(startTime)
+        const endMinutes = parseTimeToMinutes(endTime)
+        if (
+          selectedMinutes === null ||
+          startMinutes === null ||
+          endMinutes === null ||
+          selectedMinutes < startMinutes ||
+          selectedMinutes >= endMinutes
+        ) {
+          return NextResponse.json({ success: false, error: "Please choose a time within the selected session." }, { status: 400 })
+        }
+      }
+
+      if (Number(appointment.session_id) !== sessionId) {
+        const capacity = parsePositiveInteger(session.slots)
+        const bookedCountRows = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT COALESCE(COUNT(appointment_id), 0)::int AS booked_count
+           FROM "appointment"
+           WHERE session_id = $1
+             AND appointment_id <> $2
+             AND LOWER(COALESCE(appointment_status, '')) NOT IN ('cancelled', 'canceled')`,
+          sessionId,
+          appointmentId,
+        )
+        const remaining = Number(capacity ?? 0) - Number(bookedCountRows[0]?.booked_count ?? 0)
+        if (remaining <= 0) {
+          return NextResponse.json({ success: false, error: "No slots available for the selected session." }, { status: 400 })
+        }
+      }
+
+      const nextDoctorId = Number(session.doctor_id)
+
+      const conflict = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT 1
+         FROM "appointment" a
+         JOIN "session_tbl" s ON s.session_id = a.session_id
+         WHERE a.user_id = $1
+           AND s.doctor_id = $2
+           AND s.session_date = $3::date
+           AND a.appointment_id <> $4
+           AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+         LIMIT 1`,
+        user.id,
+        nextDoctorId,
+        sessionDate,
+        appointmentId,
+      )
+
+      if (conflict?.length) {
+        return NextResponse.json({ success: false, error: "You already have an appointment with this doctor on that date." }, { status: 409 })
+      }
+
+      if (appointmentTime) {
+        const takenTime = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT 1
+           FROM "appointment" a
+           JOIN "session_tbl" s ON s.session_id = a.session_id
+           WHERE s.doctor_id = $1
+             AND s.session_date = $2::date
+             AND to_char(a.appointment_time, 'HH24:MI') = $3
+             AND a.appointment_id <> $4
+             AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+           LIMIT 1`,
+          nextDoctorId,
+          sessionDate,
+          appointmentTime,
+          appointmentId,
+        )
+
+        if (takenTime?.length) {
+          return NextResponse.json({ success: false, error: "That time is already booked. Please choose another slot." }, { status: 409 })
+        }
+      }
+
+      await prisma.$executeRawUnsafe(
+        `UPDATE "appointment"
+         SET session_id = $1,
+             doctor_id = $2,
+             appointment_date = $3::date,
+             appointment_time = $4::time,
+             appointment_status = 'Pending',
+             updated_at = now()
+         WHERE appointment_id = $5`,
+        sessionId,
+        nextDoctorId,
+        sessionDate,
+        appointmentTime ? `${appointmentTime}:00` : null,
+        appointmentId,
+      )
+
+      await logActivity({
+        actor: user,
+        action: "Rescheduled appointment",
+        details: `Date: ${sessionDate}${appointmentTime ? ` · Time: ${appointmentTime}` : ""}`,
+        entityType: "appointment",
+        entityId: appointmentId,
+      })
+
+      return NextResponse.json({ success: true, status: "Pending", date: sessionDate, time: appointmentTime })
     }
 
     const shouldCancel = action === "Cancel"
@@ -379,8 +555,15 @@ export async function PATCH(request: NextRequest) {
         appointment_date: true,
         appointment_time: true,
         contact_number: true,
+        user_id: true,
         user: { select: { name: true, email: true } },
-        doctor: { select: { first_name: true, last_name: true } },
+        doctor: {
+          select: {
+            first_name: true,
+            last_name: true,
+            user: { select: { id: true, email: true, name: true } },
+          },
+        },
         session_tbl: { select: { session_date: true, start_time: true } },
       },
     })
@@ -390,10 +573,28 @@ export async function PATCH(request: NextRequest) {
     }
 
     const normalizedStatus = String(appointment.appointment_status || "Pending").trim()
-    const targetStatus = shouldCancel ? "Cancelled" : action === "Confirm" ? "Confirmed" : "Completed"
+    const normalizedStatusKey = normalizedStatus.toLowerCase()
+    const isClientActor = appointment.user_id === user.id
+    const isDoctorActor = appointment.doctor?.user?.id === user.id
+    const isCancelRequest = shouldCancel && isClientActor && !isDoctorActor
+    const targetStatus = isCancelRequest
+      ? "Cancel Requested"
+      : shouldCancel
+        ? "Cancelled"
+        : action === "Confirm"
+          ? "Confirmed"
+          : "Completed"
 
-    if (normalizedStatus.toLowerCase() === "cancelled") {
+    if (normalizedStatusKey === "cancelled" || normalizedStatusKey === "canceled") {
       return NextResponse.json({ success: false, error: "Cannot update a cancelled appointment" }, { status: 400 })
+    }
+
+    if (isCancelRequest && (normalizedStatusKey === "cancel requested" || normalizedStatusKey === "awaiting cancellation")) {
+      return NextResponse.json({
+        success: true,
+        status: normalizedStatus,
+        awaitingApproval: true,
+      })
     }
 
     if (normalizedStatus === targetStatus) {
@@ -424,12 +625,18 @@ export async function PATCH(request: NextRequest) {
       cancelReason: shouldCancel ? reasonCancel || appointment.reason_cancel : null,
     }
 
-    const [smsResult, emailResult] = await Promise.all([
-      sendAppointmentSms(appointment.contact_number, statusDetails, targetStatus),
-      sendAppointmentStatusEmail(appointment.user?.email ?? null, targetStatus, statusDetails),
-    ])
+    const [smsResult, emailResult] = isCancelRequest
+      ? [{ success: false, reason: "skipped" }, await sendCancellationRequestEmail(appointment.doctor?.user?.email ?? null, statusDetails)]
+      : await Promise.all([
+          sendAppointmentSms(appointment.contact_number, statusDetails, targetStatus as "Confirmed" | "Completed" | "Cancelled"),
+          sendAppointmentStatusEmail(
+            appointment.user?.email ?? null,
+            targetStatus as "Confirmed" | "Completed" | "Cancelled",
+            statusDetails
+          ),
+        ])
 
-    if (!smsResult.success) {
+    if (!smsResult.success && !isCancelRequest) {
       console.warn(`Appointment ${targetStatus.toLowerCase()}, SMS skipped or failed:`, smsResult)
     }
 
@@ -439,7 +646,7 @@ export async function PATCH(request: NextRequest) {
 
     await logActivity({
       actor: user,
-      action: `${targetStatus} appointment`,
+      action: isCancelRequest ? "Requested appointment cancellation" : `${targetStatus} appointment`,
       details: `Patient: ${appointment.user?.name ?? "Unknown"}`,
       entityType: "appointment",
       entityId: appointmentId,
@@ -448,8 +655,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       success: true,
       status: updatedAppointment.appointment_status,
+      awaitingApproval: isCancelRequest,
       emailSent: emailResult.success,
-      smsSent: smsResult.success,
+      smsSent: isCancelRequest ? false : smsResult.success,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

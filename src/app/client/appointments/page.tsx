@@ -1,6 +1,7 @@
 import { DataTable } from "@/components/data-table"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
+import { resolveProfileAvatar } from "@/lib/profile-image"
 import { columns, type ClientAppointmentRow } from "./columns"
 import { formatAppointmentStatus, formatAppointmentTime } from "./status"
 
@@ -21,12 +22,15 @@ export default async function Page() {
   const rows = await prisma.$queryRawUnsafe<any[]>(`
     SELECT
       a.appointment_id AS id,
+      a.session_id AS session_id,
       a.appointment_status AS status,
       COALESCE(a.appointment_type, s.appointment_type) AS specialty,
       to_char(COALESCE(a.appointment_date, s.session_date), 'YYYY-MM-DD') AS date,
       to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS time,
       CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
+      u.id AS doctor_user_id,
       u.email AS doctor_email,
+      u.profile_image AS doctor_profile_image,
       d.doctor_id AS doctor_id
     FROM "appointment" a
     JOIN "session_tbl" s ON s.session_id = a.session_id
@@ -38,13 +42,15 @@ export default async function Page() {
 
   const appointments: ClientAppointmentRow[] = rows.map((row) => ({
     id: String(row.id),
+    sessionId: String(row.session_id ?? ""),
     doctorId: String(row.doctor_id ?? ""),
     doctorName: String(row.doctor_name || "Doctor"),
-    doctorAvatar: "/avatars/shadcn.jpg",
+    doctorAvatar: resolveProfileAvatar(String(row.doctor_user_id ?? ""), row.doctor_profile_image),
     doctorEmail: String(row.doctor_email || ""),
     specialty: String(row.specialty || "General Consultation"),
     date: String(row.date || ""),
     time: formatAppointmentTime(String(row.time || "")),
+    timeValue: String(row.time || ""),
     status: formatAppointmentStatus(String(row.status || "Pending")),
   }))
 

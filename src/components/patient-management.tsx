@@ -13,7 +13,8 @@ import {
   CalendarIcon,
   FileTextIcon,
   AlertCircleIcon,
-  EyeIcon
+  EyeIcon,
+  GripVertical,
 } from "lucide-react"
 
 import {
@@ -28,6 +29,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -162,11 +164,31 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
   const [successMsg, setSuccessMsg] = React.useState("")
   const [registerOpen, setRegisterOpen] = React.useState(false)
   const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(null)
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([])
 
   const filteredPatients = patients.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     p.email.toLowerCase().includes(search.toLowerCase())
   )
+  const allVisibleSelected =
+    filteredPatients.length > 0 && filteredPatients.every((patient) => selectedIds.includes(patient.id))
+  const someVisibleSelected = filteredPatients.some((patient) => selectedIds.includes(patient.id))
+
+  const toggleAllVisible = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds((current) => Array.from(new Set([...current, ...filteredPatients.map((patient) => patient.id)])))
+      return
+    }
+
+    const visibleIds = new Set(filteredPatients.map((patient) => patient.id))
+    setSelectedIds((current) => current.filter((id) => !visibleIds.has(id)))
+  }
+
+  const togglePatient = (id: string, checked: boolean) => {
+    setSelectedIds((current) =>
+      checked ? Array.from(new Set([...current, id])) : current.filter((selectedId) => selectedId !== id)
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -201,6 +223,17 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
+              <TableHead className="w-8 px-1.5" />
+              <TableHead className="w-8 px-1.5">
+                <div className="flex items-center justify-center">
+                  <Checkbox
+                    checked={allVisibleSelected || (someVisibleSelected && "indeterminate")}
+                    onCheckedChange={(value) => toggleAllVisible(!!value)}
+                    aria-label="Select all"
+                    className="size-[18px] rounded-[5px] border-muted-foreground/35"
+                  />
+                </div>
+              </TableHead>
               <TableHead>Patient</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Status</TableHead>
@@ -211,13 +244,37 @@ export function PatientManagement({ initialPatients }: { initialPatients: Patien
           <TableBody>
             {filteredPatients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground bg-muted/20">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground bg-muted/20">
                   <p>No patients found matching your search.</p>
                 </TableCell>
               </TableRow>
             ) : (
               filteredPatients.map((patient) => (
-                <TableRow key={patient.id} className="hover:bg-muted/30 transition-colors">
+                <TableRow
+                  key={patient.id}
+                  data-state={selectedIds.includes(patient.id) ? "selected" : undefined}
+                  className="hover:bg-muted/30 transition-colors data-[state=selected]:bg-muted/60"
+                >
+                  <TableCell className="w-8 px-1.5">
+                    <button
+                      type="button"
+                      className="flex cursor-grab items-center justify-center text-muted-foreground/70 active:cursor-grabbing"
+                      aria-label="Reorder row"
+                      tabIndex={-1}
+                    >
+                      <GripVertical className="size-4" />
+                    </button>
+                  </TableCell>
+                  <TableCell className="w-8 px-1.5">
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={selectedIds.includes(patient.id)}
+                        onCheckedChange={(value) => togglePatient(patient.id, !!value)}
+                        aria-label="Select row"
+                        className="size-[18px] rounded-[5px] border-muted-foreground/35"
+                      />
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="size-9 border-2 border-background shadow-sm">

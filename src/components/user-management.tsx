@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-table"
 import {
   ArrowUpDownIcon,
+  GripVertical,
   Columns3Icon,
   EllipsisIcon,
   DownloadIcon,
@@ -143,6 +144,22 @@ function SortableHeader({
 
 const columns: ColumnDef<User>[] = [
   {
+    id: "drag",
+    header: () => null,
+    cell: () => (
+      <button
+        type="button"
+        className="flex cursor-grab items-center justify-center text-muted-foreground/70 active:cursor-grabbing"
+        aria-label="Reorder row"
+        tabIndex={-1}
+      >
+        <GripVertical className="size-4" />
+      </button>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
     id: "select",
     header: ({ table }) => (
       <div className="flex items-center justify-center px-1">
@@ -153,7 +170,7 @@ const columns: ColumnDef<User>[] = [
           }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
-          className="border-muted-foreground/40"
+          className="size-[18px] rounded-[5px] border-muted-foreground/35"
         />
       </div>
     ),
@@ -163,7 +180,7 @@ const columns: ColumnDef<User>[] = [
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
-          className="border-muted-foreground/40"
+          className="size-[18px] rounded-[5px] border-muted-foreground/35"
         />
       </div>
     ),
@@ -639,7 +656,11 @@ export function UserManagement({ initialUsers }: { initialUsers: User[] }) {
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="text-xs font-semibold text-muted-foreground py-2.5"
+                    className={
+                      header.column.id === "drag" || header.column.id === "select"
+                        ? "w-8 px-1.5 text-xs font-semibold text-muted-foreground py-2.5"
+                        : "text-xs font-semibold text-muted-foreground py-2.5"
+                    }
                   >
                     {header.isPlaceholder
                       ? null
@@ -661,7 +682,14 @@ export function UserManagement({ initialUsers }: { initialUsers: User[] }) {
                   className="group/row border-b border-border/40 hover:bg-muted/30 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-2.5">
+                    <TableCell
+                      key={cell.id}
+                      className={
+                        cell.column.id === "drag" || cell.column.id === "select"
+                          ? "w-8 px-1.5 py-2.5"
+                          : "py-2.5"
+                      }
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

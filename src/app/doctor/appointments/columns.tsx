@@ -72,9 +72,9 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
   ]
 
   const statusValue = appointment.status.toLowerCase()
-  const canConfirm = statusValue !== "confirmed" && statusValue !== "completed"
-  const canComplete = statusValue !== "completed"
-  const canCancel = statusValue !== "completed" && statusValue !== "confirmed"
+  const canConfirm = statusValue !== "confirmed" && statusValue !== "completed" && statusValue !== "cancelled" && statusValue !== "canceled"
+  const canComplete = statusValue !== "completed" && statusValue !== "cancelled" && statusValue !== "canceled"
+  const canCancel = statusValue !== "completed" && statusValue !== "cancelled" && statusValue !== "canceled"
 
   const submitAction = async (action: "Confirm" | "Complete" | "Cancel", reason?: string) => {
     setLoadingAction(action)
@@ -98,9 +98,13 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
 
       const statusLabel = action === "Confirm" ? "confirmed" : action === "Complete" ? "completed" : "cancelled"
       toast.success(
-        result.emailSent
-          ? `Appointment ${statusLabel}. ${appointment.patientName} has been emailed.`
-          : `Appointment ${statusLabel}.`
+        action === "Cancel"
+          ? result.emailSent
+            ? `Cancellation approved. ${appointment.patientName} has been emailed.`
+            : "Cancellation approved."
+          : result.emailSent
+            ? `Appointment ${statusLabel}. ${appointment.patientName} has been emailed.`
+            : `Appointment ${statusLabel}.`
       )
 
       router.refresh()
@@ -153,7 +157,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" disabled={!canCancel} onSelect={() => handleAction("Cancel") }>
             <X className="mr-2 h-4 w-4" />
-            Cancel
+            {statusValue === "awaiting cancellation" || statusValue === "cancel requested" ? "Approve cancel" : "Cancel"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -281,6 +285,8 @@ export const columns: ColumnDef<DoctorAppointmentRow>[] = [
         badgeClass = "bg-blue-100 text-blue-800 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-800/60"
       } else if (normalized === "completed") {
         badgeClass = "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800/60"
+      } else if (normalized === "awaiting cancellation" || normalized === "cancel requested") {
+        badgeClass = "bg-amber-100 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800/60"
       } else if (normalized === "cancelled" || normalized === "canceled") {
         badgeClass = "bg-rose-100 text-rose-800 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-800/60"
       } else if (normalized === "pending") {

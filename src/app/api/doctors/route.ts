@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { resolveProfileAvatar } from "@/lib/profile-image"
 
 const parseDesignations = (value?: string | null) => {
   if (!value) return []
@@ -51,6 +52,7 @@ export async function GET() {
         board_certification: true,
         user: {
           select: {
+            id: true,
             email: true,
             designations: true,
             profile_image: true,
@@ -71,7 +73,7 @@ export async function GET() {
         name: [doctor.first_name, doctor.middle_name, doctor.last_name].filter(Boolean).join(" "),
         credential: doctor.credentials ?? "MD",
         email: doctor.user?.email ?? "",
-        avatar: doctor.user?.profile_image ?? "",
+        avatar: resolveProfileAvatar(doctor.user?.id ?? "", doctor.user?.profile_image),
         specialty: specialties.join(", "),
         specialties,
         boardCertificates,
