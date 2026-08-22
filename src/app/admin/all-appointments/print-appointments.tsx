@@ -206,8 +206,8 @@ function clinicLetterhead() {
   `
 }
 
-function field(label: string, value: string, full = false) {
-  return `<div class="field${full ? " full" : ""}"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(value)}</span></div>`
+function field(label: string, value: string | undefined, full = false) {
+  return `<div class="field${full ? " full" : ""}"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(value || "—")}</span></div>`
 }
 
 function medicalRecordPage(appointment: AppointmentRow) {

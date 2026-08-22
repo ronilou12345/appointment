@@ -23,25 +23,25 @@ export type AppointmentRow = {
   date: string
   time: string
   status: string
-  reasonForVisit: string
-  appointmentType: string
-  relationship: string
-  age: string
-  gender: string
-  contactNumber: string
-  symptoms: string
-  durationOfSymptoms: string
-  painLevel: string
-  additionalNotes: string
-  heartRate: string
-  bodyTemperature: string
-  weight: string
-  bloodSugar: string
-  chiefComplaints: string
-  physicalExamination: string
-  diagnosis: string
-  prescription: string
-  nextFollowUp: string
+  reasonForVisit?: string
+  appointmentType?: string
+  relationship?: string
+  age?: string
+  gender?: string
+  contactNumber?: string
+  symptoms?: string
+  durationOfSymptoms?: string
+  painLevel?: string
+  additionalNotes?: string
+  heartRate?: string
+  bodyTemperature?: string
+  weight?: string
+  bloodSugar?: string
+  chiefComplaints?: string
+  physicalExamination?: string
+  diagnosis?: string
+  prescription?: string
+  nextFollowUp?: string
 }
 
 const getInitials = (name: string) =>
