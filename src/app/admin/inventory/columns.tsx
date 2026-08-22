@@ -135,7 +135,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
         <Button
           size="sm"
           variant="outline"
-          className="gap-2"
+          className="gap-2 text-foreground"
           disabled={outOfStock}
           title={outOfStock ? "Out of stock" : "Add to cart"}
           onClick={() => {

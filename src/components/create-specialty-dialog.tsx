@@ -75,7 +75,7 @@ export function CreateSpecialtyDialog({ open, onOpenChange }: { open: boolean; o
     <>
       <Button size="sm" className="shadow-md shadow-primary/20" onClick={() => onOpenChange(true)}>
         <PlusIcon className="size-4 mr-2" />
-        New
+        Add Specialties
       </Button>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto sm:w-[90vw] sm:max-w-2xl">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -12,24 +12,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PlusIcon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon, SearchIcon } from "lucide-react"
 
 type UserOption = {
   id: string
@@ -39,6 +29,15 @@ type UserOption = {
   designations: string | null
   role: string
   status: string
+}
+
+function formatRole(role?: string) {
+  const normalized = (role ?? "").toUpperCase()
+  if (normalized === "NURSE") return "Doctor"
+  if (normalized === "PATIENT") return "Patient"
+  if (normalized === "ADMIN") return "Admin"
+  if (normalized === "STAFF") return "Staff"
+  return role || "User"
 }
 
 export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -51,6 +50,10 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [isLoadingSpecialties, setIsLoadingSpecialties] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [userPickerOpen, setUserPickerOpen] = useState(false)
+  const [userQuery, setUserQuery] = useState("")
+  const [specialtyPickerOpen, setSpecialtyPickerOpen] = useState(false)
+  const [specialtyQuery, setSpecialtyQuery] = useState("")
 
   useEffect(() => {
     if (!open) {
@@ -59,13 +62,17 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
       setSelectedUserId("")
       setSelectedName("")
       setSelectedDesignations([])
+      setUserPickerOpen(false)
+      setUserQuery("")
+      setSpecialtyPickerOpen(false)
+      setSpecialtyQuery("")
       return
     }
 
     const loadUsers = async () => {
       try {
         setIsLoadingUsers(true)
-        const response = await fetch("/api/users?role=NURSE")
+        const response = await fetch("/api/users")
         if (!response.ok) throw new Error("Unable to load users")
 
         const data = await response.json()
@@ -85,7 +92,12 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
         if (!response.ok) throw new Error("Unable to load specialties")
 
         const data = await response.json()
-        setSpecialties(Array.isArray(data.specialties) ? data.specialties : [])
+        const names = Array.isArray(data.specialties)
+          ? data.specialties
+              .map((item: unknown) => String(item ?? "").trim())
+              .filter(Boolean)
+          : []
+        setSpecialties(Array.from(new Set(names)))
       } catch (error) {
         console.error("Unable to load specialties", error)
         setSpecialties([])
@@ -100,6 +112,27 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
 
   const selectedUser = users.find((user) => user.id === selectedUserId)
 
+  const filteredUsers = useMemo(() => {
+    const query = userQuery.trim().toLowerCase()
+    return users.filter((user) => {
+      if (!user.id) return false
+      if (!query) return true
+      return (
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query) ||
+        formatRole(user.role).toLowerCase().includes(query)
+      )
+    })
+  }, [users, userQuery])
+
+  const filteredSpecialties = useMemo(() => {
+    const query = specialtyQuery.trim().toLowerCase()
+    return specialties.filter((specialty) => {
+      if (!query) return true
+      return specialty.toLowerCase().includes(query)
+    })
+  }, [specialties, specialtyQuery])
+
   const handleUserSelect = (value: string) => {
     const nextUser = users.find((user) => user.id === value)
 
@@ -111,6 +144,8 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
 
     setSelectedUserId(value)
     setSelectedName(nextUser.name)
+    setUserPickerOpen(false)
+    setUserQuery("")
   }
 
   const userInitials = (name: string) =>
@@ -175,7 +210,7 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
     <>
       <Button size="sm" className="shadow-md shadow-primary/20" onClick={() => onOpenChange(true)}>
         <PlusIcon className="size-4 mr-2" />
-        New
+        Assign Specialties
       </Button>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl">
@@ -189,73 +224,140 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Select a user</Label>
-                <Select value={selectedUserId} onValueChange={handleUserSelect}>
-                  <SelectTrigger id="name" className="h-11 w-full">
-                    {selectedUser ? (
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Avatar size="sm" className="size-7">
-                          {selectedUser.avatar ? (
-                            <AvatarImage src={selectedUser.avatar} alt={selectedUser.name} className="object-cover" />
-                          ) : null}
-                          <AvatarFallback>{userInitials(selectedUser.name)}</AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">{selectedUser.name}</span>
-                      </span>
-                    ) : (
-                      <SelectValue placeholder={isLoadingUsers ? "Loading users..." : "Select a user"} />
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="flex items-center gap-2">
+                <Popover open={userPickerOpen} onOpenChange={setUserPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="name"
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={userPickerOpen}
+                      className="h-11 w-full justify-between px-2.5 font-normal"
+                    >
+                      {selectedUser ? (
+                        <span className="flex min-w-0 items-center gap-2">
                           <Avatar size="sm" className="size-7">
-                            {user.avatar ? (
-                              <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
+                            {selectedUser.avatar ? (
+                              <AvatarImage src={selectedUser.avatar} alt={selectedUser.name} className="object-cover" />
                             ) : null}
-                            <AvatarFallback>{userInitials(user.name)}</AvatarFallback>
+                            <AvatarFallback>{userInitials(selectedUser.name)}</AvatarFallback>
                           </Avatar>
-                          <span>{user.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                          <span className="truncate">{selectedUser.name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {isLoadingUsers ? "Loading users..." : "Select a user"}
+                        </span>
+                      )}
+                      <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="z-[200] w-[var(--radix-popover-trigger-width)] p-0">
+                    <div className="relative border-b p-2">
+                      <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={userQuery}
+                        onChange={(event) => setUserQuery(event.target.value)}
+                        placeholder="Search name, email, or role"
+                        className="h-9 pl-8"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-72 overflow-y-auto p-1">
+                      {isLoadingUsers ? (
+                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">Loading users...</p>
+                      ) : filteredUsers.length === 0 ? (
+                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">No users found.</p>
+                      ) : (
+                        filteredUsers.map((user) => {
+                          const isSelected = user.id === selectedUserId
+                          return (
+                            <button
+                              key={user.id}
+                              type="button"
+                              onClick={() => handleUserSelect(user.id)}
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <Avatar size="sm" className="size-7">
+                                {user.avatar ? (
+                                  <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
+                                ) : null}
+                                <AvatarFallback>{userInitials(user.name)}</AvatarFallback>
+                              </Avatar>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium">{user.name}</span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {user.email} · {formatRole(user.role)}
+                                </span>
+                              </span>
+                              {isSelected ? <CheckIcon className="size-4 shrink-0 text-primary" /> : null}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 {selectedName ? (
                   <p className="text-sm text-muted-foreground">Selected: {selectedName}</p>
                 ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="designations">Select specialties</Label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                <Popover open={specialtyPickerOpen} onOpenChange={setSpecialtyPickerOpen}>
+                  <PopoverTrigger asChild>
                     <Button
+                      id="designations"
+                      type="button"
                       variant="outline"
-                      className="justify-between w-full text-left"
+                      role="combobox"
+                      aria-expanded={specialtyPickerOpen}
+                      className="h-11 w-full justify-between px-2.5 font-normal"
                     >
-                      <span>
+                      <span className="truncate">
                         {selectedDesignations.length
                           ? selectedDesignations.join(", ")
                           : isLoadingSpecialties
                           ? "Loading specialties..."
                           : "Select specialties"}
                       </span>
+                      <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-full max-w-sm">
-                    <DropdownMenuLabel>Specialties</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {specialties.map((specialty) => (
-                      <DropdownMenuCheckboxItem
-                        key={specialty}
-                        checked={selectedDesignations.includes(specialty)}
-                        onCheckedChange={(checked) => toggleDesignation(specialty, Boolean(checked))}
-                      >
-                        {specialty}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="z-[200] w-[var(--radix-popover-trigger-width)] p-0">
+                    <div className="relative border-b p-2">
+                      <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={specialtyQuery}
+                        onChange={(event) => setSpecialtyQuery(event.target.value)}
+                        placeholder="Search specialties"
+                        className="h-9 pl-8"
+                      />
+                    </div>
+                    <div className="max-h-72 overflow-y-auto p-1">
+                      {isLoadingSpecialties ? (
+                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">Loading specialties...</p>
+                      ) : filteredSpecialties.length === 0 ? (
+                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">No specialties found.</p>
+                      ) : (
+                        filteredSpecialties.map((specialty) => {
+                          const isSelected = selectedDesignations.includes(specialty)
+                          return (
+                            <button
+                              key={specialty}
+                              type="button"
+                              onClick={() => toggleDesignation(specialty, !isSelected)}
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <span className="min-w-0 flex-1 truncate">{specialty}</span>
+                              {isSelected ? <CheckIcon className="size-4 shrink-0 text-primary" /> : null}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

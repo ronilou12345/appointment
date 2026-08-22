@@ -1,8 +1,8 @@
 import prisma from "@/lib/prisma"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { StatusBadge } from "@/app/admin/manage-users/columns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { resolveProfileAvatar } from "@/lib/profile-image"
 
 type Props = {
@@ -16,17 +16,6 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .map((part) => part[0].toUpperCase())
     .join("") || "DR"
-
-const getStatusVariant = (status?: string | null) => {
-  switch (status?.toLowerCase()) {
-    case "active":
-      return "default"
-    case "inactive":
-      return "secondary"
-    default:
-      return "outline"
-  }
-}
 
 const parseDesignations = (value?: string | null) => {
   if (!value) return []
@@ -122,9 +111,7 @@ export default async function AdminDoctorDetailPage({ params }: Props) {
                   <p className="text-lg font-semibold text-foreground">{doctor.user.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{doctor.user.email || "No email provided"}</p>
                 </div>
-                <Badge variant={getStatusVariant(doctor.user.status)} className="capitalize">
-                  {doctor.user.status || "Unknown"}
-                </Badge>
+                <StatusBadge status={doctor.user.status ?? "Active"} />
               </div>
             </div>
 

@@ -27,6 +27,7 @@ import {
 import { Search, Box, CheckCircle, AlertTriangle, XCircle, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
+import { Separator } from "@/components/ui/separator"
 
 type CartItem = {
   id: string
@@ -442,7 +443,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
         <div className="flex flex-shrink-0 gap-3">
           <Button
             size="sm"
-            className="bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-md shadow-primary/20 hover:from-orange-500 hover:to-orange-600"
+            className="shadow-md shadow-primary/20"
             onClick={() => setCartOpen(true)}
           >
             <ShoppingCart className="size-4 mr-2" />
@@ -489,7 +490,9 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
         <DataTable columns={columns} data={filteredRows} />
       </div>
 
-      <div className="mt-10">
+      <Separator className="my-10 h-px w-full bg-border" />
+
+      <div>
         <div className="mb-6">
           <h2 className="text-3xl font-semibold text-foreground">Medicine Sales</h2>
           <p className="mt-2 text-muted-foreground">
