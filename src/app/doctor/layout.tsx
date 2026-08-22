@@ -20,7 +20,7 @@ export default async function DoctorLayout({ children }: { children: React.React
     name: session.name,
     email: session.email,
     role,
-    avatar: resolveProfileAvatar(session.id, session.profile_image) || "/avatars/shadcn.jpg",
+    avatar: resolveProfileAvatar(session.id, session.profile_image),
   }
 
   return (

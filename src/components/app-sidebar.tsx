@@ -110,7 +110,7 @@ const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "",
     role: "ADMIN" as const,
   },
   navMain: adminNavMain,

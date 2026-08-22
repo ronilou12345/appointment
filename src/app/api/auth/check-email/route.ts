@@ -10,8 +10,11 @@ export async function GET(request: NextRequest) {
 
   const existing = await prisma.user.findUnique({
     where: { email },
-    select: { id: true },
+    select: { id: true, status: true },
   })
 
-  return NextResponse.json({ success: true, exists: Boolean(existing) })
+  return NextResponse.json({
+    success: true,
+    exists: Boolean(existing) && existing?.status !== "INACTIVE",
+  })
 }

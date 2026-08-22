@@ -48,7 +48,7 @@ export default async function ClientDashboardPage() {
     ? {
         name: session.name,
         email: session.email,
-        avatar: session.profile_image ?? fallbackUser.avatar,
+        avatar: session.profile_image ?? "",
       }
     : fallbackUser
 

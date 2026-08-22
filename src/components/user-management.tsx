@@ -40,6 +40,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircleIcon } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getNameInitials, hasProfileImage } from "@/lib/user-initials"
 import { useRouter } from "next/navigation"
 import { createUserAction } from "@/lib/actions/user"
 import { Badge } from "@/components/ui/badge"
@@ -96,13 +97,7 @@ export type User = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter((w) => /^[A-Z]/.test(w))
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
+  return getNameInitials(name)
 }
 
 function StatusBadge({ status }: { status: User["status"] }) {
@@ -185,7 +180,7 @@ const columns: ColumnDef<User>[] = [
       return (
         <div className="flex items-center gap-3 min-w-0">
           <Avatar className="size-9 shrink-0 ring-2 ring-background">
-            <AvatarImage src={user.avatar} alt={user.name} />
+            {hasProfileImage(user.avatar) ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
               {getInitials(user.name)}
             </AvatarFallback>

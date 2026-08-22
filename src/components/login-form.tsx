@@ -56,8 +56,14 @@ export function LoginForm({
       setError(googleErrorMessages[errorCode] ?? "Sign-in failed. Please try again.")
     } else if (params.get("reset") === "success") {
       setInfo("Your password was updated. You can sign in with the new password.")
+    } else if (params.get("verified") === "success") {
+      setInfo("Your email is verified. You can sign in now.")
+    } else if (params.get("verified") === "expired") {
+      setError("That verification link has expired. Sign up again to receive a new email.")
+    } else if (params.get("verified") === "invalid") {
+      setError("That verification link is invalid. Sign up again to receive a new email.")
     } else if (params.get("signup") === "success") {
-      setInfo("Your account was created. You can sign in now.")
+      setInfo("Check your email and click the verification link before signing in.")
     }
     if (params.toString()) {
       window.history.replaceState(null, "", window.location.pathname)

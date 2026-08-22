@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { updateUserProfileAction } from "@/lib/actions/user"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getNameInitials, hasProfileImage } from "@/lib/user-initials"
 
 interface AccountSettingsFormProps {
   user: {
@@ -27,13 +28,7 @@ interface AccountSettingsFormProps {
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "U"
+  return getNameInitials(name)
 }
 
 function readImageFile(file: File) {
@@ -99,8 +94,10 @@ export function AccountSettingsForm({ user, redirectPath, title, description }: 
           <div className="flex items-center gap-4">
             <label htmlFor="profile-image-upload" className="relative cursor-pointer">
               <Avatar size="lg">
-                {profileImagePreview ? <AvatarImage src={profileImagePreview} alt={user.name || "Profile"} /> : null}
-                <AvatarFallback className="bg-primary/5 text-primary font-semibold">{initials}</AvatarFallback>
+                {hasProfileImage(profileImagePreview) ? (
+                  <AvatarImage src={profileImagePreview} alt={user.name || "Profile"} />
+                ) : null}
+                <AvatarFallback className="bg-primary font-semibold text-primary-foreground">{initials}</AvatarFallback>
               </Avatar>
               <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm">
                 <CameraIcon className="size-3.5" />

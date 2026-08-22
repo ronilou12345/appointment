@@ -391,7 +391,7 @@ export function BookAppointmentContent() {
   const handleNext = () => {
     const ok = canAdvance(currentStep)
     if (!ok.success) {
-      toast.error(ok.message)
+      toast.error(ok.message, { id: "booking-step-error" })
       return
     }
 
@@ -441,7 +441,7 @@ export function BookAppointmentContent() {
     for (let i = currentStep; i < index; i++) {
       const ok = canAdvance(i)
       if (!ok.success) {
-        toast.error(ok.message)
+        toast.error(ok.message, { id: "booking-step-error" })
         return
       }
     }

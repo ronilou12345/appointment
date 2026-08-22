@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { registerUser } from "@/lib/actions/auth"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Mail } from "lucide-react"
 
 export function SignupForm({
   className,
@@ -35,6 +35,7 @@ export function SignupForm({
   const [emailValue, setEmailValue] = useState("")
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle")
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [verificationSentTo, setVerificationSentTo] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -101,7 +102,7 @@ export function SignupForm({
     if (result.error) {
       setError(result.error)
     } else {
-      router.push("/login?signup=success")
+      setVerificationSentTo(emailValue.trim().toLowerCase())
     }
   }
 
@@ -109,12 +110,36 @@ export function SignupForm({
     <div className={cn("flex flex-col gap-6 bg-white px-4 py-6 text-foreground sm:px-6 dark:bg-slate-950 dark:text-white", className)} {...props}>
       <Card className="border-border bg-white/95 text-foreground shadow-2xl dark:border-white/10 dark:bg-zinc-950/95 dark:text-white">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Create your account</CardTitle>
+          <CardTitle className="text-xl">{verificationSentTo ? "Verify your email" : "Create your account"}</CardTitle>
           <CardDescription>
-            Enter your email below to create your account
+            {verificationSentTo
+              ? "We sent a verification link to your email"
+              : "Enter your email below to create your account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {verificationSentTo ? (
+            <div className="space-y-6 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Mail className="size-6" />
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">
+                We sent a verification email to{" "}
+                <span className="font-medium text-foreground">{verificationSentTo}</span>.
+                Open that email and click <span className="font-medium text-foreground">Verify your account</span>.
+                After you verify, you can sign in.
+              </p>
+              <Button type="button" className="w-full" onClick={() => router.push("/login")}>
+                Go to login
+              </Button>
+              <Button type="button" variant="outline" className="w-full" onClick={() => setVerificationSentTo("")}>
+                Resend verification email
+              </Button>
+              <FieldDescription className="text-center">
+                Didn&apos;t get the email? Check your spam folder, then resend it.
+              </FieldDescription>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               {error && (
@@ -259,6 +284,7 @@ export function SignupForm({
               </Field>
             </FieldGroup>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

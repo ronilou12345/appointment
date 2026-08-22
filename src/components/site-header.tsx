@@ -28,6 +28,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { logoutUser } from "@/lib/actions/auth"
+import { getNameInitials, hasProfileImage } from "@/lib/user-initials"
 import type { AppNotification, NotificationType } from "@/lib/notifications"
 import {
   BellIcon,
@@ -84,15 +85,7 @@ const notificationStyles: Record<NotificationType, { icon: React.ReactNode; acce
 }
 
 function getPersonInitials(name: string) {
-  const initials = name
-    .replace(/^Dr\.?\s+/i, "")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-
-  return initials.toUpperCase() || "U"
+  return getNameInitials(name)
 }
 
 function formatRelativeTime(value: string) {
@@ -556,8 +549,10 @@ export function SiteHeader({
                 aria-label="Open user menu"
               >
                 <Avatar className="h-8 w-8 rounded-full">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  {hasProfileImage(user.avatar) ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
+                  <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
+                    {getNameInitials(user.name)}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>

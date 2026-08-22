@@ -1,4 +1,4 @@
-@import "tailwindcss"; 
+@import "tailwindcss";
 
 @plugin "tailwindcss-animate";
 
@@ -221,4 +221,106 @@
 
 .splash-dot:nth-child(3) {
   animation-delay: 0.3s;
+}
+
+@font-face {
+  font-family: "Cal Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/cal-sans.woff2") format("woff2");
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+[data-sonner-toaster] {
+  z-index: 70 !important;
+}
+
+[data-sonner-toaster][data-y-position="bottom"] {
+  bottom: 16px !important;
+}
+
+[data-sonner-toaster][data-x-position="right"] {
+  right: 16px !important;
+}
+
+[data-sonner-toast],
+.cn-toast {
+  overflow: visible;
+  font-family: "Cal Sans", "CalSans-SemiBold", sans-serif !important;
+}
+
+[data-sonner-toast][data-styled="true"] [data-close-button],
+[data-sonner-toast] [data-close-button] {
+  z-index: 40 !important;
+}
+
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-content],
+[data-sonner-toast] [data-description],
+.cn-toast [data-title],
+.toast-title {
+  font-family: "Cal Sans", "CalSans-SemiBold", sans-serif !important;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+[data-sonner-toast] [data-icon],
+.toast-icon {
+  display: flex !important;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-sonner-toast] [data-icon] svg,
+.toast-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.toast-progress-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  height: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  pointer-events: none;
+}
+
+.toast-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: hsl(var(--primary));
+  animation: toast-progress 4s linear forwards;
+}
+
+.toast-progress-fill[data-variant="success"] {
+  background: #22c55e;
+}
+
+.toast-progress-fill[data-variant="error"] {
+  background: #ef4444;
+}
+
+.toast-progress-fill[data-variant="warning"] {
+  background: #f59e0b;
+}
+
+[data-sonner-toast][data-paused="true"] .toast-progress-fill {
+  animation-play-state: paused;
 }

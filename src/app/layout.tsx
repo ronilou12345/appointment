@@ -43,7 +43,7 @@ export default function RootLayout({
           <PageLoadProgress />
           <TooltipProvider>
             {children}
-            <Toaster richColors closeButton position="bottom-right" />
+            <Toaster richColors closeButton position="bottom-right" expand duration={4000} />
           </TooltipProvider>
         </ThemeProvider>
       </body>
