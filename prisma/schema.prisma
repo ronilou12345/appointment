@@ -103,6 +103,7 @@ model medicine_sales {
   total_amount       Decimal?            @default(dbgenerated("((quantity_sold)::numeric * unit_price)")) @db.Decimal(10, 2)
   sale_date          DateTime            @default(now()) @db.Timestamp(6)
   sold_by            String?             @db.VarChar(150)
+  discount_percent   Decimal?            @default(0) @db.Decimal(5, 2)
   medicine_inventory medicine_inventory  @relation(fields: [medicine_id], references: [medicine_id], onDelete: NoAction, onUpdate: NoAction)
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { logCurrentUserActivity } from "@/lib/activity-log"
 import { getSession } from "@/lib/auth-utils"
+import { ensureMedicineSalesDiscountColumn } from "@/lib/medicine-sales"
 
 function inventoryStatus(quantity: number, reorderLevel: number) {
   if (quantity <= 0) return "Out of Stock"
@@ -28,6 +29,9 @@ export async function POST(request: NextRequest) {
     if (items.length === 0) {
       return NextResponse.json({ success: false, error: "Cart items are invalid" }, { status: 400 })
     }
+
+    const discountPercent = Math.min(100, Math.max(0, Number(body.discountPercent) || 0))
+    await ensureMedicineSalesDiscountColumn()
 
     const medicines = await prisma.medicine_inventory.findMany({
       where: {
@@ -99,8 +103,8 @@ export async function POST(request: NextRequest) {
 
       for (const item of deducted) {
         await prisma.$executeRaw`
-          INSERT INTO medicine_sales (medicine_id, quantity_sold, unit_price, sold_by)
-          VALUES (${item.id}, ${item.quantity}, ${item.unitPrice}, ${soldBy})
+          INSERT INTO medicine_sales (medicine_id, quantity_sold, unit_price, sold_by, discount_percent)
+          VALUES (${item.id}, ${item.quantity}, ${item.unitPrice}, ${soldBy}, ${discountPercent})
         `
       }
     } catch (error) {

@@ -8,6 +8,7 @@ import { salesColumns, MedicineSaleRow } from "./sales-columns"
 import { AddMedicineDialog } from "@/components/add-medicine-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Sheet,
@@ -54,6 +55,7 @@ function CheckoutSummaryDialog({
   items,
   subtotal,
   discount,
+  discountPercent,
   total,
   loading,
   onConfirm,
@@ -63,6 +65,7 @@ function CheckoutSummaryDialog({
   items: CartItem[]
   subtotal: number
   discount: number
+  discountPercent: number
   total: number
   loading: boolean
   onConfirm: () => void
@@ -114,7 +117,7 @@ function CheckoutSummaryDialog({
             <span className="font-semibold">₱{subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
-            <span>Discount (10%)</span>
+            <span>Discount ({discountPercent}%)</span>
             <span className="font-semibold text-green-600">-₱{discount.toFixed(2)}</span>
           </div>
           <div className="flex justify-between border-t pt-2 text-base font-bold">
@@ -128,7 +131,7 @@ function CheckoutSummaryDialog({
             Cancel
           </Button>
           <Button
-            className="bg-gradient-to-r from-orange-400 to-orange-500 text-white hover:from-orange-500 hover:to-orange-600"
+            className="shadow-md shadow-primary/20"
             onClick={onConfirm}
             disabled={loading || items.length === 0}
           >
@@ -211,6 +214,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const [cartSearchQuery, setCartSearchQuery] = useState("")
   const [selectedMedicineIds, setSelectedMedicineIds] = useState<Record<string, boolean>>({})
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [discountInput, setDiscountInput] = useState("")
 
   const filteredRows = rows
   const searchResults = cartSearchQuery.trim()
@@ -355,8 +359,10 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
 
   const selectedCount = Object.values(selectedMedicineIds).filter(Boolean).length
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const discount = Math.round(subtotal * 0.1 * 100) / 100 // 10% discount
-  const total = subtotal - discount
+  const parsedDiscount = Number(discountInput)
+  const discountPercent = Number.isNaN(parsedDiscount) ? 0 : Math.min(100, Math.max(0, parsedDiscount))
+  const discount = Math.round(subtotal * (discountPercent / 100) * 100) / 100
+  const total = Math.max(0, subtotal - discount)
 
   const openCheckoutSummary = () => {
     if (cartItems.length === 0) return
@@ -385,6 +391,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
             id: Number(item.id),
             quantity: item.quantity,
           })),
+          discountPercent,
         }),
       })
       const result = await response.json()
@@ -394,6 +401,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
 
       toast.success("Checkout complete. Inventory and sales updated.")
       setCartItems([])
+      setDiscountInput("")
       setCheckoutOpen(false)
       setCartOpen(false)
       router.refresh()
@@ -685,9 +693,33 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
                 <span>Subtotal:</span>
                 <span className="font-semibold">₱{subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Discount (10%):</span>
-                <span className="font-semibold text-green-600">-₱{discount.toFixed(2)}</span>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <Label htmlFor="cart-discount" className="shrink-0">
+                  Discount (%):
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="cart-discount"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={discountInput}
+                    placeholder="%"
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      if (raw === "") {
+                        setDiscountInput("")
+                        return
+                      }
+                      const nextValue = Number(raw)
+                      if (Number.isNaN(nextValue)) return
+                      setDiscountInput(String(Math.min(100, Math.max(0, nextValue))))
+                    }}
+                    className="h-8 w-20 text-right"
+                  />
+                  <span className="w-24 text-right font-semibold text-green-600">-₱{discount.toFixed(2)}</span>
+                </div>
               </div>
               <div className="flex justify-between text-base font-bold pt-2 border-t">
                 <span>Total:</span>
@@ -695,7 +727,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
               </div>
 
               <Button
-                className="mt-2 w-full bg-gradient-to-r from-orange-400 to-orange-500 text-white hover:from-orange-500 hover:to-orange-600"
+                className="mt-2 w-full shadow-md shadow-primary/20"
                 onClick={openCheckoutSummary}
               >
                 Checkout
@@ -722,6 +754,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
         items={cartItems}
         subtotal={subtotal}
         discount={discount}
+        discountPercent={discountPercent}
         total={total}
         loading={checkoutLoading}
         onConfirm={confirmCheckout}

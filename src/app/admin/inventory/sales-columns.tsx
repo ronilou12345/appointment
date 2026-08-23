@@ -10,6 +10,7 @@ export type MedicineSaleRow = {
   totalAmount: number
   saleDate: string
   soldBy: string
+  discountPercent?: number
 }
 
 function formatSaleDate(value: string) {
@@ -58,11 +59,31 @@ export const salesColumns: ColumnDef<MedicineSaleRow>[] = [
     },
   },
   {
+    accessorKey: "discountPercent",
+    header: "Discount",
+    cell: ({ row }) => {
+      const percent = Number(row.original.discountPercent ?? 0)
+      if (!percent) return <span className="text-muted-foreground">—</span>
+      return <span className="font-medium text-green-600">{percent}%</span>
+    },
+  },
+  {
     accessorKey: "totalAmount",
     header: "Total",
     cell: ({ row }) => {
-      const total = row.getValue("totalAmount") as number
-      return <span className="font-semibold">₱{total.toFixed(2)}</span>
+      const total = Number(row.getValue("totalAmount") ?? 0)
+      const percent = Number(row.original.discountPercent ?? 0)
+      const discountAmount = Math.round(total * (percent / 100) * 100) / 100
+      const discountedTotal = Math.max(0, total - discountAmount)
+
+      return (
+        <span className="font-semibold">
+          ₱{discountedTotal.toFixed(2)}
+          {discountAmount > 0 ? (
+            <span className="ml-1 font-medium text-green-600">(−₱{discountAmount.toFixed(2)})</span>
+          ) : null}
+        </span>
+      )
     },
   },
   {

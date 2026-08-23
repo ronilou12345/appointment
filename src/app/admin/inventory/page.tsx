@@ -2,6 +2,7 @@ import { MedicineRow } from "./columns"
 import { MedicineSaleRow } from "./sales-columns"
 import { InventoryContent } from "./content"
 import prisma from "@/lib/prisma"
+import { ensureMedicineSalesDiscountColumn } from "@/lib/medicine-sales"
 
 type SaleQueryRow = {
   sale_id: number
@@ -11,9 +12,12 @@ type SaleQueryRow = {
   total_amount: unknown
   sale_date: Date | string
   sold_by: string | null
+  discount_percent: unknown
 }
 
 export default async function Page() {
+  await ensureMedicineSalesDiscountColumn()
+
   const [medicines, sales] = await Promise.all([
     prisma.medicine_inventory.findMany({
       where: { NOT: { status: { equals: "Deleted", mode: "insensitive" } } },
@@ -27,7 +31,8 @@ export default async function Page() {
         s.unit_price,
         s.total_amount,
         s.sale_date,
-        s.sold_by
+        s.sold_by,
+        s.discount_percent
       FROM medicine_sales s
       LEFT JOIN medicine_inventory i ON i.medicine_id = s.medicine_id
       ORDER BY s.sale_date DESC
@@ -55,6 +60,7 @@ export default async function Page() {
     totalAmount: Number(sale.total_amount ?? Number(sale.unit_price) * Number(sale.quantity_sold)),
     saleDate: sale.sale_date instanceof Date ? sale.sale_date.toISOString() : new Date(sale.sale_date).toISOString(),
     soldBy: sale.sold_by?.trim() || "—",
+    discountPercent: Number(sale.discount_percent ?? 0),
   }))
 
   return <InventoryContent rows={rows} sales={saleRows} />
