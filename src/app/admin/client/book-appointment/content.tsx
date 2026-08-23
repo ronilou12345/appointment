@@ -35,6 +35,8 @@ type SessionOption = {
   appointmentTypes?: string[]
 }
 
+const namedPatientRelationships = new Set(["My Child", "My Father", "My Mother", "My Spouse"])
+
 const steps: StepperItem[] = [
   {
     title: "Select Doctor",
@@ -78,6 +80,7 @@ export function BookAppointmentContent() {
     reason: "",
     patientRelationship: "",
     patientRelationshipOther: "",
+    patientName: "",
     age: "",
     gender: "",
     contactNumber: "",
@@ -114,14 +117,18 @@ export function BookAppointmentContent() {
   useEffect(() => {
     const loadDoctors = async () => {
       try {
-        const response = await fetch("/api/doctors")
+        const response = await fetch("/api/doctors?status=active")
         const result = await response.json()
 
         if (!response.ok || !result.success) {
           throw new Error(result.error || "Unable to load doctors")
         }
 
-        setDoctors(result.doctors ?? [])
+        const activeDoctors = (result.doctors ?? []).filter((doctor: DoctorOption & { status?: string }) => {
+          const status = String(doctor.status ?? "active").trim().toLowerCase()
+          return status === "active"
+        })
+        setDoctors(activeDoctors)
         setDoctorError("")
       } catch (error) {
         setDoctorError(error instanceof Error ? error.message : "Unable to load doctors")
@@ -339,6 +346,9 @@ export function BookAppointmentContent() {
     setFormData((prev) => ({
       ...prev,
       [name]: nextValue,
+      ...(name === "patientRelationship" && !namedPatientRelationships.has(nextValue)
+        ? { patientName: "" }
+        : {}),
     }))
   }
 
@@ -423,6 +433,8 @@ export function BookAppointmentContent() {
       if (!formData.patientRelationship) return { success: false, message: "Please select who the patient is." }
       if (formData.patientRelationship === "Other" && !formData.patientRelationshipOther)
         return { success: false, message: "Please enter the patient's relationship." }
+      if (namedPatientRelationships.has(formData.patientRelationship) && !formData.patientName.trim())
+        return { success: false, message: "Please enter the patient's name." }
       if (!formData.reason) return { success: false, message: "Please enter the reason for the visit." }
       return { success: true }
     }
@@ -468,7 +480,12 @@ export function BookAppointmentContent() {
       appointmentTime: formData.time || undefined,
       appointmentType: formData.appointmentType || "General Consultation",
       reasonForVisit: formData.reason,
-      relationship: formData.patientRelationship === "Other" ? formData.patientRelationshipOther || "Other" : formData.patientRelationship,
+      relationship:
+        formData.patientRelationship === "Other"
+          ? formData.patientRelationshipOther || "Other"
+          : namedPatientRelationships.has(formData.patientRelationship) && formData.patientName.trim()
+            ? `${formData.patientRelationship} — ${formData.patientName.trim()}`
+            : formData.patientRelationship,
       age: formData.age ? Number(formData.age) : undefined,
       gender: formData.gender || undefined,
       contactNumber: cleanedContactNumber || undefined,
@@ -505,6 +522,7 @@ export function BookAppointmentContent() {
         reason: "",
         patientRelationship: "",
         patientRelationshipOther: "",
+        patientName: "",
         age: "",
         gender: "",
         contactNumber: "",
@@ -543,6 +561,10 @@ export function BookAppointmentContent() {
             ) : doctorError ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">
                 {doctorError}
+              </div>
+            ) : doctors.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                No active doctors are available to book right now.
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -862,6 +884,20 @@ export function BookAppointmentContent() {
                 </div>
               )}
 
+              {namedPatientRelationships.has(formData.patientRelationship) && (
+                <div>
+                  <Label htmlFor="patientName">Patient name</Label>
+                  <input
+                    id="patientName"
+                    name="patientName"
+                    placeholder={`Enter ${formData.patientRelationship.toLowerCase()}'s name`}
+                    value={formData.patientName}
+                    onChange={handleInputChange}
+                    className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="reason">Reason for Visit</Label>
                 <input
@@ -1005,7 +1041,9 @@ export function BookAppointmentContent() {
               const patientLabel =
                 formData.patientRelationship === "Other" && formData.patientRelationshipOther
                   ? `Other — ${formData.patientRelationshipOther}`
-                  : formData.patientRelationship || "Not selected"
+                  : namedPatientRelationships.has(formData.patientRelationship) && formData.patientName.trim()
+                    ? `${formData.patientRelationship} — ${formData.patientName.trim()}`
+                    : formData.patientRelationship || "Not selected"
 
               return (
                 <>
@@ -1065,6 +1103,12 @@ export function BookAppointmentContent() {
                           <p className="text-sm text-muted-foreground">Who is the patient?</p>
                           <p className="mt-1 font-semibold">{patientLabel}</p>
                         </div>
+                        {namedPatientRelationships.has(formData.patientRelationship) ? (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Patient name</p>
+                            <p className="mt-1 font-semibold">{formData.patientName.trim() || "Not provided"}</p>
+                          </div>
+                        ) : null}
                         <div>
                           <p className="text-sm text-muted-foreground">Contact number</p>
                           <p className="mt-1 font-semibold">{formData.contactNumber || "Not provided"}</p>

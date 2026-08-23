@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { resolveProfileAvatar } from "@/lib/profile-image"
 
@@ -39,9 +39,25 @@ const getBoardCertificates = (boardCertification?: string | null) => {
   return Array.from(new Set(boardNames)).filter(Boolean)
 }
 
-export async function GET() {
+function isActiveStatus(status?: string | null) {
+  return (status ?? "").trim().toLowerCase() === "active"
+}
+
+export async function GET(request: NextRequest) {
   try {
+    const statusFilter = request.nextUrl.searchParams.get("status")?.trim().toLowerCase()
+    const activeOnly = statusFilter === "active"
+
     const doctors = await prisma.doctor.findMany({
+      where: activeOnly
+        ? {
+            user: {
+              is: {
+                status: "ACTIVE",
+              },
+            },
+          }
+        : undefined,
       select: {
         doctor_id: true,
         first_name: true,
@@ -56,13 +72,16 @@ export async function GET() {
             email: true,
             designations: true,
             profile_image: true,
+            status: true,
           },
         },
       },
       orderBy: [{ first_name: "asc" }, { last_name: "asc" }],
     })
 
-    const formattedDoctors = doctors.map((doctor) => {
+    const formattedDoctors = doctors
+      .filter((doctor) => !activeOnly || isActiveStatus(doctor.user?.status))
+      .map((doctor) => {
       const designations = parseDesignations(doctor.user?.designations ?? null)
       const specialties = getDoctorSpecialties(designations)
       const boardCertificates = getBoardCertificates(doctor.board_certification)
@@ -74,6 +93,7 @@ export async function GET() {
         credential: doctor.credentials ?? "MD",
         email: doctor.user?.email ?? "",
         avatar: resolveProfileAvatar(doctor.user?.id ?? "", doctor.user?.profile_image),
+        status: doctor.user?.status ?? "",
         specialty: specialties.join(", "),
         specialties,
         boardCertificates,

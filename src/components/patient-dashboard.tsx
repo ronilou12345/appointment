@@ -141,7 +141,11 @@ export function PatientDashboard({ user, nextPending, latestVitals, healthTrend 
               <CalendarIcon className="mr-2 size-4" />
               Book Appointment
             </Button>
-            <Button variant="outline" className="rounded-full bg-white/10 border-white/20 hover:bg-white/20 text-white">
+            <Button
+              variant="outline"
+              className="rounded-full bg-white/10 border-white/20 hover:bg-white/20 text-white"
+              onClick={() => router.push("/client/appointments")}
+            >
               <FileTextIcon className="mr-2 size-4" />
               View Records
             </Button>

@@ -313,16 +313,28 @@ function CreateUserModal({
       <DialogContent className="w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto sm:max-w-[720px] sm:w-[90vw]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <UserIcon className="size-5" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <UserIcon className="size-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold">Create User</DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground">
+                    Create the account details. A verification email will be sent after creation.
+                  </DialogDescription>
+                </div>
               </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">Create User</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  Create the account details. A verification email will be sent after creation.
-                </DialogDescription>
-              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                aria-label="Close"
+                onClick={() => onOpenChange(false)}
+              >
+                <XIcon className="size-4" />
+              </Button>
             </div>
           </DialogHeader>
 
@@ -897,8 +909,8 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
           <h1 className="text-3xl font-semibold text-foreground">Users</h1>
           <p className="text-sm text-muted-foreground">Manage user information and profiles.</p>
         </div>
-        <Button className="w-full sm:w-auto" variant="secondary" onClick={() => setCreateOpen(true)}>
-           + Add
+        <Button size="sm" className="w-full shadow-md shadow-primary/20 sm:w-auto" onClick={() => setCreateOpen(true)}>
+          Add Users
         </Button>
       </div>
 

@@ -72,11 +72,15 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
     const loadUsers = async () => {
       try {
         setIsLoadingUsers(true)
-        const response = await fetch("/api/users")
+        const response = await fetch("/api/users?role=NURSE")
         if (!response.ok) throw new Error("Unable to load users")
 
         const data = await response.json()
-        setUsers(data.users ?? [])
+        const doctors = (data.users ?? []).filter((user: UserOption) => {
+          const role = String(user.role ?? "").toUpperCase()
+          return role === "NURSE" || role === "DOCTOR"
+        })
+        setUsers(doctors)
       } catch (error) {
         console.error("Unable to load users", error)
         setUsers([])
@@ -168,7 +172,7 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
     event.preventDefault()
 
     if (!selectedUserId) {
-      toast.error("Please select a user before saving.")
+      toast.error("Please select a doctor before saving.")
       return
     }
 
@@ -223,7 +227,7 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Select a user</Label>
+                <Label htmlFor="name">Select doctor</Label>
                 <Popover open={userPickerOpen} onOpenChange={setUserPickerOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -246,7 +250,7 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
                         </span>
                       ) : (
                         <span className="text-muted-foreground">
-                          {isLoadingUsers ? "Loading users..." : "Select a user"}
+                          {isLoadingUsers ? "Loading doctors..." : "Select doctor"}
                         </span>
                       )}
                       <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -258,16 +262,16 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
                       <Input
                         value={userQuery}
                         onChange={(event) => setUserQuery(event.target.value)}
-                        placeholder="Search name, email, or role"
+                        placeholder="Search doctors"
                         className="h-9 pl-8"
                         autoFocus
                       />
                     </div>
                     <div className="max-h-72 overflow-y-auto p-1">
                       {isLoadingUsers ? (
-                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">Loading users...</p>
+                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">Loading doctors...</p>
                       ) : filteredUsers.length === 0 ? (
-                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">No users found.</p>
+                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">No doctors found.</p>
                       ) : (
                         filteredUsers.map((user) => {
                           const isSelected = user.id === selectedUserId

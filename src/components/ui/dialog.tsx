@@ -40,7 +40,7 @@ export function Dialog({ children, open, onOpenChange, className, ...props }: Di
         aria-hidden
       />
       <div
-        className="relative z-10 flex w-full justify-center"
+        className="relative z-10 flex w-auto max-w-full justify-center"
         onClick={(event) => event.stopPropagation()}
       >
         {children}

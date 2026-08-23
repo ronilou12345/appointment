@@ -3,7 +3,6 @@
 import { randomUUID } from "crypto"
 import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
 import prisma from "@/lib/prisma"
 import { saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
 import { logActivity } from "@/lib/activity-log"
@@ -34,24 +33,42 @@ export async function updateUserProfileAction(formData: FormData) {
   const userId = formData.get("userId")?.toString().trim()
   const name = formData.get("name")?.toString().trim() ?? ""
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
-  const password = formData.get("password")?.toString() ?? ""
-  const designations = formData.get("designations")?.toString().trim() ?? ""
+  const currentPassword = formData.get("password")?.toString() ?? ""
+  const newPassword = formData.get("newPassword")?.toString() ?? ""
+  const designationsRaw = formData.get("designations")
   const profileImage = formData.get("profileImage")?.toString().trim() ?? ""
   const redirectPath = formData.get("redirectPath")?.toString() ?? "/"
+  const updateDoctorBackground = formData.get("updateDoctorBackground")?.toString() === "1"
 
   if (!userId || !name || !email) {
-    throw new Error("User ID, name, and email are required.")
+    return { success: false, error: "User ID, name, and email are required." }
   }
 
   const updateData: Record<string, unknown> = {
     name,
     email,
-    designations: designations || null,
     updatedAt: new Date(),
   }
 
-  if (password) {
-    updateData.password = password
+  if (designationsRaw !== null) {
+    updateData.designations = designationsRaw.toString().trim() || null
+  }
+
+  if (newPassword) {
+    if (newPassword.length < 8) {
+      return { success: false, error: "New password must be at least 8 characters long." }
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    })
+
+    if (!existingUser || existingUser.password !== currentPassword) {
+      return { success: false, error: "Current password does not match." }
+    }
+
+    updateData.password = newPassword
   }
 
   if (profileImage.startsWith("data:image/")) {
@@ -64,6 +81,55 @@ export async function updateUserProfileAction(formData: FormData) {
     data: updateData,
   })
 
+  if (updateDoctorBackground) {
+    const existingDoctor = await prisma.doctor.findUnique({
+      where: { user_id: userId },
+    })
+
+    if (existingDoctor) {
+      const firstName = formData.get("firstName")?.toString().trim() ?? ""
+      const middleName = formData.get("middleName")?.toString().trim() ?? ""
+      const lastName = formData.get("lastName")?.toString().trim() ?? ""
+      const prefix = formData.get("prefix")?.toString().trim() ?? ""
+      const suffix = formData.get("suffix")?.toString().trim() ?? ""
+      const address = formData.get("address")?.toString().trim() ?? ""
+      const credentials = formData.get("credentials")?.toString().trim() ?? ""
+      const licenseNumber = formData.get("licenseNumber")?.toString().trim() ?? ""
+      const yearsOfExperience = formData.get("yearsOfExperience")?.toString().trim() ?? ""
+      const boardCertifications = formData.get("boardCertifications")?.toString().trim() ?? ""
+
+      try {
+        await prisma.doctor.update({
+          where: { user_id: userId },
+          data: {
+            first_name: firstName || existingDoctor.first_name,
+            middle_name: middleName || null,
+            last_name: lastName || existingDoctor.last_name,
+            prefix: prefix || null,
+            suffix: suffix || null,
+            address: address || null,
+            credentials: credentials || null,
+            license_number: licenseNumber || existingDoctor.license_number,
+            years_of_experience: yearsOfExperience
+              ? Number.parseInt(yearsOfExperience, 10)
+              : existingDoctor.years_of_experience,
+            board_certification: boardCertifications || null,
+          },
+        })
+      } catch (error) {
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          (error as { code?: string }).code === "P2002"
+        ) {
+          return { success: false, error: "A doctor with this license number already exists." }
+        }
+        throw error
+      }
+    }
+  }
+
   await logActivity({
     userId,
     action: "Updated profile",
@@ -71,7 +137,7 @@ export async function updateUserProfileAction(formData: FormData) {
   })
 
   revalidatePath(redirectPath)
-  redirect(redirectPath)
+  return { success: true, error: "" }
 }
 
 export async function createUserAction(formData: FormData) {
