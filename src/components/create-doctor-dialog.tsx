@@ -217,7 +217,7 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
         Assign Specialties
       </Button>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
           <DialogHeader>
             <DialogTitle>Create Specialties</DialogTitle>
             <DialogDescription>
@@ -225,7 +225,7 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Select doctor</Label>
                 <Popover open={userPickerOpen} onOpenChange={setUserPickerOpen}>
