@@ -51,6 +51,11 @@ type EditUserForm = {
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const DOCTOR_EMAIL_DOMAIN = "ckcm.edu.ph"
 const RESERVED_DOCTOR_EMAILS = new Set(["doctor@clinic.dev", "doctor@ckcm.edu.ph"])
+const USER_ROLE_OPTIONS = [
+  { value: "ADMIN", label: "Admin" },
+  { value: "PATIENT", label: "Patient" },
+  { value: "DOCTOR", label: "Doctor" },
+] as const
 
 function slugEmailPart(value: string) {
   return value
@@ -364,21 +369,18 @@ function CreateUserModal({
                 <FieldGroup className="grid-cols-1 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="userType">User</FieldLabel>
-                    <Select
+                    <select
+                      id="userType"
+                      className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       value={form.userType}
-                      onValueChange={(value) => handleChange("userType", value)}
+                      onChange={(event) => handleChange("userType", event.target.value)}
                     >
-                      <SelectTrigger id="userType" className="h-10 text-sm">
-                        <SelectValue placeholder="Select a user" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="ADMIN">Admin</SelectItem>
-                          <SelectItem value="DOCTOR">Doctor</SelectItem>
-                          <SelectItem value="PATIENT">Patient</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                      {USER_ROLE_OPTIONS.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="email">
@@ -592,23 +594,21 @@ function CreateUserModal({
                     <FieldLabel htmlFor="yearsofexperience">
                       Years of Experience<span className="text-destructive">*</span>
                     </FieldLabel>
-                    <Select
+                    <select
+                      id="yearsofexperience"
+                      className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       value={form.yearsofexperience}
-                      onValueChange={(value) => handleChange("yearsofexperience", value)}
+                      onChange={(event) => handleChange("yearsofexperience", event.target.value)}
                     >
-                      <SelectTrigger id="yearsofexperience" className="h-10 text-sm">
-                        <SelectValue placeholder="Select years" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {Array.from({ length: 100 }, (_, index) => (
-                            <SelectItem key={index + 1} value={(index + 1).toString()}>
-                              {index + 1} {index + 1 === 1 ? "year" : "years"}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                      <option value="" disabled>
+                        Select years
+                      </option>
+                      {Array.from({ length: 100 }, (_, index) => (
+                        <option key={index + 1} value={(index + 1).toString()}>
+                          {index + 1} {index + 1 === 1 ? "year" : "years"}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                   <Field className="sm:col-span-2">
                     <FieldLabel htmlFor="boardCertifications">Board Certifications</FieldLabel>
@@ -803,18 +803,18 @@ function EditUserSheet({
 
                 <div className="grid gap-2">
                   <Label htmlFor="edit-role">Role</Label>
-                  <Select value={form.role} onValueChange={(value) => handleChange("role", value)}>
-                    <SelectTrigger id="edit-role">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="ADMIN">Admin</SelectItem>
-                        <SelectItem value="DOCTOR">Doctor</SelectItem>
-                        <SelectItem value="PATIENT">Patient</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <select
+                    id="edit-role"
+                    className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    value={form.role}
+                    onChange={(event) => handleChange("role", event.target.value)}
+                  >
+                    {USER_ROLE_OPTIONS.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
