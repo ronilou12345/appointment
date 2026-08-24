@@ -1,28 +1,33 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const PRISMA_RUNTIME_ID = 'medicine_sales'
+const DEFAULT_POOL_MAX = 5
 
 const prismaClientSingleton = () => {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is not configured')
   }
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+  const configuredPoolMax = Number.parseInt(process.env.PRISMA_POOL_MAX ?? '', 10)
+  const max = Number.isFinite(configuredPoolMax) && configuredPoolMax > 0
+    ? configuredPoolMax
+    : DEFAULT_POOL_MAX
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
+    max,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 5_000,
+  })
   return new PrismaClient({ adapter })
 }
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prismaGlobal?: ReturnType<typeof prismaClientSingleton>
-  prismaRuntimeId?: string
 }
 
 const getPrismaClient = () => {
-  if (!globalForPrisma.prismaGlobal || globalForPrisma.prismaRuntimeId !== PRISMA_RUNTIME_ID) {
-    const previous = globalForPrisma.prismaGlobal
+  if (!globalForPrisma.prismaGlobal) {
     globalForPrisma.prismaGlobal = prismaClientSingleton()
-    globalForPrisma.prismaRuntimeId = PRISMA_RUNTIME_ID
-    void previous?.$disconnect()
   }
 
   return globalForPrisma.prismaGlobal
