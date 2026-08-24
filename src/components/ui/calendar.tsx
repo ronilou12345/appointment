@@ -35,8 +35,8 @@ export function Calendar({ selected, onSelect, className, disabled, getIndicator
   }
 
   return (
-    <div className={cn("rounded-lg border bg-background p-3", className)}>
-      <div className="mb-3 flex items-center justify-between">
+    <div className={cn("w-full min-w-0 rounded-lg border bg-background p-3", className)}>
+      <div className="mb-3 flex w-full items-center justify-between gap-2">
         <Button variant="ghost" size="icon" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -48,7 +48,7 @@ export function Calendar({ selected, onSelect, className, disabled, getIndicator
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+      <div className="grid w-full grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
         {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
           <div key={day} className="py-1">
             {day}
@@ -56,7 +56,7 @@ export function Calendar({ selected, onSelect, className, disabled, getIndicator
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid w-full grid-cols-7 gap-1">
         {days.map((day) => {
           const isCurrentMonth = day.getMonth() === viewDate.getMonth()
           const isSelected = selected && day.toDateString() === selected.toDateString()

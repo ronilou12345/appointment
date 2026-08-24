@@ -820,7 +820,7 @@ export default function AddSessionPage() {
       </Dialog>
 
       <Dialog open={Boolean(calendarOpenFor)} onOpenChange={(open) => !open && setCalendarOpenFor(null)}>
-        <DialogContent className="mx-auto max-w-sm">
+        <DialogContent className="mx-auto w-[calc(100vw-2rem)] max-w-sm p-4">
           <DialogHeader>
             <DialogTitle>Select date</DialogTitle>
             <DialogDescription>Choose a date for this session.</DialogDescription>

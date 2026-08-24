@@ -110,3 +110,8 @@ export async function consumePasswordResetCode(email: string, code: string) {
   await prisma.$executeRawUnsafe(`DELETE FROM password_reset WHERE email = $1`, email)
   return { ok: true as const }
 }
+
+export async function discardPasswordResetCode(email: string) {
+  await ensureTable()
+  await prisma.$executeRawUnsafe(`DELETE FROM password_reset WHERE email = $1`, email)
+}

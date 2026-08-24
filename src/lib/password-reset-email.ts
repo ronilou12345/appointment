@@ -4,6 +4,14 @@ const CLINIC_NAME = "C2M Family Clinic & Pharmacy"
 
 let cachedTransporter: Transporter | null = null
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
 function getTransporter() {
   const user = process.env.SMTP_USER?.trim()
   const pass = process.env.SMTP_PASSWORD?.trim()
@@ -29,6 +37,7 @@ export async function sendPasswordResetEmail(to: string, name: string, code: str
   if (!transporter) return { success: false, reason: "missing-credentials" }
 
   const patientName = name.trim() || "there"
+  const safeName = escapeHtml(patientName)
 
   try {
     await transporter.sendMail({
@@ -51,7 +60,7 @@ This code expires in 10 minutes. If you did not request a password reset, you ca
       <p style="margin:0 0 4px;color:#0f766e;font-size:12px;letter-spacing:2px;text-transform:uppercase;">${CLINIC_NAME}</p>
       <h1 style="margin:0 0 16px;color:#0f172a;font-size:22px;">Reset your password</h1>
       <p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:24px;">
-        Hello, ${patientName}! Use this code to reset the password for your account.
+        Hello, ${safeName}! Use this code to reset the password for your account.
       </p>
       <p style="margin:0 0 8px;color:#64748b;font-size:13px;letter-spacing:1px;text-transform:uppercase;">Verification code</p>
       <p style="margin:0 0 24px;color:#0f172a;font-size:32px;font-weight:700;letter-spacing:8px;">${code}</p>

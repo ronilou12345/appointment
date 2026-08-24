@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { issuePasswordResetCode } from "@/lib/password-reset"
+import { discardPasswordResetCode, issuePasswordResetCode } from "@/lib/password-reset"
 import { sendPasswordResetEmail } from "@/lib/password-reset-email"
 
 const GENERIC_SUCCESS = {
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (!emailed.success) {
       console.warn("Password reset email skipped or failed:", emailed)
+      await discardPasswordResetCode(email)
       return NextResponse.json(
         { success: false, error: "We could not send the reset email right now. Please try again later." },
         { status: 500 }
