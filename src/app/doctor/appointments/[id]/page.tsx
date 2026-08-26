@@ -102,13 +102,15 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   const time = timeText ? formatAppointmentTime(String(timeText)) : "—"
   const statusText = appointment.appointment_status ?? "Pending"
   const badgeVariant = getStatusVariant(statusText)
-  const prescriptionText = soapNote?.prescription || "No prescriptions recorded."
-  const chiefComplaints = soapNote?.chief_complaints || "No chief complaints recorded."
-  const physicalExamination = soapNote?.physical_examination || "No physical examination recorded."
-  const diagnosis = soapNote?.diagnosis || "No diagnosis recorded."
-  const followUpNote = soapNote?.next_follow_up || "No follow-up plan recorded."
+  const prescriptionText = soapNote?.prescription || "-"
+  const chiefComplaints = soapNote?.chief_complaints || "-"
+  const physicalExamination = soapNote?.physical_examination || "-"
+  const diagnosis = soapNote?.diagnosis || "-"
+  const followUpNote = soapNote?.next_follow_up || "-"
   const cancellationReason = appointment.reason_cancel?.trim() || "No cancellation reason recorded."
-  const isCancelled = ["cancelled", "canceled", "cancel"].includes(String(statusText).toLowerCase())
+  const isCancelled = ["cancel requested", "awaiting cancellation", "cancelled", "canceled", "cancel"].includes(
+    String(statusText).toLowerCase(),
+  )
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -155,7 +157,6 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
                 <div>
                   <p className="text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground">Appointment details</p>
                   <h2 className="mt-3 text-4xl font-semibold tracking-tight">{specialty}</h2>
-                  <p className="mt-3 text-sm text-muted-foreground">{doctorName}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">

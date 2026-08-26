@@ -341,14 +341,21 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
       }
 
       const statusLabel = action === "Confirm" ? "confirmed" : action === "Complete" ? "completed" : "cancelled"
+      const notificationMessage = result.emailSent && result.smsSent
+        ? `${appointment.patientName} has been notified via email and SMS.`
+        : result.emailSent
+          ? `${appointment.patientName} has been emailed.`
+          : result.smsSent
+            ? `${appointment.patientName} has been notified via SMS.`
+            : ""
       toast.success(
         action === "Cancel"
-          ? result.emailSent
-            ? `Cancellation approved. ${appointment.patientName} has been emailed.`
-            : "Cancellation approved."
-          : result.emailSent
-            ? `Appointment ${statusLabel}. ${appointment.patientName} has been emailed.`
-            : `Appointment ${statusLabel}.`
+          ? `Cancellation approved.${notificationMessage ? ` ${notificationMessage}` : ""}`
+          : action === "Confirm" && notificationMessage
+            ? `Appointment confirmed. ${notificationMessage}`
+            : action === "Complete" && notificationMessage
+              ? `Appointment completed. ${notificationMessage}`
+            : `Appointment ${statusLabel}.${notificationMessage ? ` ${notificationMessage}` : ""}`
       )
 
       router.refresh()

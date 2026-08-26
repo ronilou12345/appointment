@@ -162,10 +162,10 @@ export default function LandingPage() {
       <header className="relative sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
           <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-            <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-900">
+            <div className="overflow-hidden rounded-lg bg-card">
               <Image src="/logo1.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-cover" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-foreground dark:text-white">C2M Family Clinic & Pharmacy</span>
+            <span className="text-xl font-bold tracking-tight text-foreground">C2M Family Clinic & Pharmacy</span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex">

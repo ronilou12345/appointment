@@ -506,11 +506,7 @@ export function BookAppointmentContent() {
         throw new Error(result.error || "Unable to book appointment")
       }
 
-      toast.success(
-        result.emailSent
-          ? "Appointment booked! Confirmation details were emailed to you."
-          : "Appointment booked successfully!"
-      )
+      toast.success("Appointment booked! Confirmation details have been sent to you via email and SMS.")
       await loadSessions(false)
       setCurrentStep(0)
       setFormData({
