@@ -129,16 +129,6 @@ const chartData = [
 const chartConfig = {
   visitors: {
     label: "Visitors",
-  },
-  desktop: {
-    label: "Desktop",
-    theme: {
-      light: "#2563eb",
-      dark: "#ffffff",
-    },
-  },
-  mobile: {
-    label: "Mobile",
     theme: {
       light: "#0ea5e9",
       dark: "#ffffff",
@@ -146,7 +136,21 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function ChartAreaInteractive() {
+type VisitorData = {
+  date: string
+  visitors: number
+}
+
+const defaultVisitorData: VisitorData[] = chartData.map(({ date, desktop, mobile }) => ({
+  date,
+  visitors: desktop + mobile,
+}))
+
+type ChartAreaInteractiveProps = {
+  visitorData?: VisitorData[]
+}
+
+export function ChartAreaInteractive({ visitorData = defaultVisitorData }: ChartAreaInteractiveProps) {
   const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = React.useState("90d")
 
@@ -156,7 +160,7 @@ export function ChartAreaInteractive() {
     }
   }, [isMobile])
 
-  const filteredData = chartData.filter((item) => {
+  const filteredData = visitorData.filter((item) => {
     const date = new Date(item.date)
     const referenceDate = new Date("2024-06-30")
     let daysToSubtract = 90
@@ -221,27 +225,15 @@ export function ChartAreaInteractive() {
         >
           <AreaChart data={filteredData}>
             <defs>
-              <linearGradient id="fillDesktop" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="fillVisitors" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="var(--color-desktop)"
+                  stopColor="var(--color-visitors)"
                   stopOpacity={0.9}
                 />
                 <stop
                   offset="95%"
-                  stopColor="var(--color-desktop)"
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-              <linearGradient id="fillMobile" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-mobile)"
-                  stopOpacity={0.9}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-mobile)"
+                  stopColor="var(--color-visitors)"
                   stopOpacity={0.1}
                 />
               </linearGradient>
@@ -276,18 +268,10 @@ export function ChartAreaInteractive() {
               }
             />
             <Area
-              dataKey="mobile"
+              dataKey="visitors"
               type="natural"
-              fill="url(#fillMobile)"
-              stroke="var(--color-mobile)"
-              stackId="a"
-            />
-            <Area
-              dataKey="desktop"
-              type="natural"
-              fill="url(#fillDesktop)"
-              stroke="var(--color-desktop)"
-              stackId="a"
+              fill="url(#fillVisitors)"
+              stroke="var(--color-visitors)"
             />
           </AreaChart>
         </ChartContainer>

@@ -134,11 +134,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: "User not found" }, { status: 404 })
     }
 
-    const name = String(body?.name ?? existingUser.name).trim()
+    const hasExplicitNameParts = [body?.firstName, body?.middleName, body?.lastName].some(
+      (value) => value !== undefined
+    )
+    const nameParts = hasExplicitNameParts
+      ? [body?.firstName, body?.middleName, body?.lastName].map((value) => String(value ?? "").trim())
+      : String(body?.name ?? existingUser.name).trim().split(/\s+/).filter(Boolean)
+    const name = nameParts.filter(Boolean).join(" ") || existingUser.name
     const email = String(body?.email ?? existingUser.email).trim().toLowerCase()
     const role = normalizeRole(String(body?.role ?? existingUser.role))
     const status = normalizeStatus(String(body?.status ?? existingUser.status))
-    const address = String(body?.address ?? "").trim()
+    const address = body?.address !== undefined ? String(body.address).trim() : undefined
     const prefix = String(body?.prefix ?? "").trim()
     const suffix = String(body?.suffix ?? "").trim()
     const credentials = String(body?.credentials ?? "").trim()
@@ -153,10 +159,15 @@ export async function PATCH(request: NextRequest) {
       ? designationsRaw
       : null
 
-    const nameParts = name.split(/\s+/).filter(Boolean)
-    const firstName = nameParts[0] ?? ""
-    const lastName = nameParts[nameParts.length - 1] ?? ""
-    const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : ""
+    const firstName = hasExplicitNameParts
+      ? String(body?.firstName ?? "").trim()
+      : nameParts[0] ?? ""
+    const lastName = hasExplicitNameParts
+      ? String(body?.lastName ?? "").trim()
+      : nameParts[nameParts.length - 1] ?? ""
+    const middleName = hasExplicitNameParts
+      ? String(body?.middleName ?? "").trim()
+      : nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : ""
 
     await prisma.$transaction(async (tx) => {
       const updateData: Record<string, unknown> = {
@@ -187,7 +198,7 @@ export async function PATCH(request: NextRequest) {
         last_name: lastName || existingDoctor?.last_name || "",
         prefix: prefix || existingDoctor?.prefix || null,
         suffix: suffix || existingDoctor?.suffix || null,
-        address: address || existingDoctor?.address || null,
+        address: address !== undefined ? address || null : existingDoctor?.address || null,
         credentials: credentials || existingDoctor?.credentials || null,
         license_number: licenseNumber || existingDoctor?.license_number || "",
         years_of_experience: yearsOfExperience ? Number.parseInt(yearsOfExperience, 10) : existingDoctor?.years_of_experience ?? 0,

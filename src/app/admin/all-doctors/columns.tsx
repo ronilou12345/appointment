@@ -20,6 +20,10 @@ export type DoctorRow = {
   id: string
   name: string
   email: string
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  address?: string
   specialties?: string
   boardCertification?: string
   designations?: string
@@ -88,7 +92,9 @@ export const columns: ColumnDef<DoctorRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Doctor actions</DropdownMenuLabel>
-            <DropdownMenuItem>View profile</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/all-doctors/${doctor.id}`}>View profile</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() =>
                 window.dispatchEvent(

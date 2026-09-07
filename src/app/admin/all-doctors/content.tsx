@@ -22,7 +22,11 @@ import {
 const statusOptions = ["Active", "Inactive", "Suspended"]
 
 type EditDoctorForm = {
-  name: string
+  firstName: string
+  middleName: string
+  lastName: string
+  email: string
+  address: string
   boardCertification: string
   status: string
 }
@@ -38,7 +42,11 @@ function EditDoctorSheet({
 }) {
   const router = useRouter()
   const [form, setForm] = useState<EditDoctorForm>({
-    name: doctor?.name ?? "",
+    firstName: doctor?.firstName ?? "",
+    middleName: doctor?.middleName ?? "",
+    lastName: doctor?.lastName ?? "",
+    email: doctor?.email ?? "",
+    address: doctor?.address ?? "",
     boardCertification: doctor?.boardCertification ?? "",
     status: doctor?.status ?? "Active",
   })
@@ -49,7 +57,11 @@ function EditDoctorSheet({
     if (!doctor) return
 
     setForm({
-      name: doctor.name,
+      firstName: doctor.firstName ?? "",
+      middleName: doctor.middleName ?? "",
+      lastName: doctor.lastName ?? "",
+      email: doctor.email,
+      address: doctor.address ?? "",
       boardCertification: doctor.boardCertification ?? "",
       status: doctor.status ?? "Active",
     })
@@ -79,7 +91,12 @@ function EditDoctorSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: doctor.id,
-          name: form.name,
+          name: [form.firstName, form.middleName, form.lastName].filter(Boolean).join(" "),
+          firstName: form.firstName,
+          middleName: form.middleName,
+          lastName: form.lastName,
+          email: form.email,
+          address: form.address,
           status: form.status,
           boardCertifications: form.boardCertification,
         }),
@@ -114,11 +131,48 @@ function EditDoctorSheet({
           <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="doctor-name">Name</Label>
+                <Label htmlFor="doctor-first-name">First name</Label>
                 <Input
-                  id="doctor-name"
-                  value={form.name}
-                  onChange={(event) => handleChange("name", event.target.value)}
+                  id="doctor-first-name"
+                  value={form.firstName}
+                  onChange={(event) => handleChange("firstName", event.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="doctor-middle-name">Middle name</Label>
+                <Input
+                  id="doctor-middle-name"
+                  value={form.middleName}
+                  onChange={(event) => handleChange("middleName", event.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="doctor-last-name">Last name</Label>
+                <Input
+                  id="doctor-last-name"
+                  value={form.lastName}
+                  onChange={(event) => handleChange("lastName", event.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="doctor-email">Email</Label>
+                <Input
+                  id="doctor-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => handleChange("email", event.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="doctor-address">Address</Label>
+                <Input
+                  id="doctor-address"
+                  value={form.address}
+                  onChange={(event) => handleChange("address", event.target.value)}
                 />
               </div>
 

@@ -89,12 +89,6 @@ export const columns: ColumnDef<MedicineRow>[] = [
     },
   },
   {
-    accessorKey: "reorderLevel",
-    header: "Reorder Level",
-    cell: ({ row }) => row.getValue("reorderLevel") || "—",
-    enableHiding: true,
-  },
-  {
     accessorKey: "expiryDate",
     header: "Expiry Date",
     cell: ({ row }) => row.getValue("expiryDate") || "—",

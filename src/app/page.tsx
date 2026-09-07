@@ -44,14 +44,14 @@ export default function LandingPage() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
+    React.useEffect(() => {
+      setMounted(true)
+    }, [])
+
   const [contactEmail, setContactEmail] = React.useState("")
   const [contactMessage, setContactMessage] = React.useState("")
   const [contactStatus, setContactStatus] = React.useState<"idle" | "sending" | "sent" | "error">("idle")
   const [contactError, setContactError] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
 
   async function handleContactSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()

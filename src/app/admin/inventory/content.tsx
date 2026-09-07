@@ -38,6 +38,19 @@ type CartItem = {
   image?: string
 }
 
+function getDateKey(value: string | Date) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10)
+}
+
+function formatSalesDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
 function getStockInfo(medicine: Pick<MedicineRow, "quantity" | "status" | "reorderLevel">) {
   const stock = medicine.quantity ?? 0
   const outOfStock = stock <= 0 || medicine.status === "Out of Stock"
@@ -215,6 +228,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const [selectedMedicineIds, setSelectedMedicineIds] = useState<Record<string, boolean>>({})
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [discountInput, setDiscountInput] = useState("")
+  const [selectedSaleDate, setSelectedSaleDate] = useState(() => getDateKey(new Date()))
 
   const filteredRows = rows
   const searchResults = cartSearchQuery.trim()
@@ -363,6 +377,33 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const discountPercent = Number.isNaN(parsedDiscount) ? 0 : Math.min(100, Math.max(0, parsedDiscount))
   const discount = Math.round(subtotal * (discountPercent / 100) * 100) / 100
   const total = Math.max(0, subtotal - discount)
+  const summaryDate = selectedSaleDate || getDateKey(new Date())
+  const selectedDate = new Date(`${summaryDate}T00:00:00`)
+  const selectedDayStart = selectedDate ? new Date(selectedDate) : null
+  const selectedDayEnd = selectedDate ? new Date(selectedDate) : null
+  if (selectedDayEnd) selectedDayEnd.setDate(selectedDayEnd.getDate() + 1)
+  const selectedWeekStart = selectedDate ? new Date(selectedDate) : null
+  if (selectedWeekStart) {
+    const dayOfWeek = selectedWeekStart.getDay()
+    selectedWeekStart.setDate(selectedWeekStart.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+  }
+  const selectedWeekEnd = selectedWeekStart ? new Date(selectedWeekStart) : null
+  if (selectedWeekEnd) selectedWeekEnd.setDate(selectedWeekEnd.getDate() + 7)
+  const selectedMonthStart = selectedDate ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1) : null
+  const selectedMonthEnd = selectedDate ? new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1) : null
+  const getSalesTotal = (start: Date | null, end: Date | null) =>
+    start && end
+      ? sales.reduce((sum, sale) => {
+          const saleDate = new Date(sale.saleDate)
+          return saleDate >= start && saleDate < end ? sum + sale.totalAmount : sum
+        }, 0)
+      : 0
+  const salesForSelectedDay = getSalesTotal(selectedDayStart, selectedDayEnd)
+  const salesForSelectedWeek = getSalesTotal(selectedWeekStart, selectedWeekEnd)
+  const salesForSelectedMonth = getSalesTotal(selectedMonthStart, selectedMonthEnd)
+  const selectedDateSales = selectedSaleDate
+    ? sales.filter((sale) => getDateKey(sale.saleDate) === selectedSaleDate)
+    : sales
 
   const openCheckoutSummary = () => {
     if (cartItems.length === 0) return
@@ -501,13 +542,52 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
       <Separator className="my-10 h-px w-full bg-border" />
 
       <div>
-        <div className="mb-6">
-          <h2 className="text-3xl font-semibold text-foreground">Medicine Sales</h2>
-          <p className="mt-2 text-muted-foreground">
-            Medicines sold at checkout. Each checkout line is recorded with quantity, price, and who processed the sale.
-          </p>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold text-foreground">Medicine Sales</h2>
+            <p className="mt-2 text-muted-foreground">
+              Medicines sold at checkout. Each checkout line is recorded with quantity, price, and who processed the sale.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="sales-date" className="text-sm text-muted-foreground">Select date</label>
+            <Input
+              id="sales-date"
+              type="date"
+              value={selectedSaleDate}
+              onChange={(event) => setSelectedSaleDate(event.target.value)}
+              className="h-9 w-[155px]"
+            />
+          </div>
         </div>
-        <DataTable columns={salesColumns} data={sales} />
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { title: "Sales Today", value: salesForSelectedDay, description: "Selected date" },
+            { title: "Sales This Week", value: salesForSelectedWeek, description: "Full week containing selected date" },
+            { title: "Sales This Month", value: salesForSelectedMonth, description: "Full month containing selected date" },
+          ].map((card) => (
+            <div key={card.title} className="rounded-lg border border-border bg-background p-4">
+              <div className="text-sm text-muted-foreground">{card.title}</div>
+              <div className="mt-2 text-2xl font-semibold">₱{card.value.toFixed(2)}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {`${card.description} · ${formatSalesDate(summaryDate)}`}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {selectedSaleDate ? `Sales for ${formatSalesDate(selectedSaleDate)}` : "All sales"}
+          </p>
+          {selectedSaleDate ? (
+            <Button variant="outline" size="sm" onClick={() => setSelectedSaleDate("")}>
+              Show all sales
+            </Button>
+          ) : null}
+        </div>
+        <div className="mt-3">
+          <DataTable columns={salesColumns} data={selectedDateSales} />
+        </div>
       </div>
 
       {/* Shopping Cart Sheet */}

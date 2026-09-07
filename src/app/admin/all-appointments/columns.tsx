@@ -138,9 +138,10 @@ export const columns: ColumnDef<AppointmentRow>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>View details</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/all-appointments/${appt.id}`}>View details</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => printSingleAppointment(appt)}>Print</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(appt.id)}>Copy ID</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

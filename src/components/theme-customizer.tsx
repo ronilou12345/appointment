@@ -46,34 +46,9 @@ export function ThemeCustomizer() {
   if (!mounted) return null
 
   const colorThemes = Object.entries(themes).filter(([name]) => name !== "primary")
-  const blackTheme = themes.primary
-  const isBlackTheme = config.theme === "primary"
 
   return (
     <div className="flex flex-col space-y-4 md:space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-semibold">Theme</Label>
-        <div className="flex flex-wrap gap-2 py-1.5">
-          <button
-            type="button"
-            onClick={() => setConfig({ theme: "primary" })}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border-2 bg-background px-3 py-1.5 text-sm font-medium transition-all",
-              isBlackTheme ? "border-foreground" : "border-border hover:border-foreground/40"
-            )}
-            title={blackTheme.label}
-          >
-            <span
-              className="size-4 shrink-0 rounded-full border border-black/15"
-              style={{ background: blackTheme.gradient ?? blackTheme.activeColor }}
-            />
-            Black
-          </button>
-        </div>
-      </div>
-
-      <SectionLine />
-
       <div className="space-y-1.5">
         <Label className="text-sm font-semibold">Primary Color</Label>
         <div className="grid grid-cols-7 gap-2 py-1.5">

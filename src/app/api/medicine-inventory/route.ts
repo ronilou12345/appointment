@@ -6,7 +6,10 @@ function parseMedicinePayload(body: Record<string, unknown>) {
   const medicineName = String(body.medicineName ?? "").trim()
   const category = String(body.category ?? "").trim()
   const quantity = Number.parseInt(String(body.quantity ?? "0"), 10) || 0
-  const reorderLevel = Number.parseInt(String(body.reorderLevel ?? "0"), 10) || 0
+  const hasReorderLevel = body.reorderLevel !== undefined
+  const reorderLevel = hasReorderLevel
+    ? Number.parseInt(String(body.reorderLevel ?? "0"), 10) || 0
+    : undefined
   const expiryDate = body.expiryDate ? new Date(String(body.expiryDate)) : null
   const unitPrice = Number(body.price ?? 0) || 0
   const supplier = String(body.supplier ?? "").trim()
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest) {
         medicine_name: payload.medicineName,
         category: payload.category,
         quantity: payload.quantity,
-        reorder_level: payload.reorderLevel,
+        reorder_level: payload.reorderLevel ?? 0,
         expiry_date: payload.expiryDate,
         unit_price: payload.unitPrice,
         supplier: payload.supplier,
@@ -64,7 +67,7 @@ export async function PATCH(request: NextRequest) {
         medicine_name: payload.medicineName,
         category: payload.category,
         quantity: payload.quantity,
-        reorder_level: payload.reorderLevel,
+        ...(payload.reorderLevel === undefined ? {} : { reorder_level: payload.reorderLevel }),
         expiry_date: payload.expiryDate,
         unit_price: payload.unitPrice,
         supplier: payload.supplier,

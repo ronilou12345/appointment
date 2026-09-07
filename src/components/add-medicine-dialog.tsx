@@ -11,13 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -29,11 +22,9 @@ const emptyForm = {
   medicineName: "",
   category: "",
   quantity: "0",
-  reorderLevel: "0",
   expiryDate: "",
   price: "0.00",
   supplier: "",
-  status: "In Stock",
 }
 
 function readImageFile(file: File) {
@@ -79,11 +70,9 @@ export function AddMedicineDialog({
         medicineName: medicine.name,
         category: medicine.category,
         quantity: String(medicine.quantity ?? 0),
-        reorderLevel: String(medicine.reorderLevel ?? 0),
         expiryDate: medicine.expiryDate && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
         price: Number(medicine.price ?? 0).toFixed(2),
         supplier: medicine.supplier,
-        status: medicine.status || "In Stock",
       })
       setMedicineImage(medicine.image || "")
       return
@@ -114,11 +103,9 @@ export function AddMedicineDialog({
         medicineName: form.medicineName,
         category: form.category,
         quantity: Number.parseInt(form.quantity || "0", 10) || 0,
-        reorderLevel: Number.parseInt(form.reorderLevel || "0", 10) || 0,
         expiryDate: form.expiryDate,
         price: Number(form.price) || 0,
         supplier: form.supplier,
-        status: form.status,
         medicineImage: medicineImage.startsWith("data:image/") ? medicineImage : medicineImage || "",
       }
 
@@ -154,7 +141,7 @@ export function AddMedicineDialog({
         </Button>
       ) : null}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Edit Medicine" : "Add Medicine"}</DialogTitle>
             <DialogDescription>
@@ -163,9 +150,9 @@ export function AddMedicineDialog({
                 : "Add a new medicine to the inventory system."}
             </DialogDescription>
           </DialogHeader>
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="grid gap-6" onSubmit={handleSubmit}>
             {/* Medicine Image Upload */}
-            <div className="flex flex-col items-center justify-center gap-4 text-center sm:flex-row sm:justify-center sm:text-left">
+            <div className="flex flex-col items-center justify-center gap-4 text-center sm:col-span-2 sm:flex-row sm:justify-center sm:text-left">
               <label htmlFor={fieldId("medicineImage")} className="relative flex cursor-pointer items-center justify-center">
                 <Avatar size="lg" className="mx-auto">
                   {medicineImage ? <AvatarImage src={medicineImage} alt={form.medicineName || "Medicine"} /> : null}
@@ -197,8 +184,7 @@ export function AddMedicineDialog({
               </div>
             </div>
 
-            {/* Medicine Name and Category */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor={fieldId("medicineName")}>Medicine Name</Label>
                 <Input
@@ -223,8 +209,7 @@ export function AddMedicineDialog({
               </div>
             </div>
 
-            {/* Quantity and Reorder Level */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor={fieldId("quantity")}>Quantity</Label>
                 <Input
@@ -236,34 +221,6 @@ export function AddMedicineDialog({
                   required
                   value={form.quantity}
                   onChange={(e) => handleChange('quantity', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={fieldId("reorderLevel")}>Reorder Level</Label>
-                <Input
-                  id={fieldId("reorderLevel")}
-                  name="reorderLevel"
-                  type="number"
-                  placeholder="Minimum stock level"
-                  min="0"
-                  required
-                  value={form.reorderLevel}
-                  onChange={(e) => handleChange('reorderLevel', e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Expiry Date and Unit Price */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor={fieldId("expiryDate")}>Expiry Date</Label>
-                <Input
-                  id={fieldId("expiryDate")}
-                  name="expiryDate"
-                  type="date"
-                  required
-                  value={form.expiryDate}
-                  onChange={(e) => handleChange('expiryDate', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -282,8 +239,18 @@ export function AddMedicineDialog({
               </div>
             </div>
 
-            {/* Supplier and Status */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor={fieldId("expiryDate")}>Expiry Date</Label>
+                <Input
+                  id={fieldId("expiryDate")}
+                  name="expiryDate"
+                  type="date"
+                  required
+                  value={form.expiryDate}
+                  onChange={(e) => handleChange('expiryDate', e.target.value)}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor={fieldId("supplier")}>Supplier</Label>
                 <Input
@@ -295,23 +262,10 @@ export function AddMedicineDialog({
                   onChange={(e) => handleChange('supplier', e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor={fieldId("status")}>Status</Label>
-                <Select name="status" value={form.status} onValueChange={(v) => handleChange('status', v)}>
-                  <SelectTrigger id={fieldId("status")}>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="In Stock">In Stock</SelectItem>
-                    <SelectItem value="Low Stock">Low Stock</SelectItem>
-                    <SelectItem value="Out of Stock">Out of Stock</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             {/* Submit Button */}
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 sm:col-span-2">
               <Button
                 type="button"
                 variant="outline"

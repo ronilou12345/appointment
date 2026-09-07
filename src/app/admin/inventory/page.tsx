@@ -48,7 +48,7 @@ export default async function Page() {
     expiryDate: m.expiry_date ? m.expiry_date.toISOString().split("T")[0] : "N/A",
     price: Number(m.unit_price),
     supplier: m.supplier,
-    status: m.quantity === 0 ? "Out of Stock" : m.quantity <= (m.reorder_level ?? 0) ? "Low Stock" : "In Stock",
+    status: m.quantity === 0 ? "Out of Stock" : m.quantity <= 5 ? "Low Stock" : "In Stock",
     image: m.medicine_image || undefined,
   }))
 

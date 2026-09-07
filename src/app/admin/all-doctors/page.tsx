@@ -6,12 +6,16 @@ type DoctorResult = {
   id: string
   name: string
   email: string
+  doctor: {
+    first_name: string
+    middle_name: string | null
+    last_name: string
+    address: string | null
+    board_certification: string | null
+  } | null
   designations: string | null
   status: string | null
   profile_image: string | null
-  doctor: {
-    board_certification: string | null
-  } | null
 }
 
 export default async function Page() {
@@ -26,6 +30,10 @@ export default async function Page() {
       profile_image: true,
       doctor: {
         select: {
+          first_name: true,
+          middle_name: true,
+          last_name: true,
+          address: true,
           board_certification: true,
         },
       },
@@ -43,6 +51,10 @@ export default async function Page() {
       id: user.id,
       name: user.name,
       email: user.email,
+      firstName: user.doctor?.first_name ?? "",
+      middleName: user.doctor?.middle_name ?? "",
+      lastName: user.doctor?.last_name ?? "",
+      address: user.doctor?.address ?? "",
       specialties,
       boardCertification: user.doctor?.board_certification ?? "",
       designations: specialties,
