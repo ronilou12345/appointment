@@ -46,11 +46,12 @@ export async function POST(request: NextRequest) {
       if (!medicine) {
         return NextResponse.json({ success: false, error: "One of the medicines could not be found." }, { status: 400 })
       }
-      if (item.quantity > medicine.quantity) {
+      const availablePieces = medicine.pieces ?? 0
+      if (item.quantity > availablePieces) {
         return NextResponse.json(
           {
             success: false,
-            error: `Only ${medicine.quantity} ${medicine.quantity === 1 ? "unit" : "units"} of ${medicine.medicine_name} available.`,
+            error: `Only ${availablePieces} ${availablePieces === 1 ? "piece" : "pieces"} of ${medicine.medicine_name} available.`,
           },
           { status: 400 },
         )
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     const soldBy = session?.name?.trim().slice(0, 150) || null
     const deducted: Array<{
       id: number
-      previousQuantity: number
+      previousPieces: number
       previousStatus: string
       name: string
       quantity: number
@@ -71,34 +72,35 @@ export async function POST(request: NextRequest) {
     try {
       for (const item of items) {
         const medicine = byId.get(item.id)!
-        const remaining = medicine.quantity - item.quantity
+        const availablePieces = medicine.pieces ?? 0
+        const remainingPieces = availablePieces - item.quantity
         const updated = await prisma.medicine_inventory.updateMany({
           where: {
             medicine_id: item.id,
-            quantity: { gte: item.quantity },
+            pieces: { gte: item.quantity },
           },
           data: {
-            quantity: remaining,
-            status: inventoryStatus(remaining, medicine.reorder_level ?? 0),
+            pieces: remainingPieces,
+            status: inventoryStatus(remainingPieces, 20),
             updated_at: new Date(),
           },
         })
 
         if (updated.count === 0) {
           throw new Error(
-            `Only ${medicine.quantity} ${medicine.quantity === 1 ? "unit" : "units"} of ${medicine.medicine_name} available.`,
+            `Only ${availablePieces} ${availablePieces === 1 ? "piece" : "pieces"} of ${medicine.medicine_name} available.`,
           )
         }
 
         deducted.push({
           id: item.id,
-          previousQuantity: medicine.quantity,
+          previousPieces: availablePieces,
           previousStatus: medicine.status,
           name: medicine.medicine_name,
           quantity: item.quantity,
           unitPrice: Number(medicine.unit_price),
         })
-        byId.set(item.id, { ...medicine, quantity: remaining })
+        byId.set(item.id, { ...medicine, pieces: remainingPieces })
       }
 
       for (const item of deducted) {
@@ -113,7 +115,7 @@ export async function POST(request: NextRequest) {
           prisma.medicine_inventory.update({
             where: { medicine_id: item.id },
             data: {
-              quantity: item.previousQuantity,
+              pieces: item.previousPieces,
               status: item.previousStatus,
               updated_at: new Date(),
             },

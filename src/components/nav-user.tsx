@@ -82,9 +82,6 @@ export function NavUser({
                 <span className="truncate text-xs text-muted-foreground">
                   {user.email}
                 </span>
-                <span className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                  v1.0.0-beta.3 · © 2026 C2M Clinic
-                </span>
               </div>
               <EllipsisVerticalIcon className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -107,9 +104,6 @@ export function NavUser({
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {user.email}
-                  </span>
-                  <span className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                    v1.0.0-beta.3 · © 2026 C2M Clinic
                   </span>
                 </div>
               </div>

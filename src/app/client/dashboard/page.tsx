@@ -42,6 +42,54 @@ async function getNextPendingAppointment(userId: string) {
   }
 }
 
+async function getPatientAppointments(userId: string) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const rows = await prisma.appointment.findMany({
+    where: {
+      user_id: userId,
+      session_tbl: {
+        is: {
+          session_date: { gte: today },
+        },
+      },
+    },
+    orderBy: [
+      { session_tbl: { session_date: "asc" } },
+      { session_tbl: { start_time: "asc" } },
+    ],
+    select: {
+      appointment_id: true,
+      appointment_status: true,
+      session_tbl: {
+        select: {
+          session_date: true,
+          start_time: true,
+          appointment_type: true,
+          doctor: {
+            select: {
+              user: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      },
+    },
+    take: 8,
+  })
+
+  return rows.map((row) => ({
+    id: String(row.appointment_id),
+    status: row.appointment_status ?? "Pending",
+    title: row.session_tbl?.appointment_type ?? "General Consultation",
+    date: row.session_tbl?.session_date ? row.session_tbl.session_date.toISOString().split("T")[0] : "",
+    time: row.session_tbl?.start_time ? row.session_tbl.start_time.toISOString().slice(11, 16) : "",
+    doctor: row.session_tbl?.doctor?.user?.name ? `Dr. ${row.session_tbl.doctor.user.name}` : "Doctor",
+  }))
+}
+
 function latestMetric(rows: any[], key: string) {
   for (const row of rows) {
     const value = toVitalNumber(row[key])
@@ -118,6 +166,7 @@ export default async function ClientDashboardPage() {
     : fallbackUser
 
   const nextPending = session?.id ? await getNextPendingAppointment(session.id) : null
+  const appointments = session?.id ? await getPatientAppointments(session.id) : []
   const vitals = session?.id
     ? await getPatientVitals(session.id)
     : {
@@ -131,5 +180,5 @@ export default async function ClientDashboardPage() {
         trend: [],
       }
 
-  return <PatientDashboard user={userProp} nextPending={nextPending} latestVitals={vitals.latest} healthTrend={vitals.trend} />
+  return <PatientDashboard user={userProp} nextPending={nextPending} appointments={appointments} latestVitals={vitals.latest} healthTrend={vitals.trend} />
 }

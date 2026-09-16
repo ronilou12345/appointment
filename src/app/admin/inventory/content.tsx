@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { DataTable } from "@/components/data-table"
-import { columns, MedicineRow } from "./columns"
+import { columns, getExpiryStatus, MedicineRow } from "./columns"
 import { salesColumns, MedicineSaleRow } from "./sales-columns"
+import { PrintMedicineSalesButton } from "./print-sales"
 import { AddMedicineDialog } from "@/components/add-medicine-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -51,10 +52,10 @@ function formatSalesDate(value: string) {
   })
 }
 
-function getStockInfo(medicine: Pick<MedicineRow, "quantity" | "status" | "reorderLevel">) {
-  const stock = medicine.quantity ?? 0
-  const outOfStock = stock <= 0 || medicine.status === "Out of Stock"
-  const lowStock = !outOfStock && (medicine.status === "Low Stock" || stock <= (medicine.reorderLevel ?? 0))
+function getStockInfo(medicine: Pick<MedicineRow, "quantity" | "pieces" | "status" | "reorderLevel">) {
+  const stock = medicine.pieces ?? 0
+  const outOfStock = stock <= 0
+  const lowStock = !outOfStock && stock <= 20
   return { stock, outOfStock, lowStock }
 }
 
@@ -84,6 +85,15 @@ function CheckoutSummaryDialog({
   onConfirm: () => void
 }) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+  const [cashReceived, setCashReceived] = useState(0)
+  const numericCash = Number.isFinite(cashReceived) ? cashReceived : 0
+  const change = Math.max(0, numericCash - total)
+  const isPaymentEnough = numericCash >= total
+
+  useEffect(() => {
+    if (!open) return
+    setCashReceived(0)
+  }, [open, total])
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !loading && onOpenChange(nextOpen)} className="z-[80]">
@@ -137,6 +147,33 @@ function CheckoutSummaryDialog({
             <span>Total</span>
             <span>₱{total.toFixed(2)}</span>
           </div>
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <Label htmlFor="cash-received" className="text-sm font-medium text-muted-foreground">
+              Cash received
+            </Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm">₱</span>
+              <Input
+                id="cash-received"
+                type="number"
+                min={0}
+                step="0.01"
+                value={numericCash}
+                onChange={(event) => setCashReceived(Number(event.target.value || 0))}
+                className="h-9 w-32 text-right"
+                aria-label="Cash received from customer"
+              />
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <span>Change</span>
+            <span className={`font-semibold ${isPaymentEnough ? "text-emerald-600" : "text-red-500"}`}>
+              ₱{change.toFixed(2)}
+            </span>
+          </div>
+          {!isPaymentEnough && numericCash > 0 ? (
+            <p className="text-xs text-red-500">Customer still needs ₱{(total - numericCash).toFixed(2)} more.</p>
+          ) : null}
         </div>
 
         <DialogFooter>
@@ -146,7 +183,7 @@ function CheckoutSummaryDialog({
           <Button
             className="shadow-md shadow-primary/20"
             onClick={onConfirm}
-            disabled={loading || items.length === 0}
+            disabled={loading || items.length === 0 || !isPaymentEnough}
           >
             {loading ? "Processing..." : "Confirm checkout"}
           </Button>
@@ -228,7 +265,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const [selectedMedicineIds, setSelectedMedicineIds] = useState<Record<string, boolean>>({})
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [discountInput, setDiscountInput] = useState("")
-  const [selectedSaleDate, setSelectedSaleDate] = useState(() => getDateKey(new Date()))
+  const [selectedSaleDate, setSelectedSaleDate] = useState("")
 
   const filteredRows = rows
   const searchResults = cartSearchQuery.trim()
@@ -280,7 +317,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
     }
 
     const medicine = rows.find((item) => item.id === medicineId)
-    const stock = medicine?.quantity ?? 0
+    const stock = medicine?.pieces ?? 0
     if (newQuantity > stock) {
       toast.warning(`${medicine?.name ?? "This medicine"} has reached the maximum quantity (${stock}).`)
       return
@@ -298,7 +335,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
     if (!item) return
 
     const medicine = rows.find((row) => row.id === medicineId)
-    const stock = medicine?.quantity ?? 0
+    const stock = medicine?.pieces ?? 0
 
     if (item.quantity >= stock) {
       toast.warning(`${medicine?.name ?? item.name} has reached the maximum quantity (${stock}).`)
@@ -504,7 +541,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
 
       <div className="grid grid-cols-1 gap-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-lg border border-border bg-background p-4">
             <div className="text-sm text-muted-foreground">Total Items</div>
             <div className="mt-2 flex items-center gap-3">
@@ -516,21 +553,30 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
             <div className="text-sm text-muted-foreground">In Stock</div>
             <div className="mt-2 flex items-center gap-3">
               <CheckCircle className="size-5 text-green-500" />
-              <div className="text-2xl font-semibold text-green-500">{filteredRows.filter(m => m.status === "In Stock").length}</div>
+              <div className="text-2xl font-semibold text-green-500">{filteredRows.filter(m => (m.pieces ?? 0) > 20).length}</div>
             </div>
           </div>
           <div className="rounded-lg border border-border bg-background p-4">
             <div className="text-sm text-muted-foreground">Low Stock</div>
             <div className="mt-2 flex items-center gap-3">
               <AlertTriangle className="size-5 text-orange-500" />
-              <div className="text-2xl font-semibold text-orange-500">{filteredRows.filter(m => m.status === "Low Stock").length}</div>
+              <div className="text-2xl font-semibold text-orange-500">{filteredRows.filter(m => (m.pieces ?? 0) > 0 && (m.pieces ?? 0) <= 20).length}</div>
             </div>
           </div>
           <div className="rounded-lg border border-border bg-background p-4">
             <div className="text-sm text-muted-foreground">Out of Stock</div>
             <div className="mt-2 flex items-center gap-3">
               <XCircle className="size-5 text-red-500" />
-              <div className="text-2xl font-semibold text-red-500">{filteredRows.filter(m => m.status === "Out of Stock").length}</div>
+              <div className="text-2xl font-semibold text-red-500">{filteredRows.filter(m => (m.pieces ?? 0) <= 0).length}</div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-background p-4">
+            <div className="text-sm text-muted-foreground">Expired Items</div>
+            <div className="mt-2 flex items-center gap-3">
+              <AlertTriangle className="size-5 text-rose-500" />
+              <div className="text-2xl font-semibold text-rose-500">
+                {filteredRows.filter((medicine) => getExpiryStatus(medicine.expiryDate) === "expired").length}
+              </div>
             </div>
           </div>
         </div>
@@ -549,14 +595,22 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
               Medicines sold at checkout. Each checkout line is recorded with quantity, price, and who processed the sale.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <label htmlFor="sales-date" className="text-sm text-muted-foreground">Select date</label>
-            <Input
-              id="sales-date"
-              type="date"
-              value={selectedSaleDate}
-              onChange={(event) => setSelectedSaleDate(event.target.value)}
-              className="h-9 w-[155px]"
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+              <label htmlFor="sales-date" className="text-sm font-medium text-muted-foreground">
+                Select date
+              </label>
+              <Input
+                id="sales-date"
+                type="date"
+                value={selectedSaleDate}
+                onChange={(event) => setSelectedSaleDate(event.target.value)}
+                className="h-9 w-[170px] border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+              />
+            </div>
+            <PrintMedicineSalesButton
+              sales={selectedDateSales}
+              reportLabel={selectedSaleDate ? formatSalesDate(selectedSaleDate) : "All sales"}
             />
           </div>
         </div>

@@ -21,8 +21,10 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const emptyForm = {
   medicineName: "",
   category: "",
-  quantity: "0",
+  quantity: "",
+  pieces: "",
   expiryDate: "",
+  retailPrice: "0.00",
   price: "0.00",
   supplier: "",
 }
@@ -69,9 +71,11 @@ export function AddMedicineDialog({
       setForm({
         medicineName: medicine.name,
         category: medicine.category,
-        quantity: String(medicine.quantity ?? 0),
+        quantity: String(medicine.quantity ?? ""),
+        pieces: "",
         expiryDate: medicine.expiryDate && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
-        price: Number(medicine.price ?? 0).toFixed(2),
+        retailPrice: Number(medicine.price ?? 0).toFixed(2),
+        price: "0.00",
         supplier: medicine.supplier,
       })
       setMedicineImage(medicine.image || "")
@@ -102,8 +106,10 @@ export function AddMedicineDialog({
         id: medicine?.id,
         medicineName: form.medicineName,
         category: form.category,
-        quantity: Number.parseInt(form.quantity || "0", 10) || 0,
+        quantity: String(form.quantity ?? "").trim(),
+        pieces: Number.parseInt(form.pieces || "0", 10) || 0,
         expiryDate: form.expiryDate,
+        retailPrice: Number(form.retailPrice) || 0,
         price: Number(form.price) || 0,
         supplier: form.supplier,
         medicineImage: medicineImage.startsWith("data:image/") ? medicineImage : medicineImage || "",
@@ -215,26 +221,52 @@ export function AddMedicineDialog({
                 <Input
                   id={fieldId("quantity")}
                   name="quantity"
-                  type="number"
-                  placeholder="Number of units"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Enter quantity"
                   required
                   value={form.quantity}
                   onChange={(e) => handleChange('quantity', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={fieldId("price")}>Unit Price (₱)</Label>
+                <Label htmlFor={fieldId("pieces")}>Pieces</Label>
                 <Input
-                  id={fieldId("price")}
-                  name="price"
+                  id={fieldId("pieces")}
+                  name="pieces"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={form.pieces}
+                  onChange={(e) => handleChange('pieces', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor={fieldId("retailPrice")}>Retail Price (₱)</Label>
+                <Input
+                  id={fieldId("retailPrice")}
+                  name="retailPrice"
                   type="number"
                   placeholder="0.00"
                   step="0.01"
                   min="0"
                   required
-                  value={form.price}
-                  onChange={(e) => handleChange('price', e.target.value)}
+                  value={form.retailPrice}
+                  onChange={(e) => handleChange('retailPrice', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={fieldId("supplier")}>Supplier</Label>
+                <Input
+                  id={fieldId("supplier")}
+                  name="supplier"
+                  placeholder="e.g., PharmaCare Inc."
+                  required
+                  value={form.supplier}
+                  onChange={(e) => handleChange('supplier', e.target.value)}
                 />
               </div>
             </div>
@@ -252,14 +284,16 @@ export function AddMedicineDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={fieldId("supplier")}>Supplier</Label>
+                <Label htmlFor={fieldId("price")}>Price (₱)</Label>
                 <Input
-                  id={fieldId("supplier")}
-                  name="supplier"
-                  placeholder="e.g., PharmaCare Inc."
-                  required
-                  value={form.supplier}
-                  onChange={(e) => handleChange('supplier', e.target.value)}
+                  id={fieldId("price")}
+                  name="price"
+                  type="number"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  value={form.price}
+                  onChange={(e) => handleChange('price', e.target.value)}
                 />
               </div>
             </div>

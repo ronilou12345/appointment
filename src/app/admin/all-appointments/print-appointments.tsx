@@ -271,6 +271,37 @@ function medicalRecordPage(appointment: AppointmentRow) {
   `
 }
 
+function medicalCertificatePage(appointment: AppointmentRow) {
+  const diagnosis = appointment.diagnosis || "—"
+  const remarks = appointment.prescription || "—"
+  return `
+    <section class="certificate-page">
+      <header class="letterhead">
+        <img src="${window.location.origin}${CLINIC.logo}" alt="${escapeHtml(appointment.doctorName || "Physician")}" class="logo" />
+        <div class="clinic">
+          <h1>${escapeHtml(appointment.doctorName || "Physician")}</h1>
+          <p class="tagline">${escapeHtml(appointment.doctorBoardCertification || "—")}</p>
+          <p>${escapeHtml(CLINIC.address)}</p>
+          <p>${escapeHtml(CLINIC.email)}</p>
+        </div>
+      </header>
+      <h2 class="certificate-title">MEDICAL CERTIFICATE</h2>
+      <div class="certificate-date">${escapeHtml(formatPrintDate(appointment.date))}</div>
+      <div class="certificate-patient">
+        <div><b>Patient:</b> ${escapeHtml(appointment.patientName)}</div>
+        <div><b>Age:</b> ${escapeHtml(appointment.age || "—")} years old</div>
+        <div><b>Address:</b> ${escapeHtml("—")}</div>
+        <div><b>Gender:</b> ${escapeHtml(appointment.gender || "—")}</div>
+      </div>
+      <div class="certificate-section"><b>Complaints:</b><p>${escapeHtml(appointment.chiefComplaints || appointment.reasonForVisit || "—")}</p></div>
+      <div class="certificate-section"><b>Diagnosis:</b><p>1. ${escapeHtml(diagnosis)}</p></div>
+      <div class="certificate-section"><b>Remarks:</b><p>${escapeHtml(remarks)}</p></div>
+      <p class="certificate-disclaimer">The certificate is issued upon the request of the above patient for whatever purpose it may serve, except for medico-legal reasons.</p>
+      <div class="certificate-signature">${escapeHtml(appointment.doctorName || "Physician")}<br/>Physician's Signature<br/>PRC No. __________<br/>PTR __________</div>
+    </section>
+  `
+}
+
 function buildDocument(title: string, appointments: AppointmentRow[]) {
   return `<!DOCTYPE html>
 <html>
@@ -294,7 +325,31 @@ function buildDocument(title: string, appointments: AppointmentRow[]) {
 </html>`
 }
 
-function printHtml(title: string, html: string) {
+function buildCertificateDocument(title: string, appointment: AppointmentRow) {
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(title)}</title>
+    <style>${printStyles()}
+      .certificate-page { min-height: 100%; position: relative; padding-bottom: 90px; }
+      .certificate-title { margin: 24px 0 42px; text-align: center; font-size: 18px; }
+      .certificate-date { margin: 0 0 20px; }
+      .certificate-patient { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 80px; margin-bottom: 48px; }
+      .certificate-section { margin: 0 0 26px; font-size: 14px; }
+      .certificate-section p { margin: 18px 0 0; line-height: 1.5; }
+      .certificate-disclaimer { margin: 42px 20px 0; text-align: center; font-size: 13px; line-height: 1.5; }
+      .certificate-signature { position: absolute; right: 0; bottom: 0; width: 220px; text-align: center; font-size: 12px; line-height: 1.45; }
+      @media print { .certificate-page { min-height: 260mm; } }
+    </style>
+  </head>
+  <body>
+    <div class="document">${medicalCertificatePage(appointment)}</div>
+  </body>
+</html>`
+}
+
+function printHtml(title: string, html: string, printImmediately = false) {
   const preview = window.open("", "_blank", "width=920,height=780")
   if (!preview) {
     toast.error("Allow pop-ups to open the print preview.")
@@ -305,6 +360,18 @@ function printHtml(title: string, html: string) {
   preview.document.write(html)
   preview.document.close()
   preview.focus()
+  if (printImmediately) {
+    let printStarted = false
+    const openPrinterDialog = () => {
+      if (printStarted || preview.closed) return
+      printStarted = true
+      preview.focus()
+      preview.print()
+    }
+    preview.onload = openPrinterDialog
+    preview.onafterprint = () => preview.close()
+    window.setTimeout(openPrinterDialog, 300)
+  }
 }
 
 export function printAppointmentList(appointments: AppointmentRow[]) {
@@ -318,6 +385,14 @@ export function printSingleAppointment(appointment: AppointmentRow) {
   printHtml(
     `${CLINIC.name} — ${appointment.patientName}`,
     buildDocument(`${CLINIC.name} — ${appointment.patientName}`, [appointment]),
+  )
+}
+
+export function printMedicalCertificate(appointment: AppointmentRow) {
+  printHtml(
+    `${CLINIC.name} — Medical Certificate — ${appointment.patientName}`,
+    buildCertificateDocument(`${CLINIC.name} — Medical Certificate`, appointment),
+    true,
   )
 }
 

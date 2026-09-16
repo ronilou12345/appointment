@@ -277,7 +277,7 @@ export default function LandingPage() {
         </Badge>
 
         <h1 className="max-w-4xl text-5xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-7xl lg:text-8xl animate-in fade-in slide-in-from-bottom-8 duration-700">
-          Quality healthcare with <span className="bg-gradient-to-r from-primary to-foreground bg-clip-text text-transparent">compassion and care.</span>
+          Quality healthcare with <span className="text-primary">compassion and care.</span>
         </h1>
 
         <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl lg:text-2xl animate-in fade-in slide-in-from-bottom-12 duration-500">

@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, PencilIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,9 @@ import {
 
 export type VitalRow = {
   id: string
+  userId: string | null
+  userName: string
+  userAvatar: string
   date: string
   weight: number | null
   height: number | null
@@ -36,6 +40,19 @@ export function getVitalColumns({
   onDelete: (row: VitalRow) => void
 }): ColumnDef<VitalRow>[] {
   return [
+    {
+      accessorKey: "userName",
+      header: "Client",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Avatar size="sm" className="size-7">
+            {row.original.userAvatar ? <AvatarImage src={row.original.userAvatar} alt={row.original.userName} /> : null}
+            <AvatarFallback>{row.original.userName.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <span className="max-w-36 truncate text-sm">{row.original.userName}</span>
+        </div>
+      ),
+    },
     {
       accessorKey: "date",
       header: "Date",

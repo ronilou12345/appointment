@@ -27,8 +27,6 @@ export const themes: Record<string, ThemeOption> = {
     swatchSecondary: "#ffffff",
     darkHsl: "0 0% 98%",
     darkForeground: "0 0% 9%",
-    gradient: "linear-gradient(135deg, hsl(0 0% 0%) 0%, hsl(0 0% 45%) 50%, hsl(0 0% 100%) 100%)",
-    darkGradient: "linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(0 0% 55%) 50%, hsl(0 0% 0%) 100%)",
   },
   red: { label: "Red", activeColor: "hsl(0 72.2% 50.6%)", hsl: "0 72.2% 50.6%", foreground: "0 0% 98%" },
   orange: { label: "Orange", activeColor: "hsl(24.6 95% 53.1%)", hsl: "24.6 95% 53.1%", foreground: "0 0% 98%" },

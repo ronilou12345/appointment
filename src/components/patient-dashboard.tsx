@@ -25,6 +25,15 @@ import {
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
+interface AppointmentCardData {
+  id?: string
+  status?: string
+  title?: string
+  date?: string
+  time?: string
+  doctor?: string
+}
+
 interface PatientDashboardProps {
   user: {
     name: string
@@ -37,6 +46,7 @@ interface PatientDashboardProps {
     date?: string
     time?: string
   } | null
+  appointments?: AppointmentCardData[]
   latestVitals?: {
     heartRate?: number | null
     bodyTemperature?: number | null
@@ -96,7 +106,7 @@ function classifyVitalStatus(kind: "heartRate" | "bodyTemperature" | "weight" | 
   }
 }
 
-export function PatientDashboard({ user, nextPending, latestVitals, healthTrend = [] }: PatientDashboardProps) {
+export function PatientDashboard({ user, nextPending, appointments = [], latestVitals, healthTrend = [] }: PatientDashboardProps) {
   const router = useRouter()
   const formatTime = (time24?: string) => {
     if (!time24) return ""
@@ -266,21 +276,24 @@ export function PatientDashboard({ user, nextPending, latestVitals, healthTrend 
                 </Button>
             </CardHeader>
             <CardContent className="grid gap-4">
-              {[
-                { title: "General Checkup", date: "Oct 24, 2026", time: "10:00 AM", doctor: "Dr. Sarah Smith" },
-                { title: "Dental Scaling", date: "Nov 02, 2026", time: "02:30 PM", doctor: "Dr. James Wilson" },
-              ].map((apt, i) => (
-                <div key={i} className="flex items-center space-x-4 rounded-xl border p-4 hover:bg-muted/50 transition-colors">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <ClockIcon className="size-5" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-semibold leading-none">{apt.title}</p>
-                    <p className="text-xs text-muted-foreground">{apt.date} • {apt.time}</p>
-                    <p className="text-xs font-medium text-primary mt-1">{apt.doctor}</p>
-                  </div>
+              {appointments.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                  No upcoming appointments found.
                 </div>
-              ))}
+              ) : (
+                appointments.map((apt, i) => (
+                  <div key={apt.id ?? i} className="flex items-center space-x-4 rounded-xl border p-4 hover:bg-muted/50 transition-colors">
+                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <ClockIcon className="size-5" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-semibold leading-none">{apt.title ?? "General Consultation"}</p>
+                      <p className="text-xs text-muted-foreground">{apt.date ? new Date(apt.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : ""} • {formatTime(apt.time)}</p>
+                      <p className="text-xs font-medium text-primary mt-1">{apt.doctor ?? "Doctor"}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

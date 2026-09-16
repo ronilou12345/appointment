@@ -1,13 +1,17 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export type MedicineSaleRow = {
   id: string
   medicineName: string
+  medicineCategory?: string
+  medicineImage?: string
   quantitySold: number
   unitPrice: number
   totalAmount: number
+  remaining: number
   saleDate: string
   soldBy: string
   discountPercent?: number
@@ -17,30 +21,70 @@ function formatSaleDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "—"
 
-  return date.toLocaleString("en-PH", {
-    timeZone: "Asia/Manila",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  })
+  return {
+    date: date.toLocaleDateString("en-PH", {
+      timeZone: "Asia/Manila",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    time: date.toLocaleTimeString("en-PH", {
+      timeZone: "Asia/Manila",
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+  }
 }
 
 export const salesColumns: ColumnDef<MedicineSaleRow>[] = [
   {
-    accessorKey: "saleDate",
-    header: "Sale Date",
-    cell: ({ row }) => (
-      <span className="whitespace-nowrap text-sm text-muted-foreground">
-        {formatSaleDate(row.original.saleDate)}
-      </span>
-    ),
+    accessorKey: "medicineName",
+    header: "Medicine Name",
+    cell: ({ row }) => {
+      const medicineName = row.original.medicineName || "Unknown medicine"
+      const initials = medicineName
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase() || "M"
+
+      const medicineCategory = row.original.medicineCategory || "Uncategorized"
+
+      return (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10 overflow-hidden rounded-full bg-transparent shadow-none ring-0">
+            {row.original.medicineImage ? (
+              <AvatarImage src={row.original.medicineImage} alt={medicineName} className="object-cover" />
+            ) : null}
+            <AvatarFallback className="rounded-full bg-muted text-[10px] font-semibold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="truncate font-medium text-foreground">{medicineName}</div>
+            <div className="text-xs text-muted-foreground">{medicineCategory}</div>
+          </div>
+        </div>
+      )
+    },
   },
   {
-    accessorKey: "medicineName",
-    header: "Medicine",
-    cell: ({ row }) => <div className="font-medium">{row.getValue("medicineName")}</div>,
+    accessorKey: "saleDate",
+    header: "Sale Date",
+    cell: ({ row }) => {
+      const formatted = formatSaleDate(row.original.saleDate)
+
+      if (typeof formatted === "string") {
+        return <span className="text-muted-foreground">{formatted}</span>
+      }
+
+      return (
+        <div className="whitespace-nowrap text-sm">
+          <div className="font-medium text-foreground">{formatted.date}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{formatted.time}</div>
+        </div>
+      )
+    },
   },
   {
     accessorKey: "quantitySold",
@@ -85,6 +129,11 @@ export const salesColumns: ColumnDef<MedicineSaleRow>[] = [
         </span>
       )
     },
+  },
+  {
+    accessorKey: "remaining",
+    header: "Remaining",
+    cell: ({ row }) => <span className="font-medium">{row.original.remaining}</span>,
   },
   {
     accessorKey: "soldBy",

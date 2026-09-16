@@ -5,6 +5,11 @@ import { Badge } from "@/components/ui/badge"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { CalendarDays, ClipboardList, HeartPulse, Stethoscope, Users, CalendarCheck, Activity } from "lucide-react"
 
+type AppointmentTrendPoint = {
+  date: string
+  visitors: number
+}
+
 type DoctorDashboardProps = {
   todayPatients?: number
   confirmedAppointments?: number
@@ -18,6 +23,11 @@ type DoctorDashboardProps = {
     appointmentType?: string
     avatar?: string | null
   }>
+  appointmentTrend?: AppointmentTrendPoint[]
+  topProcedures?: Array<{
+    title: string
+    value: string
+  }>
 }
 
 export function DoctorDashboard({
@@ -25,6 +35,8 @@ export function DoctorDashboard({
   confirmedAppointments = 0,
   sessionsCount = 0,
   nextAppointments = [],
+  appointmentTrend = [],
+  topProcedures = [],
 }: DoctorDashboardProps) {
   const formatTime = (time24?: string) => {
     if (!time24) return ""
@@ -124,7 +136,7 @@ export function DoctorDashboard({
               <Badge variant="secondary">Live</Badge>
             </CardHeader>
             <CardContent>
-              <ChartAreaInteractive />
+              <ChartAreaInteractive visitorData={appointmentTrend} />
             </CardContent>
           </Card>
 
@@ -161,19 +173,19 @@ export function DoctorDashboard({
                 <CardDescription>Most frequent today.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3">
-                {[
-                  { title: "Telehealth", value: "28%" },
-                  { title: "General Checkup", value: "22%" },
-                  { title: "Follow-up", value: "16%" },
-                ].map((item) => (
-                  <div key={item.title} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-background px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">Most scheduled</p>
+                {topProcedures.length > 0 ? (
+                  topProcedures.map((item) => (
+                    <div key={item.title} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-background px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">Most scheduled</p>
+                      </div>
+                      <span className="text-sm font-semibold">{item.value}</span>
                     </div>
-                    <span className="text-sm font-semibold">{item.value}</span>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground">No procedures scheduled today</div>
+                )}
               </CardContent>
             </Card>
           </div>

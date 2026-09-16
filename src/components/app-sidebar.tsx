@@ -151,6 +151,7 @@ const data = {
   documents: [
     { name: "Medicine", url: "/admin/inventory", icon: <DatabaseIcon />, badge: "New" },
     { name: "Reports", url: "/admin/reports", icon: <FileChartColumnIcon /> },
+    { name: "Add Vitals", url: "/admin/add-bmi", icon: <ChartBarIcon />, badge: "new" },
   ],
 }
 
@@ -179,18 +180,11 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
             url: user?.role === "DOCTOR" ? "/doctor/settings" : "/client/settings",
             icon: <Settings2Icon />,
           },
-          user?.role === "CLIENT"
-            ? {
-                title: "Add Vitals",
-                url: "/client/add-bmi",
-                icon: <ChartBarIcon />,
-                badge: "new",
-              }
-            : {
-                title: "Get Help",
-                url: "#",
-                icon: <CircleHelpIcon />,
-              },
+          {
+            title: "Get Help",
+            url: "#",
+            icon: <CircleHelpIcon />,
+          },
         ]
 
   return (
@@ -199,7 +193,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
-              <a href="#" title="Doctor ng Bawat Pamilyang Pilipino" className="flex items-center gap-2">
+              <a href="#" className="flex items-center gap-2">
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden bg-white p-2 transition-[border-radius] dark:bg-slate-900 rounded-[var(--radius)]">
                   <Image
                     src="/logo1.jpg"
@@ -211,7 +205,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                 </div>
                 <span className="flex flex-col items-start">
                   <span className="text-sm font-semibold leading-tight">C2M Family Clinic & Pharmacy</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">Doctor ng Bawat Pamilyang Pilipino</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">v1.0.0-beta.15 · © 2026 C2M Clinic</span>
                 </span>
               </a>
             </SidebarMenuButton>

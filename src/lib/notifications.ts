@@ -10,6 +10,7 @@ export type NotificationType =
   | "upcoming"
   | "session"
   | "soap"
+  | "inventory"
 
 export type AppNotification = {
   id: string
@@ -22,7 +23,7 @@ export type AppNotification = {
   appointmentAt: string | null
   personName: string
   personAvatar: string
-  personRole: "Patient" | "Doctor"
+  personRole: "Patient" | "Doctor" | "System"
 }
 
 const UPCOMING_WINDOW_DAYS = 30
@@ -428,6 +429,34 @@ function buildSoapNotification(soap: SoapRecord, role: UserRole): AppNotificatio
   }
 }
 
+function buildInventoryExpiryNotification(
+  medicines: { medicine_id: number; medicine_name: string; expiry_date: Date }[],
+): AppNotification | null {
+  if (medicines.length === 0) return null
+
+  const names = medicines.slice(0, 3).map((medicine) => medicine.medicine_name).join(", ")
+  const remaining = medicines.length - Math.min(medicines.length, 3)
+  const message = `${medicines.length} medicine${medicines.length === 1 ? "" : "s"} expiring within one month: ${names}${remaining > 0 ? ` and ${remaining} more` : ""}.`
+  const latestExpiry = medicines.reduce(
+    (latest, medicine) => (medicine.expiry_date < latest ? medicine.expiry_date : latest),
+    medicines[0].expiry_date,
+  )
+
+  return {
+    id: `inventory-expiry-${medicines.map((medicine) => medicine.medicine_id).join("-")}`,
+    type: "inventory",
+    title: "Medicine expiry alert",
+    message,
+    href: "/admin/inventory",
+    appointmentId: null,
+    createdAt: new Date().toISOString(),
+    appointmentAt: latestExpiry.toISOString(),
+    personName: "Medicine Inventory",
+    personAvatar: "",
+    personRole: "System",
+  }
+}
+
 export async function getNotificationsForUser(userId: string, role?: string | null) {
   const normalizedRole = normalizeUserRole(role)
 
@@ -450,8 +479,10 @@ export async function getNotificationsForUser(userId: string, role?: string | nu
   startOfToday.setHours(0, 0, 0, 0)
   const todayKey = localDateKey(startOfToday)
   const windowEnd = addDays(startOfToday, UPCOMING_WINDOW_DAYS)
+  const inventoryWindowEnd = new Date(startOfToday)
+  inventoryWindowEnd.setMonth(inventoryWindowEnd.getMonth() + 1)
 
-  const [recent, upcoming, sessions, soapNotes] = await Promise.all([
+  const [recent, upcoming, sessions, soapNotes, expiringMedicines] = await Promise.all([
     prisma.appointment.findMany({
       where: scope,
       orderBy: { appointment_id: "desc" },
@@ -496,6 +527,16 @@ export async function getNotificationsForUser(userId: string, role?: string | nu
         appointment: { select: appointmentSelect },
       },
     }),
+    normalizedRole === "ADMIN"
+      ? prisma.medicine_inventory.findMany({
+          where: {
+            expiry_date: { gte: startOfToday, lte: inventoryWindowEnd },
+            NOT: { status: { equals: "Deleted", mode: "insensitive" } },
+          },
+          orderBy: { expiry_date: "asc" },
+          select: { medicine_id: true, medicine_name: true, expiry_date: true },
+        })
+      : Promise.resolve([]),
   ])
 
   const sessionNotifications = (sessions as SessionRecord[])
@@ -526,9 +567,11 @@ export async function getNotificationsForUser(userId: string, role?: string | nu
     .filter((notification): notification is AppNotification => notification !== null)
     .sort((a, b) => String(a.appointmentAt).localeCompare(String(b.appointmentAt)))
 
+  const inventoryNotification = buildInventoryExpiryNotification(expiringMedicines)
+
   const seen = new Set<string>()
 
-  return [...upcomingNotifications, ...statusNotifications]
+  return [...upcomingNotifications, ...statusNotifications, ...(inventoryNotification ? [inventoryNotification] : [])]
     .filter((notification) => {
       if (seen.has(notification.id)) return false
       seen.add(notification.id)

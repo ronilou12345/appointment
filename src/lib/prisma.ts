@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 const DEFAULT_POOL_MAX = 5
+const DEFAULT_CONNECTION_TIMEOUT_MS = 15_000
 
 const prismaClientSingleton = () => {
   if (!process.env.DATABASE_URL) {
@@ -12,11 +13,15 @@ const prismaClientSingleton = () => {
   const max = Number.isFinite(configuredPoolMax) && configuredPoolMax > 0
     ? configuredPoolMax
     : DEFAULT_POOL_MAX
+  const configuredConnectionTimeout = Number.parseInt(process.env.PRISMA_CONNECTION_TIMEOUT_MS ?? '', 10)
+  const connectionTimeoutMillis = Number.isFinite(configuredConnectionTimeout) && configuredConnectionTimeout > 0
+    ? configuredConnectionTimeout
+    : DEFAULT_CONNECTION_TIMEOUT_MS
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
     max,
     idleTimeoutMillis: 10_000,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis,
   })
   return new PrismaClient({ adapter })
 }

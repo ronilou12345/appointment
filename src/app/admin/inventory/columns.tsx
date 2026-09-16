@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, PencilIcon, ShoppingCart, Trash2Icon } from "lucide-react"
+import { AlertTriangle, CheckCircle2, MoreHorizontal, PencilIcon, ShoppingCart, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -17,13 +17,31 @@ export type MedicineRow = {
   id: string
   name: string
   category: string
-  quantity: number
+  quantity: string
+  pieces?: number
   reorderLevel: number
   expiryDate: string
   price: number
+  retailPrice?: number
   supplier: string
   status: string
   image?: string
+}
+
+export function getExpiryStatus(expiryDate: string, now = new Date()) {
+  const expiry = new Date(`${expiryDate}T23:59:59`)
+  if (Number.isNaN(expiry.getTime()) || expiryDate === "N/A") return "valid" as const
+  if (expiry < now) return "expired" as const
+
+  const oneMonthFromNow = new Date(now)
+  oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
+  return expiry <= oneMonthFromNow ? "near" as const : "valid" as const
+}
+
+function formatExpiryDate(expiryDate: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) return expiryDate || "—"
+  const [year, month, day] = expiryDate.split("-")
+  return `${month}/${day}/${year}`
 }
 
 const getStatusClasses = (status: string) => {
@@ -67,45 +85,99 @@ export const columns: ColumnDef<MedicineRow>[] = [
   {
     accessorKey: "name",
     header: "Medicine Name",
-    cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
-  },
-  {
-    accessorKey: "category",
-    header: "Category",
-    cell: ({ row }) => row.getValue("category") || "—",
-    enableHiding: true,
-  },
-  {
-    accessorKey: "quantity",
-    header: "Quantity",
     cell: ({ row }) => {
-      const quantity = row.getValue("quantity") as number
-      const reorderLevel = row.original.reorderLevel
+      const name = String(row.getValue("name") ?? "")
+      const category = String(row.original.category ?? "")
+
       return (
-        <span className={`font-semibold ${quantity <= reorderLevel ? "text-orange-500" : ""}`}>
-          {quantity}
-        </span>
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{name}</div>
+          {category ? <div className="text-xs text-muted-foreground">{category}</div> : null}
+        </div>
       )
     },
   },
   {
+    accessorKey: "quantity",
+    header: "Quantity",
+    cell: ({ row }) => <span className="font-medium">{String(row.getValue("quantity") ?? "") || "—"}</span>,
+  },
+  {
+    accessorKey: "pieces",
+    header: "Pieces",
+    cell: ({ row }) => <span className="font-medium">{Number(row.original.pieces ?? 0)}</span>,
+  },
+  {
     accessorKey: "expiryDate",
     header: "Expiry Date",
-    cell: ({ row }) => row.getValue("expiryDate") || "—",
+    cell: ({ row }) => {
+      const expiryDate = String(row.getValue("expiryDate") ?? "")
+      const expiryStatus = getExpiryStatus(expiryDate)
+
+      return (
+        <div className="flex items-center gap-2 whitespace-nowrap">
+          <span>{formatExpiryDate(expiryDate)}</span>
+          {expiryStatus === "near" ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800/60"
+              title="Expires within one month"
+              aria-label="Expires within one month"
+            >
+              <AlertTriangle className="size-3" />
+              Near expiry
+            </span>
+          ) : expiryStatus === "expired" ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-800/60"
+              title="Expired"
+              aria-label="Expired"
+            >
+              <AlertTriangle className="size-3" />
+              Expired
+            </span>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800/60"
+              title="Valid"
+              aria-label="Valid"
+            >
+              <CheckCircle2 className="size-3" />
+              Valid
+            </span>
+          )}
+        </div>
+      )
+    },
   },
   {
     accessorKey: "price",
-    header: "Unit Price",
+    header: "Price",
     cell: ({ row }) => {
-      const price = row.getValue("price") as number
+      const price = Number(row.getValue("price") ?? 0)
       return `₱${price.toFixed(2)}`
+    },
+  },
+  {
+    id: "subtotal",
+    header: "Sub Total",
+    cell: ({ row }) => {
+      const pieces = Number(row.original.pieces ?? 0)
+      const price = Number(row.original.price ?? 0)
+      return `₱${(pieces * price).toFixed(2)}`
+    },
+  },
+  {
+    accessorKey: "retailPrice",
+    header: "Retail Price",
+    cell: ({ row }) => {
+      const retailPrice = Number(row.original.retailPrice ?? row.getValue("price") ?? 0)
+      return `₱${retailPrice.toFixed(2)}`
     },
   },
   {
     accessorKey: "supplier",
     header: "Supplier",
-    cell: ({ row }) => row.getValue("supplier") || "—",
-    enableHiding: true,
+    cell: ({ row }) => <span className="whitespace-nowrap">{row.original.supplier || "—"}</span>,
   },
   {
     accessorKey: "status",
@@ -124,7 +196,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
     header: "",
     cell: ({ row }) => {
       const medicine = row.original
-      const outOfStock = medicine.quantity <= 0 || medicine.status === "Out of Stock"
+      const outOfStock = (medicine.pieces ?? 0) <= 0
       return (
         <Button
           size="sm"

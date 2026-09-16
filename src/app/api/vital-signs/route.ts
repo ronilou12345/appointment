@@ -3,8 +3,10 @@ import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 import { logCurrentUserActivity } from "@/lib/activity-log"
 import { ensureVitalSignsColumns, toVitalNumber } from "@/lib/vital-signs"
+import { resolveProfileAvatar } from "@/lib/profile-image"
 
 type Payload = {
+  user_id?: string | null
   weight?: number | null
   height?: number | null
   heart_rate?: number | null
@@ -12,9 +14,29 @@ type Payload = {
   blood_sugar?: number | null
 }
 
+function isAdmin(user: Awaited<ReturnType<typeof getSession>>) {
+  return user?.role === "ADMIN"
+}
+
+async function getTargetUserId(user: NonNullable<Awaited<ReturnType<typeof getSession>>>, requestedUserId?: string | null) {
+  if (!requestedUserId || requestedUserId === user.id) return user.id
+  if (!isAdmin(user)) return null
+
+  const target = await prisma.user.findUnique({
+    where: { id: requestedUserId },
+    select: { id: true, role: true, status: true },
+  })
+  if (!target || target.role !== "PATIENT" || target.status !== "ACTIVE") return null
+  return target.id
+}
+
 function mapVitalRow(row: any) {
+  const userId = row.user_id ?? row.owner_id ?? null
   return {
     id: row.id ?? row.vital_id,
+    user_id: userId,
+    user_name: row.user_name ?? "Unknown client",
+    user_avatar: userId ? resolveProfileAvatar(String(userId), row.profile_image) : "",
     weight: toVitalNumber(row.weight),
     height: toVitalNumber(row.height),
     heart_rate: toVitalNumber(row.heart_rate),
@@ -32,6 +54,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as Payload
+    const targetUserId = await getTargetUserId(user, body.user_id)
+    if (!targetUserId) {
+      return NextResponse.json({ success: false, error: "Select an active client user." }, { status: 400 })
+    }
     await ensureVitalSignsColumns()
 
     let res: any[] = []
@@ -40,7 +66,7 @@ export async function POST(req: NextRequest) {
         `INSERT INTO "vital_signs" (user_id, weight, height, heart_rate, body_temperature, blood_sugar, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
          RETURNING vital_id AS id, weight, height, heart_rate, body_temperature, blood_sugar, created_at`,
-        user.id,
+        targetUserId,
         body.weight ?? null,
         body.height ?? null,
         body.heart_rate ?? null,
@@ -50,7 +76,7 @@ export async function POST(req: NextRequest) {
     } catch {
       const appointments = await prisma.$queryRawUnsafe<any[]>(
         `SELECT appointment_id FROM "appointment" WHERE user_id = $1 ORDER BY appointment_id DESC LIMIT 1`,
-        user.id,
+        targetUserId,
       )
       const appointmentId = Number(appointments[0]?.appointment_id)
       if (!appointmentId) {
@@ -62,7 +88,7 @@ export async function POST(req: NextRequest) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
          RETURNING vital_id AS id, weight, height, heart_rate, body_temperature, blood_sugar, created_at`,
         appointmentId,
-        user.id,
+        targetUserId,
         body.weight ?? null,
         body.height ?? null,
         body.heart_rate ?? null,
@@ -87,11 +113,43 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
 
+    const requestedUserId = req.nextUrl.searchParams.get("userId")
     await ensureVitalSignsColumns()
+
+    if (isAdmin(user) && !requestedUserId) {
+      const rows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT
+            v.vital_id AS id,
+            COALESCE(v.user_id, a.user_id) AS user_id,
+            u.name AS user_name,
+            u.profile_image,
+            v.weight,
+            v.height,
+            v.heart_rate,
+            v.body_temperature,
+            v.blood_sugar,
+            v.created_at
+          FROM "vital_signs" v
+          LEFT JOIN "appointment" a ON a.appointment_id = v.appointment_id
+          LEFT JOIN "user" u ON u.id = COALESCE(v.user_id, a.user_id)
+          ORDER BY v.created_at DESC NULLS LAST
+          LIMIT 100`,
+      )
+
+      return NextResponse.json({ success: true, data: rows.map(mapVitalRow) })
+    }
+
+    const targetUserId = await getTargetUserId(user, requestedUserId)
+    if (!targetUserId) {
+      return NextResponse.json({ success: false, error: "Select an active client user." }, { status: 400 })
+    }
 
     const rows = await prisma.$queryRawUnsafe<any[]>(
       `SELECT
           v.vital_id AS id,
+          COALESCE(v.user_id, a.user_id) AS user_id,
+          u.name AS user_name,
+          u.profile_image,
           v.weight,
           v.height,
           v.heart_rate,
@@ -100,10 +158,11 @@ export async function GET(req: NextRequest) {
           v.created_at
         FROM "vital_signs" v
         LEFT JOIN "appointment" a ON a.appointment_id = v.appointment_id
-        WHERE v.user_id = $1 OR a.user_id = $1
+        LEFT JOIN "user" u ON u.id = COALESCE(v.user_id, a.user_id)
+          WHERE v.user_id = $1 OR a.user_id = $1
         ORDER BY v.created_at DESC NULLS LAST
         LIMIT 100`,
-      String(user.id),
+      String(targetUserId),
     )
 
     return NextResponse.json({ success: true, data: rows.map(mapVitalRow) })
@@ -113,15 +172,16 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function assertOwnedVital(vitalId: number, userId: string) {
+async function assertOwnedVital(vitalId: number, userId: string, admin: boolean) {
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `SELECT v.vital_id
      FROM "vital_signs" v
      LEFT JOIN "appointment" a ON a.appointment_id = v.appointment_id
-     WHERE v.vital_id = $1 AND (v.user_id = $2 OR a.user_id = $2)
+     WHERE v.vital_id = $1 AND ($3 OR v.user_id = $2 OR a.user_id = $2)
      LIMIT 1`,
     vitalId,
     userId,
+    admin,
   )
   return Boolean(rows[0]?.vital_id)
 }
@@ -141,7 +201,7 @@ export async function PUT(req: NextRequest) {
 
     await ensureVitalSignsColumns()
 
-    const owned = await assertOwnedVital(vitalId, user.id)
+    const owned = await assertOwnedVital(vitalId, user.id, isAdmin(user))
     if (!owned) {
       return NextResponse.json({ success: false, error: "Vitals record not found" }, { status: 404 })
     }
@@ -188,7 +248,7 @@ export async function DELETE(req: NextRequest) {
 
     await ensureVitalSignsColumns()
 
-    const owned = await assertOwnedVital(vitalId, user.id)
+    const owned = await assertOwnedVital(vitalId, user.id, isAdmin(user))
     if (!owned) {
       return NextResponse.json({ success: false, error: "Vitals record not found" }, { status: 404 })
     }

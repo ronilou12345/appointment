@@ -177,8 +177,7 @@ export async function getReportsData(): Promise<ReportsData> {
     prisma.medicine_inventory.findMany({
       where: { NOT: { status: { equals: "Deleted", mode: "insensitive" } } },
       select: {
-        quantity: true,
-        reorder_level: true,
+        pieces: true,
         expiry_date: true,
       },
     }),
@@ -208,10 +207,8 @@ export async function getReportsData(): Promise<ReportsData> {
   )
 
   const expiredMedicines = medicines.filter((item) => item.expiry_date && item.expiry_date < today).length
-  const outOfStock = medicines.filter((item) => item.quantity <= 0).length
-  const lowStock = medicines.filter(
-    (item) => item.quantity > 0 && item.quantity <= (item.reorder_level ?? 0),
-  ).length
+  const outOfStock = medicines.filter((item) => (item.pieces ?? 0) <= 0).length
+  const lowStock = medicines.filter((item) => (item.pieces ?? 0) > 0 && (item.pieces ?? 0) <= 20).length
 
   return {
     generatedAt: new Date().toISOString(),

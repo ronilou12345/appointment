@@ -5,18 +5,27 @@ import { logCurrentUserActivity } from "@/lib/activity-log"
 function parseMedicinePayload(body: Record<string, unknown>) {
   const medicineName = String(body.medicineName ?? "").trim()
   const category = String(body.category ?? "").trim()
-  const quantity = Number.parseInt(String(body.quantity ?? "0"), 10) || 0
-  const hasReorderLevel = body.reorderLevel !== undefined
-  const reorderLevel = hasReorderLevel
-    ? Number.parseInt(String(body.reorderLevel ?? "0"), 10) || 0
-    : undefined
+  const quantity = String(body.quantity ?? "").trim()
+  const pieces = Number.parseInt(String(body.pieces ?? "0"), 10) || 0
   const expiryDate = body.expiryDate ? new Date(String(body.expiryDate)) : null
-  const unitPrice = Number(body.price ?? 0) || 0
+  const retailPrice = Number(body.retailPrice ?? body.unitPrice ?? body.price ?? 0) || 0
+  const price = Number(body.price ?? 0) || 0
   const supplier = String(body.supplier ?? "").trim()
   const status = String(body.status ?? "In Stock").trim()
   const medicineImage = body.medicineImage ? String(body.medicineImage).trim() : null
 
-  return { medicineName, category, quantity, reorderLevel, expiryDate, unitPrice, supplier, status, medicineImage }
+  return {
+    medicineName,
+    category,
+    quantity,
+    pieces,
+    expiryDate,
+    retailPrice,
+    price,
+    supplier,
+    status,
+    medicineImage,
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -33,9 +42,10 @@ export async function POST(request: NextRequest) {
         medicine_name: payload.medicineName,
         category: payload.category,
         quantity: payload.quantity,
-        reorder_level: payload.reorderLevel ?? 0,
+        pieces: payload.pieces,
         expiry_date: payload.expiryDate,
-        unit_price: payload.unitPrice,
+        unit_price: payload.retailPrice,
+        price: payload.price,
         supplier: payload.supplier,
         status: payload.status,
         medicine_image: payload.medicineImage,
@@ -67,9 +77,10 @@ export async function PATCH(request: NextRequest) {
         medicine_name: payload.medicineName,
         category: payload.category,
         quantity: payload.quantity,
-        ...(payload.reorderLevel === undefined ? {} : { reorder_level: payload.reorderLevel }),
+        pieces: payload.pieces,
         expiry_date: payload.expiryDate,
-        unit_price: payload.unitPrice,
+        unit_price: payload.retailPrice,
+        price: payload.price,
         supplier: payload.supplier,
         status: payload.status,
         medicine_image: payload.medicineImage,
@@ -113,7 +124,7 @@ export async function DELETE(request: NextRequest) {
         where: { medicine_id: id },
         data: {
           status: "Deleted",
-          quantity: 0,
+          quantity: "",
           updated_at: new Date(),
         },
       })

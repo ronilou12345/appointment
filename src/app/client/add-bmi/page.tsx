@@ -23,8 +23,9 @@ function computeBmi(weight: number | null, height: number | null) {
   return Math.round((weight / (heightM * heightM)) * 10) / 10
 }
 
-export default function AddBmiPage() {
+export default function AddBmiPage({ allowUserSelection = false }: { allowUserSelection?: boolean }) {
   const [rows, setRows] = useState<VitalRow[]>([])
+  const [selectedUserId, setSelectedUserId] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editVital, setEditVital] = useState<VitalRow | null>(null)
   const [deleteVital, setDeleteVital] = useState<VitalRow | null>(null)
@@ -33,12 +34,16 @@ export default function AddBmiPage() {
 
   const fetchRows = async () => {
     try {
-      const res = await fetch("/api/vital-signs")
+      const query = allowUserSelection && selectedUserId ? `?userId=${encodeURIComponent(selectedUserId)}` : ""
+      const res = await fetch(`/api/vital-signs${query}`)
       const json = await res.json()
       if (res.ok && json?.success) {
         const data = Array.isArray(json.data) ? json.data : []
         const mapped = data.map((r: any) => ({
           id: String(r.id ?? ""),
+          userId: r.user_id ?? null,
+          userName: r.user_name ?? "Unknown client",
+          userAvatar: r.user_avatar ?? "",
           date: r.created_at ? new Date(r.created_at).toLocaleString() : "",
           weight: r.weight ?? null,
           height: r.height ?? null,
@@ -56,7 +61,7 @@ export default function AddBmiPage() {
 
   React.useEffect(() => {
     fetchRows()
-  }, [])
+  }, [allowUserSelection, selectedUserId])
 
   const columns = useMemo(
     () =>
@@ -95,19 +100,26 @@ export default function AddBmiPage() {
 
   return (
     <div className="min-h-screen w-full bg-background p-6 text-foreground">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Vitals History</h3>
-        <Button
-          size="sm"
-          className="shadow-md shadow-primary/20"
-          onClick={() => {
-            setEditVital(null)
-            setDialogOpen(true)
-          }}
-        >
-          <PlusIcon className="size-4 mr-2" />
-          Add
-        </Button>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-foreground">BMI Records</h1>
+          <p className="mt-2 text-muted-foreground">
+            Add BMI measurements and display all saved BMI records for your clients.
+          </p>
+        </div>
+        <div className="flex flex-shrink-0 gap-3">
+          <Button
+            size="sm"
+            className="shadow-md shadow-primary/20"
+            onClick={() => {
+              setEditVital(null)
+              setDialogOpen(true)
+            }}
+          >
+            <PlusIcon className="size-4 mr-2" />
+            Add
+          </Button>
+        </div>
       </div>
 
       <AddVitalsDialog
@@ -118,6 +130,9 @@ export default function AddBmiPage() {
           setDialogOpen(open)
           if (!open) setEditVital(null)
         }}
+        canSelectUser={allowUserSelection}
+        selectedUserId={selectedUserId}
+        onUserChange={setSelectedUserId}
         onSaved={async () => {
           await fetchRows()
           router.refresh()

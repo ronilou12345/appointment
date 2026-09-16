@@ -83,6 +83,10 @@ const notificationStyles: Record<NotificationType, { icon: React.ReactNode; acce
     icon: <ClipboardListIcon className="size-3" />,
     accent: "bg-teal-600 text-white",
   },
+  inventory: {
+    icon: <BellIcon className="size-3" />,
+    accent: "bg-rose-600 text-white",
+  },
 }
 
 function getPersonInitials(name: string) {

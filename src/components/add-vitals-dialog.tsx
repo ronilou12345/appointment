@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { PlusIcon } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
+import { CheckIcon, PlusIcon, SearchIcon } from "lucide-react"
 import { toast } from "sonner"
 import type { VitalRow } from "@/app/client/add-bmi/columns"
 
@@ -39,27 +41,65 @@ function computeBmi(weight: string, height: string) {
   return Math.round((weightKg / (heightM * heightM)) * 10) / 10
 }
 
+function userInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+}
+
 export function AddVitalsDialog({
   open,
   onOpenChange,
   onSaved,
   vital,
   showTrigger = true,
+  canSelectUser = false,
+  selectedUserId = "",
+  onUserChange,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSaved?: () => void
   vital?: VitalRow | null
   showTrigger?: boolean
+  canSelectUser?: boolean
+  selectedUserId?: string
+  onUserChange?: (userId: string) => void
 }) {
   const [loading, setLoading] = React.useState(false)
+  const [users, setUsers] = React.useState<{ id: string; name: string; email: string; avatar?: string | null }[]>([])
+  const [userSearch, setUserSearch] = React.useState("")
+  const [userPickerOpen, setUserPickerOpen] = React.useState(false)
   const [form, setForm] = React.useState(emptyForm)
   const isEditing = Boolean(vital?.id)
+  const filteredUsers = users.filter((user) => {
+    const query = userSearch.trim().toLowerCase()
+    return !query || user.name.toLowerCase().includes(query) || user.email.toLowerCase().includes(query)
+  })
+  const selectedUser = users.find((user) => user.id === selectedUserId)
+
+  React.useEffect(() => {
+    if (!open || !canSelectUser) return
+
+    fetch("/api/users?role=PATIENT")
+      .then(async (res) => {
+        const result = await res.json()
+        if (!res.ok || !result.success) throw new Error(result.error || "Unable to load client users")
+        setUsers(Array.isArray(result.users) ? result.users : [])
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Unable to load client users"))
+  }, [open, canSelectUser])
 
   React.useEffect(() => {
     if (!open) {
       setForm(emptyForm)
       setLoading(false)
+      setUserPickerOpen(false)
+      setUserSearch("")
       return
     }
 
@@ -102,6 +142,11 @@ export function AddVitalsDialog({
       return
     }
 
+    if (canSelectUser && !selectedUserId) {
+      toast.error("Please select a client user.")
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch("/api/vital-signs", {
@@ -109,6 +154,7 @@ export function AddVitalsDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: vital?.id,
+          user_id: canSelectUser ? selectedUserId : undefined,
           weight,
           height,
           heart_rate: heartRate,
@@ -152,11 +198,83 @@ export function AddVitalsDialog({
             <DialogDescription>
               {isEditing
                 ? "Update this vitals record."
-                : "Record weight, height, heart rate, temperature, and blood sugar."}
+                : canSelectUser
+                  ? "Select a client user and record their vital signs."
+                  : "Record weight, height, heart rate, temperature, and blood sugar."}
             </DialogDescription>
           </DialogHeader>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
+            {canSelectUser ? (
+              <Field>
+                <FieldLabel htmlFor="vital-user">Client user</FieldLabel>
+                <Popover open={userPickerOpen} onOpenChange={setUserPickerOpen}>
+                  <PopoverAnchor asChild>
+                    <div className="relative">
+                      {selectedUser ? (
+                        <Avatar className="pointer-events-none absolute left-2 top-1/2 z-10 size-7 -translate-y-1/2">
+                          {selectedUser.avatar ? <AvatarImage src={selectedUser.avatar} alt={selectedUser.name} /> : null}
+                          <AvatarFallback>{userInitials(selectedUser.name)}</AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+                      )}
+                      <Input
+                        id="vital-user"
+                        value={userPickerOpen ? userSearch : selectedUser?.name ?? ""}
+                        onFocus={() => {
+                          setUserPickerOpen(true)
+                          setUserSearch("")
+                        }}
+                        onChange={(event) => {
+                          setUserSearch(event.target.value)
+                          setUserPickerOpen(true)
+                        }}
+                        placeholder="Select a client user"
+                        aria-label="Search client users"
+                        autoComplete="off"
+                        disabled={isEditing || loading}
+                        className={`h-10 w-full ${selectedUser ? "pl-11" : "pl-9"}`}
+                      />
+                    </div>
+                  </PopoverAnchor>
+                  <PopoverContent
+                    align="start"
+                    className="z-[200] w-[var(--radix-popover-trigger-width)] p-0"
+                    onOpenAutoFocus={(event) => event.preventDefault()}
+                  >
+                    <div className="max-h-72 overflow-y-auto p-1">
+                      {filteredUsers.length === 0 ? (
+                        <p className="px-2 py-6 text-center text-sm text-muted-foreground">No clients found.</p>
+                      ) : (
+                        filteredUsers.map((user) => (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => {
+                              onUserChange?.(user.id)
+                              setUserPickerOpen(false)
+                              setUserSearch("")
+                            }}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <Avatar size="sm" className="size-7">
+                              {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
+                              <AvatarFallback>{userInitials(user.name)}</AvatarFallback>
+                            </Avatar>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-medium">{user.name}</span>
+                              <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+                            </span>
+                            {user.id === selectedUserId ? <CheckIcon className="size-4 shrink-0 text-primary" /> : null}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </Field>
+            ) : null}
             <FieldGroup className="grid-cols-1 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="vital-weight">Weight (kg)</FieldLabel>

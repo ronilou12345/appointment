@@ -5,13 +5,22 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MoreHorizontal } from "lucide-react"
+import { useState } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { printSingleAppointment } from "./print-appointments"
+import { printMedicalCertificate, printSingleAppointment } from "./print-appointments"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export type AppointmentRow = {
   id: string
@@ -20,6 +29,7 @@ export type AppointmentRow = {
   patientEmail: string
   patientAvatar: string
   doctorName: string
+  doctorBoardCertification?: string
   date: string
   time: string
   status: string
@@ -68,6 +78,71 @@ const getStatusClasses = (status: string) => {
     default:
       return "bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:ring-slate-700"
   }
+}
+
+function AdminAppointmentActions({ appointment }: { appointment: AppointmentRow }) {
+  const [certificateOpen, setCertificateOpen] = useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/admin/all-appointments/${appointment.id}`}>View details</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => printSingleAppointment(appointment)}>Print</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setCertificateOpen(true)}>Print Medical Certificate</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={certificateOpen} onOpenChange={setCertificateOpen}>
+        <DialogContent className="max-w-4xl overflow-hidden rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Medical Certificate</DialogTitle>
+            <DialogDescription>Review the certificate layout before sending it to the printer.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[72vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-slate-900">
+            <div className="mx-auto max-w-3xl bg-white text-[13px] leading-6">
+              <div className="flex items-center gap-4 border-b-4 border-teal-700 bg-sky-50 px-5 py-3">
+                <img src="/logo1.jpg" alt="C2M Family Clinic" className="h-20 w-20 object-contain" />
+                <div>
+                  <div className="text-xl font-bold">{appointment.doctorName || "Physician"}</div>
+                  <div className="italic text-teal-700">{appointment.doctorBoardCertification || "—"}</div>
+                  <div>Poblacion, Sinacaban, Misamis Occidental, Philippines</div>
+                  <div>c2mfamilyclinicpharmacy@gmail.com</div>
+                </div>
+              </div>
+              <h2 className="my-6 text-center text-xl font-bold">MEDICAL CERTIFICATE</h2>
+              <div className="mb-5">{new Date(`${appointment.date}T00:00:00`).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}</div>
+              <div className="grid grid-cols-2 gap-x-16 gap-y-2">
+                <div><b>Patient:</b> {appointment.patientName}</div>
+                <div><b>Age:</b> {appointment.age || "—"} years old</div>
+                <div><b>Address:</b> —</div>
+                <div><b>Gender:</b> {appointment.gender || "—"}</div>
+              </div>
+              <div className="mt-10 space-y-6">
+                <div><b>Complaints:</b><p className="mt-3">{appointment.chiefComplaints || appointment.reasonForVisit || "—"}</p></div>
+                <div><b>Diagnosis:</b><p className="mt-3">1. {appointment.diagnosis || "—"}</p></div>
+                <div><b>Remarks:</b><p className="mt-3">{appointment.prescription || "—"}</p></div>
+              </div>
+              <p className="mx-8 mt-10 text-center">The certificate is issued upon the request of the above patient for whatever purpose it may serve, except for medico-legal reasons.</p>
+              <div className="ml-auto mt-8 w-56 text-center text-xs leading-5">_________________________<br />{appointment.doctorName || "Physician"}<br />Physician's Signature<br />PRC No. __________<br />PTR __________</div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCertificateOpen(false)}>Close</Button>
+            <Button onClick={() => printMedicalCertificate(appointment)}>Print Medical Certificate</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }
 
 export const columns: ColumnDef<AppointmentRow>[] = [
@@ -127,24 +202,6 @@ export const columns: ColumnDef<AppointmentRow>[] = [
   {
     id: "actions",
     header: "",
-    cell: ({ row }) => {
-      const appt = row.original
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/admin/all-appointments/${appt.id}`}>View details</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => printSingleAppointment(appt)}>Print</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
+    cell: ({ row }) => <AdminAppointmentActions appointment={row.original} />,
   },
 ]

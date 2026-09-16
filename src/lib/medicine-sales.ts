@@ -1,14 +1,17 @@
 import prisma from "@/lib/prisma"
 
-let ensured = false
+let ensurePromise: Promise<void> | null = null
 
 export async function ensureMedicineSalesDiscountColumn() {
-  if (ensured) return
+  if (ensurePromise) return ensurePromise
 
-  await prisma.$executeRawUnsafe(`
+  ensurePromise = prisma.$executeRawUnsafe(`
     ALTER TABLE medicine_sales
     ADD COLUMN IF NOT EXISTS discount_percent NUMERIC(5, 2) NOT NULL DEFAULT 0
-  `)
+  `).then(() => undefined).catch((error) => {
+    ensurePromise = null
+    throw error
+  })
 
-  ensured = true
+  return ensurePromise
 }
