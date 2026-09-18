@@ -197,14 +197,14 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden bg-white p-2 transition-[border-radius] dark:bg-slate-900 rounded-[var(--radius)]">
                   <Image
                     src="/logo1.jpg"
-                    alt="C2M Family Clinic & Pharmacy logo"
+                    alt="C2M Family Clinic logo"
                     width={40}
                     height={40}
                     className="object-contain rounded-[var(--radius)]"
                   />
                 </div>
                 <span className="flex flex-col items-start">
-                  <span className="text-sm font-semibold leading-tight">C2M Family Clinic & Pharmacy</span>
+                  <span className="text-sm font-semibold leading-tight">C2M Family Clinic</span>
                   <span className="text-[11px] text-muted-foreground leading-tight">v1.0.0-beta.15 · © 2026 C2M Clinic</span>
                 </span>
               </a>

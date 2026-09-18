@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import type { AppointmentRow } from "./columns"
 
 const CLINIC = {
-  name: "C2M Family Clinic & Pharmacy",
+  name: "C2M Family Clinic",
   tagline: "Doctor ng Bawat Pamilyang Pilipino",
   address: "Poblacion, Sinacaban, Misamis Occidental, Philippines",
   email: "c2mfamilyclinicpharmacy@gmail.com",

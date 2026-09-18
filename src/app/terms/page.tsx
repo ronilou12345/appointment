@@ -4,7 +4,7 @@ export default function TermsOfServicePage() {
   return (
     <main className="min-h-screen bg-background px-4 py-12 text-foreground">
       <article className="mx-auto w-full max-w-3xl rounded-3xl border border-border bg-card p-8 shadow-lg md:p-12">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">C2M Family Clinic & Pharmacy</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">C2M Family Clinic</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Terms of Service</h1>
         <p className="mt-2 text-sm text-muted-foreground">Last updated: August 19, 2026</p>
 
@@ -12,7 +12,7 @@ export default function TermsOfServicePage() {
           <section className="space-y-2">
             <h2 className="text-base font-semibold text-foreground">1. Acceptance of these terms</h2>
             <p>
-              By creating an account or using the C2M Family Clinic & Pharmacy appointment system, you agree to these Terms of Service.
+              By creating an account or using the C2M Family Clinic appointment system, you agree to these Terms of Service.
               If you do not agree, please do not use this service.
             </p>
           </section>

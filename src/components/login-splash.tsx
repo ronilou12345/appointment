@@ -60,7 +60,7 @@ export function LoginSplash({ children }: { children: React.ReactNode }) {
               <div className="splash-logo relative z-10 flex size-28 items-center justify-center overflow-hidden rounded-[var(--radius)] bg-white p-3 shadow-sm dark:bg-slate-900">
                 <Image
                   src="/logo1.jpg"
-                  alt="C2M Family Clinic & Pharmacy logo"
+                  alt="C2M Family Clinic logo"
                   width={96}
                   height={96}
                   priority
@@ -70,7 +70,7 @@ export function LoginSplash({ children }: { children: React.ReactNode }) {
             </div>
             <div className="splash-text w-full">
               <p className="text-lg font-semibold tracking-tight text-foreground">
-                C2M Family Clinic & Pharmacy
+                C2M Family Clinic
               </p>
               <div className="mt-5 w-full space-y-2">
                 <Progress value={progress} className="h-1.5" />

@@ -22,7 +22,7 @@ export default function LoginPage() {
         <ThemeToggle className="absolute right-4 top-4 z-10 border border-border bg-background/80 shadow-sm backdrop-blur-sm" />
         <div className="relative z-10 w-full max-w-md space-y-6">
           <div className="space-y-2 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">C2M Family Clinic & Pharmacy</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">C2M Family Clinic</p>
             <h1 className="text-3xl font-semibold tracking-tight">Welcome back!</h1>
             <p className="text-sm leading-6 text-muted-foreground">
             Sign in to securely access your account and manage your healthcare needs.

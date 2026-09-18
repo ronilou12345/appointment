@@ -4,7 +4,7 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-12 text-foreground">
       <article className="mx-auto w-full max-w-3xl rounded-3xl border border-border bg-card p-8 shadow-lg md:p-12">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">C2M Family Clinic & Pharmacy</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">C2M Family Clinic</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Privacy Policy</h1>
         <p className="mt-2 text-sm text-muted-foreground">Last updated: August 19, 2026</p>
 

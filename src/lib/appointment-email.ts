@@ -13,7 +13,7 @@ export type AppointmentEmailDetails = {
 
 export type AppointmentEmailStatus = "Confirmed" | "Completed" | "Cancelled"
 
-const CLINIC_NAME = "C2M Family Clinic & Pharmacy"
+const CLINIC_NAME = "C2M Family Clinic"
 
 let cachedTransporter: Transporter | null = null
 

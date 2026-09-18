@@ -163,9 +163,9 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
           <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
             <div className="overflow-hidden rounded-lg bg-card">
-              <Image src="/logo1.jpg" alt="C2M Family Clinic & Pharmacy logo" width={40} height={40} className="object-cover" />
+              <Image src="/logo1.jpg" alt="C2M Family Clinic logo" width={40} height={40} className="object-cover" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">C2M Family Clinic & Pharmacy</span>
+            <span className="text-xl font-bold tracking-tight text-foreground">C2M Family Clinic</span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex">
@@ -273,7 +273,7 @@ export default function LandingPage() {
       <main id="home" className="relative z-10 container mx-auto flex flex-col items-center justify-center px-4 pt-20 pb-20 text-center lg:pt-32 lg:pb-32">
         <Badge variant="secondary" className="mb-8 rounded-full py-1.5 px-4 text-xs font-medium tracking-wide animate-in fade-in slide-in-from-bottom-4 duration-1000">
           <ActivityIcon className="mr-2 size-3 text-primary opacity-90" />
-          C2M Family Clinic & Pharmacy
+          C2M Family Clinic
         </Badge>
 
         <h1 className="max-w-4xl text-5xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-7xl lg:text-8xl animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -326,7 +326,7 @@ export default function LandingPage() {
       <section id="about" className="relative z-10 py-24 bg-muted/20 border-y">
         <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">About C2M Family Clinic & Pharmacy</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">About C2M Family Clinic</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Our platform is designed to ease the administrative load for healthcare professionals, giving them more time to focus on what matters most: patient care.
             </p>
@@ -391,7 +391,7 @@ export default function LandingPage() {
                 <p className="mt-2 text-sm text-muted-foreground">Directions from your current location to our pinned clinic address.</p>
               </div>
               <iframe
-                title="C2M Family Clinic & Pharmacy Map Direction"
+                title="C2M Family Clinic Map Direction"
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3948.1693612303407!2d123.84010568979909!3d8.285937715533276!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x325501005ec34a43%3A0x3f9247a9eba5c855!2sC2M%20Family%20Clinic%20%26%20Pharmacy!5e0!3m2!1sen!2sph!4v1786025975089!5m2!1sen!2sph"
                 className="h-96 w-full border-0"
                 allowFullScreen
@@ -475,7 +475,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 lg:px-8 max-w-4xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">Get In Touch</h2>
           <p className="text-lg text-muted-foreground mb-12">
-            Have questions about integrating C2M Family Clinic & Pharmacy into your facility? Our support team is available around the clock.
+            Have questions about integrating C2M Family Clinic into your facility? Our support team is available around the clock.
           </p>
 
           <div className="grid sm:grid-cols-2 gap-8 items-stretch">
@@ -528,7 +528,7 @@ export default function LandingPage() {
         <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-4 md:flex-row">
           <div className="flex items-center gap-2 opacity-60">
             <Triangle className="size-4 fill-current text-foreground" />
-            <span className="text-sm font-bold tracking-tight text-foreground">C2M Family Clinic & Pharmacy</span>
+            <span className="text-sm font-bold tracking-tight text-foreground">C2M Family Clinic</span>
           </div>
           <p className="text-sm text-muted-foreground">
             © 2026 C2M Clinic System  All rights reserved.

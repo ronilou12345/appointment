@@ -106,7 +106,7 @@ function buildSalesReport(sales: MedicineSaleRow[], reportLabel: string) {
       </div>
     </div>
     <main class="report">
-      <h1>C2M Family Clinic &amp; Pharmacy</h1>
+      <h1>C2M Family Clinic</h1>
       <p class="subtitle">Medicine Sales Report</p>
       <div class="meta">
         <span>Report scope: ${escapeHtml(reportLabel)}</span>
