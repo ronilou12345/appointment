@@ -65,6 +65,8 @@ export function BookAppointmentContent() {
   const [doctors, setDoctors] = useState<DoctorOption[]>([])
   const [loadingDoctors, setLoadingDoctors] = useState(true)
   const [doctorError, setDoctorError] = useState("")
+  const [isMobileView, setIsMobileView] = useState(false)
+  const [showAllMobileDoctors, setShowAllMobileDoctors] = useState(false)
   const [sessions, setSessions] = useState<SessionOption[]>([])
   const [loadingSessions, setLoadingSessions] = useState(true)
   const [sessionError, setSessionError] = useState("")
@@ -113,6 +115,22 @@ export function BookAppointmentContent() {
       }
     }
   }
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsMobileView(window.innerWidth < 768)
+    }
+
+    updateViewport()
+    window.addEventListener("resize", updateViewport)
+    return () => window.removeEventListener("resize", updateViewport)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobileView) {
+      setShowAllMobileDoctors(false)
+    }
+  }, [isMobileView])
 
   useEffect(() => {
     const loadDoctors = async () => {
@@ -398,6 +416,9 @@ export function BookAppointmentContent() {
     ),
   )
 
+  const visibleDoctors = isMobileView && !showAllMobileDoctors ? doctors.slice(0, 5) : doctors
+  const hasMoreDoctorsOnMobile = isMobileView && doctors.length > 5
+
   const handleNext = () => {
     const ok = canAdvance(currentStep)
     if (!ok.success) {
@@ -563,13 +584,14 @@ export function BookAppointmentContent() {
                 No active doctors are available to book right now.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {doctors.map((doctor) => {
-                  const availableToday = doctorIsAvailableToday(doctor.id)
-                  const slotCount = getDoctorSlotCount(doctor.id)
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {visibleDoctors.map((doctor) => {
+                    const availableToday = doctorIsAvailableToday(doctor.id)
+                    const slotCount = getDoctorSlotCount(doctor.id)
 
-                  return (
-                    <div
+                    return (
+                      <div
                       key={doctor.id}
                       onClick={() =>
                         setFormData((prev) => ({
@@ -635,9 +657,23 @@ export function BookAppointmentContent() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {hasMoreDoctorsOnMobile ? (
+                  <div className="flex justify-center md:hidden">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAllMobileDoctors((current) => !current)}
+                    >
+                      {showAllMobileDoctors ? "Show Less" : "See Others"}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
