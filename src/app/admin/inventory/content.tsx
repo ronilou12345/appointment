@@ -266,8 +266,38 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [discountInput, setDiscountInput] = useState("")
   const [selectedSaleDate, setSelectedSaleDate] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "in-stock" | "low-stock" | "out-of-stock" | "expired">("all")
 
-  const filteredRows = rows
+  const statusFilterMatches = (medicine: MedicineRow, filter: typeof statusFilter) => {
+    const stock = medicine.pieces ?? 0
+
+    switch (filter) {
+      case "in-stock":
+        return stock > 20
+      case "low-stock":
+        return stock > 0 && stock <= 20
+      case "out-of-stock":
+        return stock <= 0
+      case "expired":
+        return getExpiryStatus(medicine.expiryDate) === "expired"
+      case "all":
+      default:
+        return true
+    }
+  }
+
+  const filteredRows = statusFilter === "all"
+    ? rows
+    : rows.filter((medicine) => statusFilterMatches(medicine, statusFilter))
+
+  const statusCounts = {
+    total: rows.length,
+    inStock: rows.filter((medicine) => (medicine.pieces ?? 0) > 20).length,
+    lowStock: rows.filter((medicine) => (medicine.pieces ?? 0) > 0 && (medicine.pieces ?? 0) <= 20).length,
+    outOfStock: rows.filter((medicine) => (medicine.pieces ?? 0) <= 0).length,
+    expired: rows.filter((medicine) => getExpiryStatus(medicine.expiryDate) === "expired").length,
+  }
+
   const searchResults = cartSearchQuery.trim()
     ? rows.filter((medicine) =>
         medicine.name.toLowerCase().includes(cartSearchQuery.trim().toLowerCase())
@@ -542,44 +572,76 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
       <div className="grid grid-cols-1 gap-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-lg border border-border bg-background p-4">
-            <div className="text-sm text-muted-foreground">Total Items</div>
-            <div className="mt-2 flex items-center gap-3">
-              <Box className="size-5 text-foreground/80" />
-              <div className="text-2xl font-semibold">{filteredRows.length}</div>
-            </div>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-4">
-            <div className="text-sm text-muted-foreground">In Stock</div>
-            <div className="mt-2 flex items-center gap-3">
-              <CheckCircle className="size-5 text-green-500" />
-              <div className="text-2xl font-semibold text-green-500">{filteredRows.filter(m => (m.pieces ?? 0) > 20).length}</div>
-            </div>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-4">
-            <div className="text-sm text-muted-foreground">Low Stock</div>
-            <div className="mt-2 flex items-center gap-3">
-              <AlertTriangle className="size-5 text-orange-500" />
-              <div className="text-2xl font-semibold text-orange-500">{filteredRows.filter(m => (m.pieces ?? 0) > 0 && (m.pieces ?? 0) <= 20).length}</div>
-            </div>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-4">
-            <div className="text-sm text-muted-foreground">Out of Stock</div>
-            <div className="mt-2 flex items-center gap-3">
-              <XCircle className="size-5 text-red-500" />
-              <div className="text-2xl font-semibold text-red-500">{filteredRows.filter(m => (m.pieces ?? 0) <= 0).length}</div>
-            </div>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-4">
-            <div className="text-sm text-muted-foreground">Expired Items</div>
-            <div className="mt-2 flex items-center gap-3">
-              <AlertTriangle className="size-5 text-rose-500" />
-              <div className="text-2xl font-semibold text-rose-500">
-                {filteredRows.filter((medicine) => getExpiryStatus(medicine.expiryDate) === "expired").length}
+          {[
+            {
+              key: "all",
+              label: "Total Items",
+              value: statusCounts.total,
+              icon: Box,
+              className: "text-foreground/80",
+              active: statusFilter === "all",
+              onClick: () => setStatusFilter("all"),
+            },
+            {
+              key: "in-stock",
+              label: "In Stock",
+              value: statusCounts.inStock,
+              icon: CheckCircle,
+              className: "text-green-500",
+              active: statusFilter === "in-stock",
+              onClick: () => setStatusFilter("in-stock"),
+            },
+            {
+              key: "low-stock",
+              label: "Low Stock",
+              value: statusCounts.lowStock,
+              icon: AlertTriangle,
+              className: "text-orange-500",
+              active: statusFilter === "low-stock",
+              onClick: () => setStatusFilter("low-stock"),
+            },
+            {
+              key: "out-of-stock",
+              label: "Out of Stock",
+              value: statusCounts.outOfStock,
+              icon: XCircle,
+              className: "text-red-500",
+              active: statusFilter === "out-of-stock",
+              onClick: () => setStatusFilter("out-of-stock"),
+            },
+            {
+              key: "expired",
+              label: "Expired Items",
+              value: statusCounts.expired,
+              icon: AlertTriangle,
+              className: "text-rose-500",
+              active: statusFilter === "expired",
+              onClick: () => setStatusFilter("expired"),
+            },
+          ].map(({ key, label, value, icon: Icon, className, active, onClick }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={onClick}
+              className={`rounded-lg border bg-background p-4 text-left transition-colors ${active ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:bg-accent/20"}`}
+            >
+              <div className="text-sm text-muted-foreground">{label}</div>
+              <div className="mt-2 flex items-center gap-3">
+                <Icon className={`size-5 ${className}`} />
+                <div className={`text-2xl font-semibold ${className}`}>{value}</div>
               </div>
-            </div>
-          </div>
+            </button>
+          ))}
         </div>
+
+        {statusFilter !== "all" ? (
+          <div className="flex items-center justify-between rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+            <span>Showing: {statusFilter.replace("-", " ").replace(/\b\w/g, (char) => char.toUpperCase())}</span>
+            <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+              Clear filter
+            </Button>
+          </div>
+        ) : null}
 
         {/* Data Table */}
         <DataTable columns={columns} data={filteredRows} />

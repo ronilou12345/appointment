@@ -56,7 +56,7 @@ export const grays = {
 }
 
 const defaultConfig: Config = {
-  theme: "primary",
+  theme: "green",
   radius: 0.5,
   gray: "zinc",
 }

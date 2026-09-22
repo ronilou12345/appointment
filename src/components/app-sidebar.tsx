@@ -180,11 +180,6 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
             url: user?.role === "DOCTOR" ? "/doctor/settings" : "/client/settings",
             icon: <Settings2Icon />,
           },
-          {
-            title: "Get Help",
-            url: "#",
-            icon: <CircleHelpIcon />,
-          },
         ]
 
   return (

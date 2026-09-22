@@ -1175,6 +1175,7 @@ export function BookAppointmentContent() {
       <div className="flex justify-between gap-4">
         <Button
           variant="outline"
+          size="lg"
           onClick={handlePrevious}
           disabled={currentStep === 0}
         >
@@ -1184,6 +1185,7 @@ export function BookAppointmentContent() {
         <div className="flex gap-2">
           {currentStep < steps.length - 1 ? (
             <Button
+              size="lg"
               onClick={handleNext}
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
@@ -1196,6 +1198,7 @@ export function BookAppointmentContent() {
             </Button>
           ) : (
             <Button
+              size="lg"
               onClick={handleSubmit}
               className="bg-orange-500 hover:bg-orange-600"
             >

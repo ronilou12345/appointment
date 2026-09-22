@@ -206,6 +206,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
     const checked = Boolean(selectedLabTests[id])
     return (
       <button
+        key={id}
         type="button"
         aria-pressed={checked}
         onClick={() => setSelectedLabTests((current) => ({ ...current, [id]: !current[id] }))}
