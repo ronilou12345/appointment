@@ -35,7 +35,38 @@ export function ForgotPasswordForm({
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
   const router = useRouter()
+
+  async function resendVerification() {
+    if (!email) {
+      setError("Please enter your email before resending the verification email.")
+      return
+    }
+
+    setResendLoading(true)
+    setError(null)
+    setInfo(null)
+
+    try {
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to resend the verification email.")
+      }
+
+      setInfo("A new verification email has been sent. Please check your inbox and verify your account.")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setResendLoading(false)
+    }
+  }
 
   async function requestCode(event?: React.FormEvent) {
     event?.preventDefault()
@@ -52,6 +83,16 @@ export function ForgotPasswordForm({
       const result = await response.json()
 
       if (!response.ok || !result.success) {
+        if (result.error === "This account is not verified.") {
+          setError("This account is not verified.")
+          return
+        }
+
+        if (result.error === "This email is not registered.") {
+          setError("This email is not registered.")
+          return
+        }
+
         throw new Error(result.error || "Unable to send a reset code.")
       }
 
@@ -110,6 +151,11 @@ export function ForgotPasswordForm({
                     {error}
                   </div>
                 ) : null}
+                {info ? (
+                  <div className="rounded bg-primary/10 p-2 text-center text-sm font-medium text-foreground">
+                    {info}
+                  </div>
+                ) : null}
                 <Field>
                   <FieldLabel htmlFor="reset-email">Email</FieldLabel>
                   <Input
@@ -125,6 +171,16 @@ export function ForgotPasswordForm({
                   <Button type="submit" disabled={loading}>
                     {loading ? "Sending code..." : "Send code"}
                   </Button>
+                  {error === "This account is not verified." ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={resendLoading || loading}
+                      onClick={resendVerification}
+                    >
+                      {resendLoading ? "Sending..." : "Resend Verification Email"}
+                    </Button>
+                  ) : null}
                   <FieldDescription className="text-center">
                     Remembered it? <a href="/login" className="font-medium">Back to login</a>
                   </FieldDescription>

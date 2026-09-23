@@ -416,8 +416,9 @@ export function BookAppointmentContent() {
     ),
   )
 
-  const visibleDoctors = isMobileView && !showAllMobileDoctors ? doctors.slice(0, 5) : doctors
-  const hasMoreDoctorsOnMobile = isMobileView && doctors.length > 5
+  const doctorCardLimit = isMobileView ? 5 : 6
+  const visibleDoctors = !showAllMobileDoctors ? doctors.slice(0, doctorCardLimit) : doctors
+  const hasMoreDoctors = doctors.length > doctorCardLimit
 
   const handleNext = () => {
     const ok = canAdvance(currentStep)
@@ -444,6 +445,9 @@ export function BookAppointmentContent() {
     }
 
     if (stepIndex === 1) {
+      if (dateConflictMessage) {
+        return { success: false, message: "Appointment conflict. You already have an appointment for this date." }
+      }
       if (!formData.date) return { success: false, message: "Please choose a date before continuing." }
       if (!formData.time) return { success: false, message: "Please choose a time before continuing." }
       return { success: true }
@@ -662,8 +666,8 @@ export function BookAppointmentContent() {
                   })}
                 </div>
 
-                {hasMoreDoctorsOnMobile ? (
-                  <div className="flex justify-center md:hidden">
+                {hasMoreDoctors ? (
+                  <div className="flex justify-center">
                     <Button
                       type="button"
                       variant="outline"
@@ -1225,7 +1229,7 @@ export function BookAppointmentContent() {
               onClick={handleNext}
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
-                (currentStep === 1 && (!formData.date || !formData.time)) ||
+                (currentStep === 1 && (!formData.date || !formData.time || !!dateConflictMessage)) ||
                 (currentStep === 2 && !formData.reason)
               }
               className="bg-orange-500 hover:bg-orange-600"

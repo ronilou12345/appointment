@@ -45,6 +45,7 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
@@ -76,10 +77,49 @@ export function LoginForm({
     window.location.href = "/api/auth/google"
   }
 
+  async function handleResendVerification() {
+    const emailInput = document.getElementById("email") as HTMLInputElement | null
+    const email = (emailInput?.value ?? "").trim().toLowerCase()
+
+    if (!email) {
+      setError("Please enter your email before requesting a new verification email.")
+      setInfo(null)
+      return
+    }
+
+    setResendLoading(true)
+    setError(null)
+    setInfo(null)
+
+    try {
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        setError(result.error || "Unable to resend the verification email.")
+        return
+      }
+
+      setInfo("A new verification email has been sent. Please check your inbox and click the link to verify your account.")
+    } catch {
+      setError("We could not send the verification email right now. Please try again.")
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true)
     setError(null)
+    setInfo(null)
 
     const formData = new FormData(event.currentTarget)
     const body = {

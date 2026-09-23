@@ -144,6 +144,55 @@ export async function registerUser(formData: FormData) {
   }
 }
 
+export async function resendVerificationEmail(formData: FormData) {
+  const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
+
+  if (!email || !email.includes("@")) {
+    return { success: false, error: "Please enter a valid email address." }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, name: true, status: true },
+  })
+
+  if (!user) {
+    return { success: false, error: "No account found with that email." }
+  }
+
+  if (user.status === "ACTIVE") {
+    return { success: false, error: "This account is already active. You can sign in normally." }
+  }
+
+  try {
+    const headerList = await headers()
+    const resolvedOrigin = resolveOrigin(headerList, "http://localhost:3000")
+    const origin = loopbackEquivalent(resolvedOrigin) ?? resolvedOrigin
+    const issued = await issueEmailVerificationToken(user.id, email)
+    const verifyUrl = `${origin}/api/auth/verify-email?token=${issued.token}`
+    const emailed = await sendVerificationEmail(email, user.name || "there", verifyUrl)
+
+    if (!emailed.success) {
+      console.warn("Verification email resend failed:", emailed)
+      return {
+        success: false,
+        error: "We could not send the verification email right now. Please try again in a moment.",
+      }
+    }
+
+    await logActivity({
+      userId: user.id,
+      action: "Resent verification email",
+      details: `Requested a new verification email for ${email}`,
+    })
+
+    return { success: true, error: "" }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return { success: false, error: message }
+  }
+}
+
 export async function logoutUser() {
   const session = await getSession()
   if (session?.id) {

@@ -22,8 +22,18 @@ export async function POST(request: NextRequest) {
       select: { id: true, name: true, status: true },
     })
 
-    if (!user || user.status !== "ACTIVE") {
-      return NextResponse.json(GENERIC_SUCCESS)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "This email is not registered." },
+        { status: 404 }
+      )
+    }
+
+    if (user.status !== "ACTIVE") {
+      return NextResponse.json(
+        { success: false, error: "This account is not verified.", requiresVerification: true },
+        { status: 403 }
+      )
     }
 
     const issued = await issuePasswordResetCode(email)
