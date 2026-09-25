@@ -946,7 +946,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
                   {String(row.getValue("patientName"))}
                 </Link>
                 <p className="text-xs text-muted-foreground">
-                  {appointment.patientAge} yrs · {appointment.patientGender}
+                  {appointment.patientAge} · {appointment.patientGender}
                 </p>
               </div>
             </div>

@@ -32,6 +32,18 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;")
 }
 
+export function getVerificationSignupOutcome(result: { success: boolean; reason?: string }) {
+  if (result.success) {
+    return { success: true, verificationSent: true, warning: "" }
+  }
+
+  return {
+    success: true,
+    verificationSent: false,
+    warning: "Your account was created, but we could not send the verification email. Please try again in a moment.",
+  }
+}
+
 export async function sendVerificationEmail(to: string, name: string, verifyUrl: string) {
   const transporter = getTransporter()
   if (!transporter) return { success: false, reason: "missing-credentials" }

@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma"
 import { logActivity } from "@/lib/activity-log"
 import { getSession } from "@/lib/auth-utils"
 import { issueEmailVerificationToken } from "@/lib/email-verification"
-import { sendVerificationEmail } from "@/lib/verification-email"
+import { getVerificationSignupOutcome, sendVerificationEmail } from "@/lib/verification-email"
 import { loopbackEquivalent, resolveOrigin } from "@/lib/google-oauth"
 
 export async function loginUser(formData: FormData) {
@@ -113,13 +113,10 @@ export async function registerUser(formData: FormData) {
     const issued = await issueEmailVerificationToken(userId, email)
     const verifyUrl = `${origin}/api/auth/verify-email?token=${issued.token}`
     const emailed = await sendVerificationEmail(email, name, verifyUrl)
+    const signupOutcome = getVerificationSignupOutcome(emailed)
 
-    if (!emailed.success) {
+    if (!signupOutcome.verificationSent) {
       console.warn("Verification email skipped or failed:", emailed)
-      return {
-        success: false,
-        error: "Your account was created, but we could not send the verification email. Please try again in a moment.",
-      }
     }
 
     await logActivity({
@@ -128,7 +125,13 @@ export async function registerUser(formData: FormData) {
       details: `Signed up as a client (${email})`,
     })
 
-    return { success: true, error: "", userId }
+    return {
+      success: true,
+      error: "",
+      userId,
+      verificationSent: signupOutcome.verificationSent,
+      warning: signupOutcome.warning,
+    }
   } catch (error) {
     if (
       typeof error === "object" &&

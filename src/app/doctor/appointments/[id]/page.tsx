@@ -58,6 +58,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
     `
       SELECT a.*, u.name AS user_name, u.profile_image AS user_profile_image,
              d.prefix AS doctor_prefix, d.first_name AS doctor_first_name, d.middle_name AS doctor_middle_name, d.last_name AS doctor_last_name,
+             d.address AS doctor_address,
              s.appointment_type AS session_appointment_type,
              to_char(COALESCE(a.appointment_date, s.session_date), 'YYYY-MM-DD') AS appointment_date_text,
              to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time_text
@@ -91,8 +92,9 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
     .filter(Boolean)
     .join(" ") || "Doctor"
 
-  const patientAge = appointment.age != null ? String(appointment.age) : "—"
+  const patientAge = appointment.age != null ? `${appointment.age} years old` : "—"
   const patientGender = appointment.gender ?? "—"
+  const patientAddress = appointment.doctor_address || "—"
   const patientNotes = appointment.reason_for_visit ?? "No patient notes recorded."
   const doctorNotes = appointment.additional_notes ?? "No doctor notes recorded."
   const followUp = appointment.symptoms ?? "No follow-up plan recorded."
@@ -128,7 +130,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Patient appointment</p>
                   <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">{patientName}</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">{patientGender} • {patientAge} years</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{patientGender} • {patientAge}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Address: {patientAddress}</p>
                 </div>
               </div>
 

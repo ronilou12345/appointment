@@ -36,6 +36,7 @@ export function SignupForm({
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle")
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [verificationSentTo, setVerificationSentTo] = useState("")
+  const [verificationWarning, setVerificationWarning] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -101,9 +102,12 @@ export function SignupForm({
 
     if (result.error) {
       setError(result.error)
-    } else {
-      setVerificationSentTo(emailValue.trim().toLowerCase())
+      setVerificationWarning("")
+      return
     }
+
+    setVerificationSentTo(emailValue.trim().toLowerCase())
+    setVerificationWarning(result.warning ?? "")
   }
 
   return (
@@ -123,12 +127,18 @@ export function SignupForm({
               <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Mail className="size-6" />
               </div>
-              <p className="text-sm leading-6 text-muted-foreground">
-                We sent a verification email to{" "}
-                <span className="font-medium text-foreground">{verificationSentTo}</span>.
-                Open that email and click <span className="font-medium text-foreground">Verify your account</span>.
-                After you verify, you can sign in.
-              </p>
+              {verificationWarning ? (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                  {verificationWarning}
+                </p>
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  We sent a verification email to{" "}
+                  <span className="font-medium text-foreground">{verificationSentTo}</span>.
+                  Open that email and click <span className="font-medium text-foreground">Verify your account</span>.
+                  After you verify, you can sign in.
+                </p>
+              )}
               <Button type="button" className="w-full" onClick={() => router.push("/login")}>
                 Go to login
               </Button>

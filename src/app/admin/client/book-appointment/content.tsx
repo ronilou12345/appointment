@@ -384,7 +384,14 @@ export function BookAppointmentContent() {
 
   const getDoctorSlotCount = (doctorId: number) => {
     const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
-    return doctorSessions.reduce((sum, session) => sum + (Number(session.slots ?? 0) > 0 ? Number(session.slots ?? 0) : 0), 0)
+    const now = new Date()
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+    return doctorSessions.reduce((sum, session) => {
+      if (Number(session.slots ?? 0) <= 0) return sum
+      if (currentMinutes >= parseTimeToMinutes(session.endTime)) return sum
+      return sum + Number(session.slots ?? 0)
+    }, 0)
   }
 
   const getDoctorMonthSessionCount = (doctorId: number) => {
@@ -396,6 +403,33 @@ export function BookAppointmentContent() {
       const [year, month] = String(session.date).split("-").map(Number)
       return year === displayedMonth.getFullYear() && month === displayedMonth.getMonth() + 1
     }).length
+  }
+
+  const getDoctorNextSessionDate = (doctorId: number) => {
+    const today = startOfDay(new Date())
+
+    const upcomingDates = Array.from(
+      new Set(
+        sessions
+          .filter(
+            (session) =>
+              String(session.doctorId) === String(doctorId) &&
+              Number(session.slots ?? 0) > 0 &&
+              new Date(`${session.date}T00:00:00`).getTime() > today.getTime(),
+          )
+          .map((session) => session.date),
+      ),
+    ).sort()
+
+    if (upcomingDates.length === 0) {
+      return "No upcoming schedule"
+    }
+
+    return new Date(`${upcomingDates[0]}T00:00:00`).toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    })
   }
 
   const getDoctorSessionDateSummary = (doctorId: number) => {
@@ -619,72 +653,109 @@ export function BookAppointmentContent() {
 
                     return (
                       <div
-                      key={doctor.id}
-                      onClick={() => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          doctorId: doctor.id.toString(),
-                          date: "",
-                          time: "",
-                          sessionId: "",
-                        }))
-                        setCurrentStep(1)
-                      }}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                        formData.doctorId === doctor.id.toString()
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-11 w-11 border border-border bg-primary/5">
-                          {doctor.avatar ? <AvatarImage src={doctor.avatar} alt={doctor.name} /> : null}
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {doctor.name
-                              .split(" ")
-                              .filter(Boolean)
-                              .slice(0, 2)
-                              .map((part) => part[0])
-                              .join("")
-                              .toUpperCase() || "DR"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-foreground">
-                            {doctor.name}, {doctor.credential}
-                          </h3>
-                          <p className="text-xs text-muted-foreground/90">
-                            {doctor.email || "No email available"}
-                          </p>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
-                              Specialties: {doctor.specialties?.length ? doctor.specialties.join(", ") : doctor.specialty?.trim() || "No specialties"}
-                            </span>
-                            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
-                              Board Certificate: {doctor.boardCertificates?.length ? doctor.boardCertificates.join(", ") : "Not available"}
-                              {doctor.experienceYears && doctor.experienceYears > 0 ? ` • ${doctor.experience} of experience` : ""}
-                            </span>
+                        key={doctor.id}
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            doctorId: doctor.id.toString(),
+                            date: "",
+                            time: "",
+                            sessionId: "",
+                          }))
+                          setCurrentStep(1)
+                        }}
+                        className={`group relative cursor-pointer overflow-hidden rounded-2xl border p-4 shadow-sm transition-all duration-200 ${
+                          formData.doctorId === doctor.id.toString()
+                            ? "border-primary shadow-md ring-2 ring-primary/10"
+                            : "border-border hover:border-primary/70"
+                        }`}
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(to top, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.04) 38%, hsl(var(--card) / 1) 100%)",
+                        }}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="relative flex-shrink-0">
+                            <Avatar className="h-20 w-20 border-2 border-white shadow-sm ring-4 ring-primary/5">
+                              {doctor.avatar ? <AvatarImage src={doctor.avatar} alt={doctor.name} /> : null}
+                              <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-lg font-semibold text-primary">
+                                {doctor.name
+                                  .split(" ")
+                                  .filter(Boolean)
+                                  .slice(0, 2)
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .toUpperCase() || "DR"}
+                              </AvatarFallback>
+                            </Avatar>
                             <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                                availableToday
-                                  ? "border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200"
-                                  : "border border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+                              className={`absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white ${
+                                availableToday ? "bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)] animate-pulse" : "bg-slate-400"
                               }`}
-                            >
-                              <span className={`mr-1 h-2 w-2 rounded-full ${availableToday ? "bg-emerald-500" : "bg-slate-500 dark:bg-slate-300"}`} />
-                              {availableToday ? "Available today" : "Not available today"}
-                            </span>
-                            <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                              {slotCount} slot{slotCount === 1 ? "" : "s"} available today
-                            </span>
-                            {!availableToday && getDoctorMonthSessionCount(doctor.id) > 0 ? (
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                Sessions: {getDoctorSessionDateSummary(doctor.id)}
+                              title={availableToday ? "Available today" : "Not available today"}
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1 pt-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <h3 className="truncate text-lg font-semibold text-foreground">
+                                  {doctor.name}
+                                </h3>
+                                <p className="mt-1 text-sm font-medium text-primary">
+                                  {doctor.credential || "Doctor"}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground/90">
+                                  {doctor.email || "No email available"}
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                                  availableToday
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200"
+                                    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                }`}
+                              >
+                                {availableToday ? "Available today" : "Not available today"}
                               </span>
-                            ) : null}
+                            </div>
+
+                            <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                                <span className="line-clamp-2">
+                                  {doctor.specialties?.length ? doctor.specialties.join(", ") : doctor.specialty?.trim() || "No specialties"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex h-2 w-2 rounded-full bg-violet-500" />
+                                <span>{doctor.boardCertificates?.length ? doctor.boardCertificates.join(", ") : "Board certification unavailable"}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                                <span>
+                                  {doctor.experienceYears && doctor.experienceYears > 0 ? `${doctor.experienceYears} years experience` : "Experience details unavailable"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                                <div className="text-muted-foreground">Today</div>
+                                <div className="mt-1 font-semibold text-foreground">
+                                  {slotCount} {slotCount === 1 ? "slot" : "slots"}
+                                </div>
+                              </div>
+                              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                                <div className="text-muted-foreground">Next session</div>
+                                <div className="mt-1 font-semibold text-foreground">
+                                  {getDoctorNextSessionDate(doctor.id)}
+                                </div>
+                              </div>
+                            </div>
+
                           </div>
                         </div>
-                      </div>
                       </div>
                     )
                   })}
@@ -1117,23 +1188,35 @@ export function BookAppointmentContent() {
 
                   <Separator />
 
-                  <div className="overflow-hidden rounded-2xl border border-border bg-muted/30">
-                    <div className="flex items-center gap-4 bg-card p-5 sm:p-6">
-                      <Avatar className="h-14 w-14 border border-border">
-                        {selectedDoctor?.avatar ? (
-                          <AvatarImage src={selectedDoctor.avatar} alt={doctorName} />
-                        ) : null}
-                        <AvatarFallback className="bg-primary/10 text-primary">{doctorInitials}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Doctor</p>
-                        <p className="mt-1 truncate text-lg font-semibold">
+                  <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card to-muted/30">
+                    <div className="flex flex-col gap-4 bg-card p-5 sm:flex-row sm:items-center sm:p-6">
+                      <div className="relative flex-shrink-0">
+                        <Avatar className="h-20 w-20 border-2 border-white shadow-md ring-4 ring-primary/5">
+                          {selectedDoctor?.avatar ? (
+                            <AvatarImage src={selectedDoctor.avatar} alt={doctorName} />
+                          ) : null}
+                          <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-lg font-semibold text-primary">
+                            {doctorInitials}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Doctor profile</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">
                           {doctorName}
-                          {selectedDoctor?.credential ? `, ${selectedDoctor.credential}` : ""}
                         </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-sm font-medium text-primary">
+                          {selectedDoctor?.credential || "Doctor"}
+                        </p>
+                        <p className="mt-3 text-sm text-muted-foreground">
                           {selectedDoctor?.specialty || selectedDoctor?.specialties?.join(", ") || "Specialty not selected"}
                         </p>
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-right sm:min-w-[140px]">
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Availability</div>
+                        <div className="mt-1 font-semibold text-foreground">Confirmed</div>
                       </div>
                     </div>
 

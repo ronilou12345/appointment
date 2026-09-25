@@ -172,22 +172,28 @@ export default async function ClientDoctorPage({ params }: Props) {
           </Link>
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-          <div className="grid gap-6 lg:grid-cols-[280px_1fr] p-6">
-            <div className="rounded-3xl border border-border bg-background p-6 text-center">
+        <div
+          className="overflow-hidden rounded-[30px] border border-border shadow-sm"
+          style={{
+            backgroundImage:
+              "linear-gradient(to top, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.04) 28%, hsl(var(--card) / 1) 100%)",
+          }}
+        >
+          <div className="grid gap-6 p-6 lg:grid-cols-[280px_1fr]">
+            <div className="rounded-[28px] border border-border bg-background/75 p-6 text-center shadow-sm backdrop-blur-sm">
               <div className="flex flex-col items-center justify-center gap-5">
-                <Avatar size="lg">
+                <Avatar className="h-22 w-22 border-2 border-white shadow-md ring-4 ring-primary/5">
                   {profileUser.profile_image ? (
                     <AvatarImage src={profileUser.profile_image} alt={profileUser.name} />
                   ) : null}
-                  <AvatarFallback>{getInitials(profileUser.name)}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-primary">{getInitials(profileUser.name)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="text-lg font-semibold text-foreground">{profileUser.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{profileUser.email || "No email provided"}</p>
                 </div>
-                <div className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                  <p className="font-medium">Session available</p>
+                <div className="w-full rounded-[20px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  <p className="font-medium">Available today</p>
                   <p className="mt-1 text-xs text-emerald-600">
                     {sessions.length ? `${sessions.length} upcoming session${sessions.length > 1 ? "s" : ""}` : "No upcoming sessions"}
                   </p>
@@ -197,7 +203,7 @@ export default async function ClientDoctorPage({ params }: Props) {
             </div>
 
             <div className="space-y-6">
-              <div className="rounded-3xl border border-border bg-background p-6">
+              <div className="rounded-[26px] border border-border bg-background/60 p-6 shadow-sm backdrop-blur-sm">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2 border-b border-border pb-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Email</p>
@@ -234,18 +240,28 @@ export default async function ClientDoctorPage({ params }: Props) {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-border bg-background p-6">
+              <div className="rounded-[26px] border border-border bg-background/60 p-6 shadow-sm backdrop-blur-sm">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 border-b border-border pb-4">
+                  <div className="space-y-2 rounded-[20px] border border-border bg-background/80 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Board certificate</p>
                     <p className="text-base font-medium text-foreground">
                       {boardCertificates.length ? boardCertificates.join(", ") : "Not available"}
                     </p>
                   </div>
-                  <div className="space-y-2 pb-4">
+                  <div className="space-y-2 rounded-[20px] border border-border bg-background/80 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Specialties</p>
                     <p className="text-base font-medium text-foreground">
                       {specialties.length ? specialties.join(", ") : "Not available"}
+                    </p>
+                  </div>
+                  <div className="space-y-2 rounded-[20px] border border-border bg-background/80 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Member since</p>
+                    <p className="text-base font-medium text-foreground">{memberSince}</p>
+                  </div>
+                  <div className="space-y-2 rounded-[20px] border border-border bg-background/80 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Upcoming sessions</p>
+                    <p className="text-base font-medium text-foreground">
+                      {sessions.length ? `${sessions.length}` : "0"}
                     </p>
                   </div>
                 </div>
