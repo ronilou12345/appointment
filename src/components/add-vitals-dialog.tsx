@@ -104,6 +104,10 @@ export function AddVitalsDialog({
     }
 
     if (vital) {
+      if (canSelectUser && vital.userId && selectedUserId !== vital.userId) {
+        onUserChange?.(vital.userId)
+      }
+
       setForm({
         weight: vital.weight != null ? String(vital.weight) : "",
         height: vital.height != null ? String(vital.height) : "",
@@ -115,7 +119,7 @@ export function AddVitalsDialog({
     }
 
     setForm(emptyForm)
-  }, [open, vital])
+  }, [open, vital, canSelectUser, selectedUserId, onUserChange])
 
   const bmi = computeBmi(form.weight, form.height)
 
