@@ -49,6 +49,9 @@ export function LoginForm({
   const [googleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const isUnverifiedAccountError =
+    error === "Your account is not active yet. If you just signed up, check your email and click the verification link." ||
+    error?.startsWith("Your account is not active yet.")
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -168,8 +171,20 @@ export function LoginForm({
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               {error && (
-                <div className="text-sm font-medium text-destructive text-center bg-destructive/10 p-2 rounded">
-                  {error}
+                <div className="space-y-2 rounded bg-destructive/10 p-2 text-center">
+                  <div className="text-sm font-medium text-destructive">{error}</div>
+                  {isUnverifiedAccountError ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mx-auto"
+                      disabled={resendLoading || loading}
+                      onClick={handleResendVerification}
+                    >
+                      {resendLoading ? "Sending..." : "Resend Verification Email"}
+                    </Button>
+                  ) : null}
                 </div>
               )}
               {info && !error && (

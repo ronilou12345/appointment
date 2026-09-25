@@ -87,6 +87,19 @@ function parseIsoDate(value: string) {
   return new Date(year, month - 1, day)
 }
 
+function formatDateValue(value: string | null | undefined) {
+  if (!value) return "—"
+
+  const parsed = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  })
+}
+
 function parseTimeToMinutes(value: string) {
   const match = String(value ?? "").trim().match(/^(\d{1,2}):(\d{2})$/)
   if (!match) return null
@@ -756,7 +769,7 @@ export const columns: ColumnDef<ClientAppointmentRow>[] = [
   {
     accessorKey: "date",
     header: "Date",
-    cell: ({ row }) => row.getValue("date"),
+    cell: ({ row }) => formatDateValue(String(row.getValue("date") ?? "")),
   },
   {
     accessorKey: "time",

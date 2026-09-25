@@ -343,12 +343,7 @@ export function BookAppointmentContent() {
       }
 
       setBookedTimes(Array.isArray(result.bookedTimes) ? result.bookedTimes : [])
-
-      if (result.hasAppointment) {
-        setDateConflictMessage("You already have an appointment for this date")
-      } else {
-        setDateConflictMessage("")
-      }
+      setDateConflictMessage("")
     } catch {
       setBookedTimes([])
       setDateConflictMessage("")
@@ -396,10 +391,41 @@ export function BookAppointmentContent() {
     return sessions.filter((session) => {
       if (String(session.doctorId) !== String(doctorId)) return false
       if (Number(session.slots ?? 0) <= 0) return false
+      if (new Date(`${session.date}T00:00:00`).getTime() < startOfDay(new Date()).getTime()) return false
 
       const [year, month] = String(session.date).split("-").map(Number)
       return year === displayedMonth.getFullYear() && month === displayedMonth.getMonth() + 1
     }).length
+  }
+
+  const getDoctorSessionDateSummary = (doctorId: number) => {
+    const upcomingDates = Array.from(
+      new Set(
+        sessions
+          .filter(
+            (session) =>
+              String(session.doctorId) === String(doctorId) &&
+              Number(session.slots ?? 0) > 0 &&
+              new Date(`${session.date}T00:00:00`).getTime() >= startOfDay(new Date()).getTime(),
+          )
+          .map((session) => session.date),
+      ),
+    ).sort()
+
+    if (upcomingDates.length === 0) {
+      return "No available dates"
+    }
+
+    return upcomingDates
+      .slice(0, 3)
+      .map((date) =>
+        new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+      )
+      .join(" • ")
   }
 
   const doctorAppointmentTypes = Array.from(
@@ -445,9 +471,6 @@ export function BookAppointmentContent() {
     }
 
     if (stepIndex === 1) {
-      if (dateConflictMessage) {
-        return { success: false, message: "Appointment conflict. You already have an appointment for this date." }
-      }
       if (!formData.date) return { success: false, message: "Please choose a date before continuing." }
       if (!formData.time) return { success: false, message: "Please choose a time before continuing." }
       return { success: true }
@@ -597,7 +620,7 @@ export function BookAppointmentContent() {
                     return (
                       <div
                       key={doctor.id}
-                      onClick={() =>
+                      onClick={() => {
                         setFormData((prev) => ({
                           ...prev,
                           doctorId: doctor.id.toString(),
@@ -605,7 +628,8 @@ export function BookAppointmentContent() {
                           time: "",
                           sessionId: "",
                         }))
-                      }
+                        setCurrentStep(1)
+                      }}
                       className={`p-4 border rounded-lg cursor-pointer transition-all ${
                         formData.doctorId === doctor.id.toString()
                           ? "border-primary bg-primary/5"
@@ -651,11 +675,11 @@ export function BookAppointmentContent() {
                               {availableToday ? "Available today" : "Not available today"}
                             </span>
                             <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                              {slotCount} slot{slotCount === 1 ? "" : "s"} available
+                              {slotCount} slot{slotCount === 1 ? "" : "s"} available today
                             </span>
                             {!availableToday && getDoctorMonthSessionCount(doctor.id) > 0 ? (
                               <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                {getDoctorMonthSessionCount(doctor.id)} session{getDoctorMonthSessionCount(doctor.id) === 1 ? "" : "s"} this month
+                                Sessions: {getDoctorSessionDateSummary(doctor.id)}
                               </span>
                             ) : null}
                           </div>
@@ -1229,7 +1253,7 @@ export function BookAppointmentContent() {
               onClick={handleNext}
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
-                (currentStep === 1 && (!formData.date || !formData.time || !!dateConflictMessage)) ||
+                (currentStep === 1 && (!formData.date || !formData.time)) ||
                 (currentStep === 2 && !formData.reason)
               }
               className="bg-orange-500 hover:bg-orange-600"

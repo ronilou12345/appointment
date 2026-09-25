@@ -76,6 +76,22 @@ export async function GET(request: NextRequest) {
 
     let bookedTimes: string[] = []
     try {
+      const userBookedTimeRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT DISTINCT
+          to_char(a.appointment_time, 'HH24:MI') AS appointment_time
+        FROM "appointment" a
+        INNER JOIN "session_tbl" s ON s.session_id = a.session_id
+        WHERE a.user_id = $1
+          AND s.session_date = $2
+          AND a.appointment_time IS NOT NULL
+          AND ($3::int IS NULL OR a.appointment_id <> $3)
+          AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+        ORDER BY to_char(a.appointment_time, 'HH24:MI') ASC`,
+        user.id,
+        selectedDate,
+        Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
+      )
+
       const appointmentTimeRows = await prisma.$queryRawUnsafe<any[]>(
         `SELECT DISTINCT
           to_char(a.appointment_time, 'HH24:MI') AS appointment_time
@@ -92,14 +108,20 @@ export async function GET(request: NextRequest) {
         Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
       )
 
-      bookedTimes = appointmentTimeRows
-        .map((row) => String(row.appointment_time ?? "").trim())
-        .filter(Boolean)
-        .sort((a, b) => {
-          const aMinutes = parseTimeToMinutes(a) ?? 0
-          const bMinutes = parseTimeToMinutes(b) ?? 0
-          return aMinutes - bMinutes
-        })
+      const bookedTimeSet = new Set<string>()
+      ;[
+        ...userBookedTimeRows,
+        ...appointmentTimeRows,
+      ].forEach((row) => {
+        const time = String(row.appointment_time ?? "").trim()
+        if (time) bookedTimeSet.add(time)
+      })
+
+      bookedTimes = Array.from(bookedTimeSet).sort((a, b) => {
+        const aMinutes = parseTimeToMinutes(a) ?? 0
+        const bMinutes = parseTimeToMinutes(b) ?? 0
+        return aMinutes - bMinutes
+      })
 
       if (bookedTimes.length === 0) {
         const sessionRows = await prisma.$queryRawUnsafe<any[]>(

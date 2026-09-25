@@ -80,6 +80,19 @@ const getStatusClasses = (status: string) => {
   }
 }
 
+const formatDateValue = (value: string | null | undefined) => {
+  if (!value) return "—"
+
+  const parsed = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  })
+}
+
 function AdminAppointmentActions({ appointment }: { appointment: AppointmentRow }) {
   const [certificateOpen, setCertificateOpen] = useState(false)
 
@@ -179,7 +192,7 @@ export const columns: ColumnDef<AppointmentRow>[] = [
   {
     accessorKey: "date",
     header: "Date",
-    cell: ({ row }) => row.getValue("date"),
+    cell: ({ row }) => formatDateValue(String(row.getValue("date") ?? "")),
   },
   {
     accessorKey: "time",

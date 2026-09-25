@@ -46,6 +46,19 @@ function escapeHtml(value: string | number | null | undefined) {
     .replaceAll('"', "&quot;")
 }
 
+function formatDateValue(value: string | null | undefined) {
+  if (!value) return "—"
+
+  const parsed = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  })
+}
+
 export type DoctorAppointmentRow = {
   id: string
   patientId: string
@@ -948,7 +961,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
       {
         accessorKey: "date",
         header: "Date",
-        cell: ({ row }) => row.getValue("date"),
+        cell: ({ row }) => formatDateValue(String(row.getValue("date") ?? "")),
       },
       {
         accessorKey: "time",
