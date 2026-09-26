@@ -210,6 +210,12 @@ export default function DoctorProfileList({ doctors }: { doctors: DoctorProfile[
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={selectedDoctor.status ?? "Active"} />
             <Link
+              href={`/client/book-appointment?doctorId=${selectedDoctor.id}`}
+              className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+            >
+              Book now
+            </Link>
+            <Link
               href={`/client/all-doctors/${selectedDoctor.id}`}
               className="rounded-full border border-border bg-background/60 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/5"
             >

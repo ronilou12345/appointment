@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Stepper, type StepperItem } from "@/components/ui/stepper"
-import { User, Calendar as CalendarIcon, FileText, CheckCircle } from "lucide-react"
+import { User, Calendar as CalendarIcon, FileText, CheckCircle, Stethoscope, BadgeCheck, BriefcaseMedical, CalendarClock, Clock3 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -61,6 +62,7 @@ const steps: StepperItem[] = [
 ]
 
 export function BookAppointmentContent() {
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [doctors, setDoctors] = useState<DoctorOption[]>([])
   const [loadingDoctors, setLoadingDoctors] = useState(true)
@@ -158,6 +160,23 @@ export function BookAppointmentContent() {
     void loadDoctors()
     void loadSessions(true)
   }, [])
+
+  useEffect(() => {
+    const doctorId = searchParams.get("doctorId")
+    if (!doctorId) return
+
+    const selectedDoctor = doctors.find((doctor) => String(doctor.id) === String(doctorId))
+    if (!selectedDoctor) return
+
+    setFormData((prev) => ({
+      ...prev,
+      doctorId: String(selectedDoctor.id),
+      date: "",
+      time: "",
+      sessionId: "",
+    }))
+    setCurrentStep(1)
+  }, [searchParams, doctors])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -342,8 +361,12 @@ export function BookAppointmentContent() {
         throw new Error(result.error || "Unable to check appointment availability")
       }
 
-      setBookedTimes(Array.isArray(result.bookedTimes) ? result.bookedTimes : [])
-      setDateConflictMessage("")
+      const bookedSlots = Array.isArray(result.bookedTimes) ? result.bookedTimes : []
+      const patientConflicts = Array.isArray(result.patientConflictTimes) ? result.patientConflictTimes : []
+      const combinedBookedTimes = Array.from(new Set([...bookedSlots, ...patientConflicts]))
+
+      setBookedTimes(combinedBookedTimes)
+      setDateConflictMessage(result.sameDoctorConflict && result.patientConflictMessage ? result.patientConflictMessage : "")
     } catch {
       setBookedTimes([])
       setDateConflictMessage("")
@@ -480,7 +503,16 @@ export function BookAppointmentContent() {
   const visibleDoctors = !showAllMobileDoctors ? doctors.slice(0, doctorCardLimit) : doctors
   const hasMoreDoctors = doctors.length > doctorCardLimit
 
+  const hasActiveDateConflict = Boolean(dateConflictMessage && formData.doctorId && formData.date)
+
   const handleNext = () => {
+    if (currentStep === 1 && hasActiveDateConflict) {
+      toast.error("Appointment conflict\nYou already have an appointment on this date that overlaps with this time. Please choose another slot.", {
+        id: "booking-step-error",
+      })
+      return
+    }
+
     const ok = canAdvance(currentStep)
     if (!ok.success) {
       toast.error(ok.message, { id: "booking-step-error" })
@@ -552,6 +584,12 @@ export function BookAppointmentContent() {
     const cleanedContactNumber = normalizePhilippineMobile(formData.contactNumber)
     if (formData.contactNumber.trim() && !cleanedContactNumber) {
       toast.error("Please enter a valid Philippine mobile number before confirming.")
+      return
+    }
+
+    const blockedByExistingConflict = bookedTimes.includes(formData.time)
+    if (blockedByExistingConflict) {
+      toast.error("You already have an appointment that overlaps with this time. Please choose another slot.")
       return
     }
 
@@ -650,6 +688,25 @@ export function BookAppointmentContent() {
                   {visibleDoctors.map((doctor) => {
                     const availableToday = doctorIsAvailableToday(doctor.id)
                     const slotCount = getDoctorSlotCount(doctor.id)
+                    const doctorAppointmentTypes = Array.from(
+                      new Set(
+                        sessions
+                          .filter((session) => {
+                            if (String(session.doctorId) !== String(doctor.id)) return false
+
+                            const sessionDate = new Date(session.date)
+                            const today = new Date()
+                            return sessionDate.toDateString() === today.toDateString()
+                          })
+                          .flatMap((session) => {
+                            const single = (session as any).appointmentType
+                            const arr = (session as any).appointmentTypes
+                            if (single) return [single]
+                            if (Array.isArray(arr)) return arr.filter(Boolean)
+                            return []
+                          }),
+                      ),
+                    )
 
                     return (
                       <div
@@ -722,17 +779,23 @@ export function BookAppointmentContent() {
 
                             <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                                <Stethoscope className="h-3.5 w-3.5 text-blue-500" />
                                 <span className="line-clamp-2">
                                   {doctor.specialties?.length ? doctor.specialties.join(", ") : doctor.specialty?.trim() || "No specialties"}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex h-2 w-2 rounded-full bg-violet-500" />
+                                <FileText className="h-3.5 w-3.5 text-emerald-500" />
+                                <span className="line-clamp-2">
+                                  {doctorAppointmentTypes.length ? doctorAppointmentTypes.join(", ") : "Appointment type not available"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <BadgeCheck className="h-3.5 w-3.5 text-violet-500" />
                                 <span>{doctor.boardCertificates?.length ? doctor.boardCertificates.join(", ") : "Board certification unavailable"}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                                <BriefcaseMedical className="h-3.5 w-3.5 text-amber-500" />
                                 <span>
                                   {doctor.experienceYears && doctor.experienceYears > 0 ? `${doctor.experienceYears} years experience` : "Experience details unavailable"}
                                 </span>
@@ -741,13 +804,19 @@ export function BookAppointmentContent() {
 
                             <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                               <div className="rounded-xl border border-border bg-muted/30 p-2.5">
-                                <div className="text-muted-foreground">Today</div>
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <CalendarClock className="h-3.5 w-3.5" />
+                                  <span>Today</span>
+                                </div>
                                 <div className="mt-1 font-semibold text-foreground">
                                   {slotCount} {slotCount === 1 ? "slot" : "slots"}
                                 </div>
                               </div>
                               <div className="rounded-xl border border-border bg-muted/30 p-2.5">
-                                <div className="text-muted-foreground">Next session</div>
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Clock3 className="h-3.5 w-3.5" />
+                                  <span>Next session</span>
+                                </div>
                                 <div className="mt-1 font-semibold text-foreground">
                                   {getDoctorNextSessionDate(doctor.id)}
                                 </div>
@@ -1202,7 +1271,7 @@ export function BookAppointmentContent() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Doctor profile</p>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Doctor</p>
                         <p className="mt-2 text-2xl font-semibold text-foreground">
                           {doctorName}
                         </p>
@@ -1212,11 +1281,6 @@ export function BookAppointmentContent() {
                         <p className="mt-3 text-sm text-muted-foreground">
                           {selectedDoctor?.specialty || selectedDoctor?.specialties?.join(", ") || "Specialty not selected"}
                         </p>
-                      </div>
-
-                      <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-right sm:min-w-[140px]">
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Availability</div>
-                        <div className="mt-1 font-semibold text-foreground">Confirmed</div>
                       </div>
                     </div>
 
@@ -1336,7 +1400,7 @@ export function BookAppointmentContent() {
               onClick={handleNext}
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
-                (currentStep === 1 && (!formData.date || !formData.time)) ||
+                (currentStep === 1 && (!formData.date || !formData.time || hasActiveDateConflict)) ||
                 (currentStep === 2 && !formData.reason)
               }
               className="bg-orange-500 hover:bg-orange-600"

@@ -25,6 +25,13 @@ function parseTimeToMinutes(value: string): number | null {
   return hours * 60 + minutes
 }
 
+function formatMinutesAsTime(totalMinutes: number): string {
+  const normalized = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60)
+  const hours = Math.floor(normalized / 60)
+  const minutes = normalized % 60
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+}
+
 function buildTimeSlots(startTime: string, endTime: string, stepMinutes = 20): string[] {
   const start = parseTimeToMinutes(startTime)
   const end = parseTimeToMinutes(endTime)
@@ -75,18 +82,20 @@ export async function GET(request: NextRequest) {
     )
 
     let bookedTimes: string[] = []
+    let patientConflictTimes: string[] = []
+    let patientConflictMessage = ""
+    let sameDoctorConflict = false
     try {
       const userBookedTimeRows = await prisma.$queryRawUnsafe<any[]>(
         `SELECT DISTINCT
-          to_char(a.appointment_time, 'HH24:MI') AS appointment_time
+          to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time
         FROM "appointment" a
         INNER JOIN "session_tbl" s ON s.session_id = a.session_id
         WHERE a.user_id = $1
           AND s.session_date = $2
-          AND a.appointment_time IS NOT NULL
           AND ($3::int IS NULL OR a.appointment_id <> $3)
           AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
-        ORDER BY to_char(a.appointment_time, 'HH24:MI') ASC`,
+        ORDER BY to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') ASC`,
         user.id,
         selectedDate,
         Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
@@ -108,6 +117,39 @@ export async function GET(request: NextRequest) {
         Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
       )
 
+      const sameDoctorConflictRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT 1
+        FROM "appointment" a
+        INNER JOIN "session_tbl" s ON s.session_id = a.session_id
+        WHERE a.user_id = $1
+          AND s.doctor_id = $2
+          AND s.session_date = $3
+          AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+          AND ($4::int IS NULL OR a.appointment_id <> $4)
+        LIMIT 1`,
+        user.id,
+        doctorId,
+        selectedDate,
+        Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
+      )
+
+      const userConflictRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT
+          to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time
+        FROM "appointment" a
+        INNER JOIN "session_tbl" s ON s.session_id = a.session_id
+        WHERE a.user_id = $1
+          AND s.session_date = $2
+          AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+          AND ($3::int IS NULL OR a.appointment_id <> $3)
+        ORDER BY to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') ASC`,
+        user.id,
+        selectedDate,
+        Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
+      )
+
+      sameDoctorConflict = Boolean(sameDoctorConflictRows?.length)
+
       const bookedTimeSet = new Set<string>()
       ;[
         ...userBookedTimeRows,
@@ -117,11 +159,32 @@ export async function GET(request: NextRequest) {
         if (time) bookedTimeSet.add(time)
       })
 
+      const patientConflictSet = new Set<string>()
+      for (const row of userConflictRows) {
+        const startTime = String(row.appointment_time ?? "").trim()
+        const startMinutes = parseTimeToMinutes(startTime)
+        if (startMinutes === null) continue
+
+        for (let minute = startMinutes; minute < startMinutes + 60; minute += 20) {
+          patientConflictSet.add(formatMinutesAsTime(minute))
+        }
+      }
+
       bookedTimes = Array.from(bookedTimeSet).sort((a, b) => {
         const aMinutes = parseTimeToMinutes(a) ?? 0
         const bMinutes = parseTimeToMinutes(b) ?? 0
         return aMinutes - bMinutes
       })
+
+      patientConflictTimes = Array.from(patientConflictSet).sort((a, b) => {
+        const aMinutes = parseTimeToMinutes(a) ?? 0
+        const bMinutes = parseTimeToMinutes(b) ?? 0
+        return aMinutes - bMinutes
+      })
+
+      if (sameDoctorConflict && patientConflictTimes.length > 0) {
+        patientConflictMessage = "You already have an appointment on this date that overlaps with this time. Please choose another slot."
+      }
 
       if (bookedTimes.length === 0) {
         const sessionRows = await prisma.$queryRawUnsafe<any[]>(
@@ -161,9 +224,22 @@ export async function GET(request: NextRequest) {
       }
     } catch {
       bookedTimes = []
+      patientConflictTimes = []
+      patientConflictMessage = ""
     }
 
-    return NextResponse.json({ success: true, hasAppointment: Boolean(existing?.length), bookedTimes })
+    return NextResponse.json({
+      success: true,
+      hasAppointment: Boolean(existing?.length),
+      bookedTimes: Array.from(new Set([...bookedTimes, ...patientConflictTimes])).sort((a, b) => {
+        const aMinutes = parseTimeToMinutes(a) ?? 0
+        const bMinutes = parseTimeToMinutes(b) ?? 0
+        return aMinutes - bMinutes
+      }),
+      patientConflictTimes,
+      sameDoctorConflict,
+      patientConflictMessage,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ success: false, error: message }, { status: 500 })
@@ -282,15 +358,36 @@ export async function POST(request: NextRequest) {
         throw new Error("No slots available for the selected session")
       }
 
-      const existingAppointment = await tx.$queryRawUnsafe<any[]>(
-        `SELECT 1 FROM "appointment" a JOIN "session_tbl" s ON s.session_id = a.session_id WHERE a.user_id = $1 AND s.doctor_id = $2 AND s.session_date = (SELECT session_date FROM "session_tbl" WHERE session_id = $3) LIMIT 1`,
+      const selectedAppointmentDate = session[0].session_date ? String(session[0].session_date).slice(0, 10) : appointmentDate
+      const selectedAppointmentTimeValue = appointmentTime && /^\d{1,2}:\d{2}$/.test(appointmentTime)
+        ? appointmentTime
+        : session[0].start_time ? String(session[0].start_time).slice(0, 5) : null
+
+      const patientConflictRows = await tx.$queryRawUnsafe<any[]>(
+        `SELECT
+          to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time
+        FROM "appointment" a
+        INNER JOIN "session_tbl" s ON s.session_id = a.session_id
+        WHERE a.user_id = $1
+          AND s.session_date = $2::date
+          AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+        ORDER BY to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') ASC`,
         user.id,
-        doctorId,
-        sessionId,
+        selectedAppointmentDate,
       )
 
-      if (existingAppointment?.length) {
-        throw new Error("You already have an appointment for this date")
+      const candidateStartMinutes = selectedAppointmentTimeValue ? parseTimeToMinutes(selectedAppointmentTimeValue) : null
+      if (candidateStartMinutes !== null) {
+        const candidateEndMinutes = candidateStartMinutes + 60
+        for (const row of patientConflictRows) {
+          const existingStartMinutes = parseTimeToMinutes(String(row.appointment_time ?? ""))
+          if (existingStartMinutes === null) continue
+
+          const existingEndMinutes = existingStartMinutes + 60
+          if (candidateStartMinutes < existingEndMinutes && existingStartMinutes < candidateEndMinutes) {
+            throw new Error("You already have an appointment on this date that overlaps with this time. Please choose a different slot.")
+          }
+        }
       }
 
       const doctor = await tx.$queryRawUnsafe<any[]>(
@@ -302,16 +399,11 @@ export async function POST(request: NextRequest) {
         doctorId,
       )
 
-      const selectedAppointmentDate = session[0].session_date ? String(session[0].session_date).slice(0, 10) : appointmentDate
-      const selectedAppointmentTime = appointmentTime && /^\d{1,2}:\d{2}$/.test(appointmentTime)
-        ? appointmentTime
-        : session[0].start_time ? String(session[0].start_time).slice(0, 5) : null
-
       appointmentDetails = {
         patientName: user.name ?? user.email ?? "Patient",
         doctorName: doctor?.[0]?.name ?? "Doctor",
         date: selectedAppointmentDate,
-        time: selectedAppointmentTime,
+        time: selectedAppointmentTimeValue,
         appointmentType,
         reasonForVisit,
       }
@@ -332,7 +424,7 @@ export async function POST(request: NextRequest) {
         painLevel,
         additionalNotes,
         selectedAppointmentDate,
-        selectedAppointmentTime ? `${selectedAppointmentTime}:00` : null,
+        selectedAppointmentTimeValue ? `${selectedAppointmentTimeValue}:00` : null,
       )
 
       const createdAppointmentRows = await tx.$queryRawUnsafe<{ contact_number: string | null }[]>(
