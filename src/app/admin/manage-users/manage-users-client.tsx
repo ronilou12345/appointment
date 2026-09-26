@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { columns, getStatusDotClass, normalizeUserStatus, UserRow } from "./columns"
+import { columns, getStatusDotClass, normalizeUserStatus, StatusBadge, UserRow } from "./columns"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -873,10 +873,79 @@ function EditUserSheet({
   )
 }
 
+function ViewUserSheet({
+  open,
+  onOpenChange,
+  user,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  user: UserRow | null
+}) {
+  const details = [
+    ["Email", user?.email],
+    ["Role", user?.role],
+    ["Address", user?.address],
+    ["Prefix", user?.prefix],
+    ["Suffix", user?.suffix],
+    ["Credentials", user?.credentials],
+    ["License number", user?.licenseNumber],
+    ["Years of experience", user?.yearsOfExperience],
+    ["Board certifications", user?.boardCertifications],
+  ] as const
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full max-w-xl sm:max-w-xl">
+        <SheetHeader className="border-b px-6 py-4">
+          <SheetTitle>User profile</SheetTitle>
+          <SheetDescription>Account and profile information.</SheetDescription>
+        </SheetHeader>
+
+        {user ? (
+          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div className="flex items-center gap-4">
+              <Avatar className="size-16">
+                {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
+                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <h3 className="truncate text-lg font-semibold">{user.name || "—"}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{user.email || "—"}</p>
+                <div className="mt-2"><StatusBadge status={user.status} /></div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {details.map(([label, value]) => (
+                <div key={label} className="min-w-0 border-b border-border pb-3">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
+                  <p className="mt-1 break-words text-sm font-medium">
+                    {label === "License number" && value?.trim().toLowerCase().startsWith("temp-")
+                      ? "—"
+                      : value?.trim() || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <SheetFooter className="border-t px-6 py-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 export default function ManageUsersClient({ users = [] }: { users?: UserRow[] }) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editOpen, setEditOpen] = React.useState(false)
+  const [viewOpen, setViewOpen] = React.useState(false)
   const [selectedUser, setSelectedUser] = React.useState<UserRow | null>(null)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [successMessage, setSuccessMessage] = React.useState("")
@@ -888,6 +957,12 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
       setEditOpen(true)
     }
 
+    const openViewUser = (event: Event) => {
+      const customEvent = event as CustomEvent<UserRow>
+      setSelectedUser(customEvent.detail ?? null)
+      setViewOpen(true)
+    }
+
     const openDeleteUser = (event: Event) => {
       const customEvent = event as CustomEvent<UserRow>
       setSelectedUser(customEvent.detail ?? null)
@@ -895,9 +970,11 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
     }
 
     window.addEventListener("open-edit-user", openEditUser as EventListener)
+    window.addEventListener("open-view-user", openViewUser as EventListener)
     window.addEventListener("open-delete-user", openDeleteUser as EventListener)
     return () => {
       window.removeEventListener("open-edit-user", openEditUser as EventListener)
+      window.removeEventListener("open-view-user", openViewUser as EventListener)
       window.removeEventListener("open-delete-user", openDeleteUser as EventListener)
     }
   }, [])
@@ -929,6 +1006,7 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
         existingEmails={(users ?? []).map((user) => user.email ?? "")}
         onSuccess={(message) => setSuccessMessage(message)}
       />
+      <ViewUserSheet open={viewOpen} onOpenChange={setViewOpen} user={selectedUser} />
       <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={selectedUser} onSuccess={(message) => setSuccessMessage(message)} />
       <Dialog open={deleteOpen} onOpenChange={(o) => setDeleteOpen(o)}>
         <DialogContent className="mx-auto max-w-md">

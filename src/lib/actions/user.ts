@@ -33,6 +33,7 @@ export async function updateUserProfileAction(formData: FormData) {
   const userId = formData.get("userId")?.toString().trim()
   const name = formData.get("name")?.toString().trim() ?? ""
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
+  const address = formData.get("address")?.toString().trim()
   const currentPassword = formData.get("password")?.toString() ?? ""
   const newPassword = formData.get("newPassword")?.toString() ?? ""
   const designationsRaw = formData.get("designations")
@@ -48,6 +49,10 @@ export async function updateUserProfileAction(formData: FormData) {
     name,
     email,
     updatedAt: new Date(),
+  }
+
+  if (address !== undefined) {
+    updateData.address = address || null
   }
 
   if (designationsRaw !== null) {
@@ -233,6 +238,7 @@ export async function createUserAction(formData: FormData) {
           id: userId,
           email,
           name: displayName,
+          address,
           role,
           status: normalizedStatus,
           designations: null,

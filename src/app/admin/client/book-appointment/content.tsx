@@ -500,8 +500,13 @@ export function BookAppointmentContent() {
   )
 
   const doctorCardLimit = isMobileView ? 5 : 6
-  const visibleDoctors = !showAllMobileDoctors ? doctors.slice(0, doctorCardLimit) : doctors
-  const hasMoreDoctors = doctors.length > doctorCardLimit
+  const availableTodayDoctors = doctors.filter((doctor) => doctorIsAvailableToday(doctor.id))
+  const otherDoctors = doctors.filter((doctor) => !doctorIsAvailableToday(doctor.id))
+  const prioritizedDoctors = [...availableTodayDoctors, ...otherDoctors]
+  const visibleDoctors = showAllMobileDoctors
+    ? prioritizedDoctors
+    : [...availableTodayDoctors, ...otherDoctors.slice(0, Math.max(doctorCardLimit - availableTodayDoctors.length, 0))]
+  const hasMoreDoctors = prioritizedDoctors.length > visibleDoctors.length
 
   const hasActiveDateConflict = Boolean(dateConflictMessage && formData.doctorId && formData.date)
 

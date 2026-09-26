@@ -486,7 +486,7 @@ export async function PATCH(request: NextRequest) {
     const appointmentId = Number(body.appointmentId)
     const action = String(body.action || "").trim()
     const reasonCancel = typeof body.reasonCancel === "string" ? body.reasonCancel.trim().slice(0, 1000) : ""
-    const allowedActions = ["Confirm", "Complete", "Cancel", "Reschedule"]
+    const allowedActions = ["Confirm", "Complete", "Cancel", "Reschedule", "FailedToVisit"]
 
     if (!appointmentId || !allowedActions.includes(action)) {
       return NextResponse.json({ success: false, error: "Invalid appointment action" }, { status: 400 })
@@ -750,11 +750,14 @@ export async function PATCH(request: NextRequest) {
     const normalizedStatusKey = normalizedStatus.toLowerCase()
     const isClientActor = appointment.user_id === user.id
     const isDoctorActor = appointment.doctor?.user?.id === user.id
+    const isFailedToVisit = action === "FailedToVisit"
     const isCancelRequest = shouldCancel && isClientActor && !isDoctorActor
     const targetStatus = isCancelRequest
       ? "Cancel Requested"
       : shouldCancel
         ? "Cancelled"
+        : isFailedToVisit
+          ? "Failed to Visit"
         : action === "Confirm"
           ? "Confirmed"
           : "Completed"
@@ -773,6 +776,32 @@ export async function PATCH(request: NextRequest) {
 
     if (normalizedStatus === targetStatus) {
       return NextResponse.json({ success: true, status: normalizedStatus })
+    }
+
+    if (["completed", "failed to visit"].includes(normalizedStatusKey)) {
+      return NextResponse.json({ success: false, error: "This appointment is already closed" }, { status: 400 })
+    }
+
+    if (isFailedToVisit) {
+      if (!isDoctorActor) {
+        return NextResponse.json({ success: false, error: "Only the assigned doctor can mark a failed visit" }, { status: 403 })
+      }
+      if (normalizedStatusKey !== "confirmed") {
+        return NextResponse.json({ success: false, error: "Only confirmed appointments can be marked as failed to visit" }, { status: 400 })
+      }
+
+      const scheduledDate = isoDatePart(appointment.appointment_date ?? appointment.session_tbl?.session_date)
+      const scheduledTime = isoTimePart(appointment.appointment_time ?? appointment.session_tbl?.start_time)
+      if (!scheduledDate || !scheduledTime) {
+        return NextResponse.json({ success: false, error: "The appointment has no valid scheduled date and time" }, { status: 400 })
+      }
+
+      const [year, month, day] = scheduledDate.split("-").map(Number)
+      const [hours, minutes] = scheduledTime.split(":").map(Number)
+      const scheduledAt = new Date(year, month - 1, day, hours, minutes)
+      if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() > Date.now()) {
+        return NextResponse.json({ success: false, error: "An appointment can only be marked failed to visit after its scheduled time" }, { status: 400 })
+      }
     }
 
     const updatedAppointment = await prisma.appointment.update({
@@ -801,7 +830,9 @@ export async function PATCH(request: NextRequest) {
 
     const [smsResult, emailResult] = isCancelRequest
       ? [{ success: false, reason: "skipped" }, await sendCancellationRequestEmail(appointment.doctor?.user?.email ?? null, statusDetails)]
-      : await Promise.all([
+      : isFailedToVisit
+        ? [{ success: false, reason: "skipped" }, { success: false, reason: "skipped" }]
+        : await Promise.all([
           sendAppointmentSms(appointment.contact_number, statusDetails, targetStatus as "Confirmed" | "Completed" | "Cancelled"),
           sendAppointmentStatusEmail(
             appointment.user?.email ?? null,
@@ -820,7 +851,11 @@ export async function PATCH(request: NextRequest) {
 
     await logActivity({
       actor: user,
-      action: isCancelRequest ? "Requested appointment cancellation" : `${targetStatus} appointment`,
+      action: isCancelRequest
+        ? "Requested appointment cancellation"
+        : isFailedToVisit
+          ? "Marked appointment as failed to visit"
+          : `${targetStatus} appointment`,
       details: `Patient: ${appointment.user?.name ?? "Unknown"}`,
       entityType: "appointment",
       entityId: appointmentId,

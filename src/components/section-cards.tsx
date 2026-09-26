@@ -89,8 +89,8 @@ export async function SectionCards() {
       title: "Total Users",
       value: usersTotal,
       badge: `${usersActive.toLocaleString()} active`,
-      footer: "All accounts",
-      hint: "Admins, doctors, staff, and patients",
+      footer: "All users",
+      hint: "Admins, doctors, and patients",
       href: "/admin/manage-users",
     },
     {
@@ -115,7 +115,12 @@ export async function SectionCards() {
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-5">
       {cards.map((card) => (
         <Link key={card.title} href={card.href} className="block h-full focus-visible:outline-none">
-          <Card className="@container/card h-full bg-gradient-to-t from-primary/5 to-card shadow-xs transition-opacity hover:opacity-90 dark:bg-card">
+          <Card
+            className="@container/card h-full shadow-xs transition-opacity hover:opacity-90"
+            style={{
+              backgroundImage: "linear-gradient(to top, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.07) 45%, hsl(var(--card) / 1) 100%)",
+            }}
+          >
             <CardHeader>
               <CardDescription>{card.title}</CardDescription>
               <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">

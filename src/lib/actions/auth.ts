@@ -48,6 +48,7 @@ export async function loginUser(formData: FormData) {
 
 export async function registerUser(formData: FormData) {
   const name = formData.get("name")?.toString().trim() ?? ""
+  const address = formData.get("address")?.toString().trim() ?? ""
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? ""
   const password = formData.get("password")?.toString() ?? ""
   const confirmPassword = formData.get("confirm-password")?.toString() ?? ""
@@ -88,6 +89,7 @@ export async function registerUser(formData: FormData) {
         where: { id: userId },
         data: {
           name,
+          address: address || null,
           password,
           role: "PATIENT",
           status: "INACTIVE",
@@ -100,6 +102,7 @@ export async function registerUser(formData: FormData) {
           id: userId,
           email,
           name,
+          address: address || null,
           role: "PATIENT",
           status: "INACTIVE",
           designations: null,

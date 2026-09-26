@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 
-import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Card,
   CardAction,
@@ -30,102 +29,6 @@ import {
   ToggleGroupItem,
 } from "@/components/ui/toggle-group"
 
-export const description = "An interactive area chart"
-
-const chartData = [
-  { date: "2024-04-01", desktop: 222, mobile: 150 },
-  { date: "2024-04-02", desktop: 97, mobile: 180 },
-  { date: "2024-04-03", desktop: 167, mobile: 120 },
-  { date: "2024-04-04", desktop: 242, mobile: 260 },
-  { date: "2024-04-05", desktop: 373, mobile: 290 },
-  { date: "2024-04-06", desktop: 301, mobile: 340 },
-  { date: "2024-04-07", desktop: 245, mobile: 180 },
-  { date: "2024-04-08", desktop: 409, mobile: 320 },
-  { date: "2024-04-09", desktop: 59, mobile: 110 },
-  { date: "2024-04-10", desktop: 261, mobile: 190 },
-  { date: "2024-04-11", desktop: 327, mobile: 350 },
-  { date: "2024-04-12", desktop: 292, mobile: 210 },
-  { date: "2024-04-13", desktop: 342, mobile: 380 },
-  { date: "2024-04-14", desktop: 137, mobile: 220 },
-  { date: "2024-04-15", desktop: 120, mobile: 170 },
-  { date: "2024-04-16", desktop: 138, mobile: 190 },
-  { date: "2024-04-17", desktop: 446, mobile: 360 },
-  { date: "2024-04-18", desktop: 364, mobile: 410 },
-  { date: "2024-04-19", desktop: 243, mobile: 180 },
-  { date: "2024-04-20", desktop: 89, mobile: 150 },
-  { date: "2024-04-21", desktop: 137, mobile: 200 },
-  { date: "2024-04-22", desktop: 224, mobile: 170 },
-  { date: "2024-04-23", desktop: 138, mobile: 230 },
-  { date: "2024-04-24", desktop: 387, mobile: 290 },
-  { date: "2024-04-25", desktop: 215, mobile: 250 },
-  { date: "2024-04-26", desktop: 75, mobile: 130 },
-  { date: "2024-04-27", desktop: 383, mobile: 420 },
-  { date: "2024-04-28", desktop: 122, mobile: 180 },
-  { date: "2024-04-29", desktop: 315, mobile: 240 },
-  { date: "2024-04-30", desktop: 454, mobile: 380 },
-  { date: "2024-05-01", desktop: 165, mobile: 220 },
-  { date: "2024-05-02", desktop: 293, mobile: 310 },
-  { date: "2024-05-03", desktop: 247, mobile: 190 },
-  { date: "2024-05-04", desktop: 385, mobile: 420 },
-  { date: "2024-05-05", desktop: 481, mobile: 390 },
-  { date: "2024-05-06", desktop: 498, mobile: 520 },
-  { date: "2024-05-07", desktop: 388, mobile: 300 },
-  { date: "2024-05-08", desktop: 149, mobile: 210 },
-  { date: "2024-05-09", desktop: 227, mobile: 180 },
-  { date: "2024-05-10", desktop: 293, mobile: 330 },
-  { date: "2024-05-11", desktop: 335, mobile: 270 },
-  { date: "2024-05-12", desktop: 197, mobile: 240 },
-  { date: "2024-05-13", desktop: 197, mobile: 160 },
-  { date: "2024-05-14", desktop: 448, mobile: 490 },
-  { date: "2024-05-15", desktop: 473, mobile: 380 },
-  { date: "2024-05-16", desktop: 338, mobile: 400 },
-  { date: "2024-05-17", desktop: 499, mobile: 420 },
-  { date: "2024-05-18", desktop: 315, mobile: 350 },
-  { date: "2024-05-19", desktop: 235, mobile: 180 },
-  { date: "2024-05-20", desktop: 177, mobile: 230 },
-  { date: "2024-05-21", desktop: 82, mobile: 140 },
-  { date: "2024-05-22", desktop: 81, mobile: 120 },
-  { date: "2024-05-23", desktop: 252, mobile: 290 },
-  { date: "2024-05-24", desktop: 294, mobile: 220 },
-  { date: "2024-05-25", desktop: 201, mobile: 250 },
-  { date: "2024-05-26", desktop: 213, mobile: 170 },
-  { date: "2024-05-27", desktop: 420, mobile: 460 },
-  { date: "2024-05-28", desktop: 233, mobile: 190 },
-  { date: "2024-05-29", desktop: 78, mobile: 130 },
-  { date: "2024-05-30", desktop: 340, mobile: 280 },
-  { date: "2024-05-31", desktop: 178, mobile: 230 },
-  { date: "2024-06-01", desktop: 178, mobile: 200 },
-  { date: "2024-06-02", desktop: 470, mobile: 410 },
-  { date: "2024-06-03", desktop: 103, mobile: 160 },
-  { date: "2024-06-04", desktop: 439, mobile: 380 },
-  { date: "2024-06-05", desktop: 88, mobile: 140 },
-  { date: "2024-06-06", desktop: 294, mobile: 250 },
-  { date: "2024-06-07", desktop: 323, mobile: 370 },
-  { date: "2024-06-08", desktop: 385, mobile: 320 },
-  { date: "2024-06-09", desktop: 438, mobile: 480 },
-  { date: "2024-06-10", desktop: 155, mobile: 200 },
-  { date: "2024-06-11", desktop: 92, mobile: 150 },
-  { date: "2024-06-12", desktop: 492, mobile: 420 },
-  { date: "2024-06-13", desktop: 81, mobile: 130 },
-  { date: "2024-06-14", desktop: 426, mobile: 380 },
-  { date: "2024-06-15", desktop: 307, mobile: 350 },
-  { date: "2024-06-16", desktop: 371, mobile: 310 },
-  { date: "2024-06-17", desktop: 475, mobile: 520 },
-  { date: "2024-06-18", desktop: 107, mobile: 170 },
-  { date: "2024-06-19", desktop: 341, mobile: 290 },
-  { date: "2024-06-20", desktop: 408, mobile: 450 },
-  { date: "2024-06-21", desktop: 169, mobile: 210 },
-  { date: "2024-06-22", desktop: 317, mobile: 270 },
-  { date: "2024-06-23", desktop: 480, mobile: 530 },
-  { date: "2024-06-24", desktop: 132, mobile: 180 },
-  { date: "2024-06-25", desktop: 141, mobile: 190 },
-  { date: "2024-06-26", desktop: 434, mobile: 380 },
-  { date: "2024-06-27", desktop: 448, mobile: 490 },
-  { date: "2024-06-28", desktop: 149, mobile: 200 },
-  { date: "2024-06-29", desktop: 103, mobile: 160 },
-  { date: "2024-06-30", desktop: 446, mobile: 400 },
-]
-
 const chartConfig = {
   visitors: {
     label: "Visitors",
@@ -141,140 +44,186 @@ type VisitorData = {
   visitors: number
 }
 
-const defaultVisitorData: VisitorData[] = chartData.map(({ date, desktop, mobile }) => ({
-  date,
-  visitors: desktop + mobile,
-}))
+type VisitorPeriod = "day" | "week" | "month"
 
-type ChartAreaInteractiveProps = {
-  visitorData?: VisitorData[]
+function getTodayDateValue() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
-export function ChartAreaInteractive({ visitorData = defaultVisitorData }: ChartAreaInteractiveProps) {
-  const isMobile = useIsMobile()
-  const [timeRange, setTimeRange] = React.useState("90d")
+const periodLabels: Record<VisitorPeriod, string> = {
+  day: "day",
+  week: "week",
+  month: "month",
+}
+
+export function ChartAreaInteractive({ visitorData: suppliedVisitorData }: { visitorData?: VisitorData[] }) {
+  const [period, setPeriod] = React.useState<VisitorPeriod>("month")
+  const [selectedDate, setSelectedDate] = React.useState(
+    () => suppliedVisitorData?.[suppliedVisitorData.length - 1]?.date ?? getTodayDateValue(),
+  )
+  const [visitorData, setVisitorData] = React.useState<VisitorData[]>(suppliedVisitorData ?? [])
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState("")
 
   React.useEffect(() => {
-    if (isMobile) {
-      setTimeRange("7d")
+    if (suppliedVisitorData !== undefined) {
+      setVisitorData(suppliedVisitorData)
+      setLoading(false)
+      setError("")
+      return
     }
-  }, [isMobile])
 
-  const filteredData = visitorData.filter((item) => {
-    const date = new Date(item.date)
-    const referenceDate = new Date("2024-06-30")
-    let daysToSubtract = 90
-    if (timeRange === "30d") {
-      daysToSubtract = 30
-    } else if (timeRange === "7d") {
-      daysToSubtract = 7
+    const controller = new AbortController()
+
+    const loadVisitors = async () => {
+      setLoading(true)
+      setError("")
+
+      try {
+        const params = new URLSearchParams({ date: selectedDate, period })
+        const response = await fetch(`/api/admin/dashboard/visitors?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        const result = await response.json()
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Unable to load visitor data")
+        }
+        setVisitorData(Array.isArray(result.visitors) ? result.visitors : [])
+      } catch (fetchError) {
+        if (controller.signal.aborted) return
+        setVisitorData([])
+        setError(fetchError instanceof Error ? fetchError.message : "Unable to load visitor data")
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
     }
-    const startDate = new Date(referenceDate)
-    startDate.setDate(startDate.getDate() - daysToSubtract)
-    return date >= startDate
-  })
+
+    void loadVisitors()
+    return () => controller.abort()
+  }, [period, selectedDate, suppliedVisitorData])
+
+  const visibleData = React.useMemo(() => {
+    if (suppliedVisitorData === undefined || !selectedDate) return visitorData
+
+    const anchor = new Date(`${selectedDate}T00:00:00.000Z`)
+    if (Number.isNaN(anchor.getTime())) return visitorData
+    const start = new Date(anchor)
+    let bucketCount = 1
+    if (period === "week") {
+      start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7))
+      bucketCount = 7
+    } else if (period === "month") {
+      start.setUTCDate(1)
+      bucketCount = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate()
+    }
+    const end = new Date(start)
+    end.setUTCDate(end.getUTCDate() + bucketCount)
+    const startKey = start.toISOString().slice(0, 10)
+    const endKey = end.toISOString().slice(0, 10)
+    return visitorData.filter((item) => item.date >= startKey && item.date < endKey)
+  }, [period, selectedDate, suppliedVisitorData, visitorData])
+
+  const totalVisitors = visibleData.reduce((total, item) => total + item.visitors, 0)
+  const handlePeriodChange = (value: string) => {
+    if (value === "day" || value === "week" || value === "month") setPeriod(value)
+  }
 
   return (
     <Card className="@container/card">
       <CardHeader>
         <CardTitle>Total Visitors</CardTitle>
-        <CardDescription>
-          <span className="hidden @[540px]/card:block">
-            Total for the last 3 months
-          </span>
-          <span className="@[540px]/card:hidden">Last 3 months</span>
+        <CardDescription aria-live="polite">
+          {loading
+            ? "Loading visitor data..."
+            : error
+              ? error
+              : `${totalVisitors} visitors for the selected ${periodLabels[period]}`}
         </CardDescription>
-        <CardAction>
+        <CardAction className="flex flex-wrap items-center justify-end gap-2">
+          <input
+            type="date"
+            aria-label="Select date for visitor data"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          />
           <ToggleGroup
             type="single"
-            value={timeRange}
-            onValueChange={setTimeRange}
+            value={period}
+            onValueChange={handlePeriodChange}
             variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
+            className="hidden *:data-[slot=toggle-group-item]:px-3! @[767px]/card:flex"
           >
-            <ToggleGroupItem value="90d">Last 3 months</ToggleGroupItem>
-            <ToggleGroupItem value="30d">Last 30 days</ToggleGroupItem>
-            <ToggleGroupItem value="7d">Last 7 days</ToggleGroupItem>
+            <ToggleGroupItem value="day">Day</ToggleGroupItem>
+            <ToggleGroupItem value="week">Week</ToggleGroupItem>
+            <ToggleGroupItem value="month">Month</ToggleGroupItem>
           </ToggleGroup>
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select value={period} onValueChange={handlePeriodChange}>
             <SelectTrigger
-              className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
+              className="flex w-28 @[767px]/card:hidden"
               size="sm"
-              aria-label="Select a value"
+              aria-label="Select visitor period"
             >
-              <SelectValue placeholder="Last 3 months" />
+              <SelectValue placeholder="Month" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              <SelectItem value="90d" className="rounded-lg">
-                Last 3 months
-              </SelectItem>
-              <SelectItem value="30d" className="rounded-lg">
-                Last 30 days
-              </SelectItem>
-              <SelectItem value="7d" className="rounded-lg">
-                Last 7 days
-              </SelectItem>
+              <SelectItem value="day">Day</SelectItem>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
             </SelectContent>
           </Select>
         </CardAction>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
-        >
-          <AreaChart data={filteredData}>
-            <defs>
-              <linearGradient id="fillVisitors" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-visitors)"
-                  stopOpacity={0.9}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-visitors)"
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value) => {
-                const date = new Date(value)
-                return date.toLocaleDateString("en-US", {
+        {error ? (
+          <div className="flex h-[250px] items-center justify-center text-sm text-destructive">{error}</div>
+        ) : (
+          <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+            <AreaChart data={visibleData} aria-busy={loading}>
+              <defs>
+                <linearGradient id="fillVisitors" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-visitors)" stopOpacity={0.9} />
+                  <stop offset="95%" stopColor="var(--color-visitors)" stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tickFormatter={(value) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
-                })
-              }}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
+                })}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
-                    })
-                  }}
-                  indicator="dot"
-                />
-              }
-            />
-            <Area
-              dataKey="visitors"
-              type="natural"
-              fill="url(#fillVisitors)"
-              stroke="var(--color-visitors)"
-            />
-          </AreaChart>
-        </ChartContainer>
+                      year: "numeric",
+                    })}
+                    indicator="dot"
+                  />
+                }
+              />
+              <Area
+                dataKey="visitors"
+                type="natural"
+                fill="url(#fillVisitors)"
+                stroke="var(--color-visitors)"
+              />
+            </AreaChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )

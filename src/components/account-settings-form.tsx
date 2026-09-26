@@ -26,6 +26,7 @@ interface AccountSettingsFormProps {
     id: string
     name: string
     email: string
+    address?: string | null
     role?: string | null
     status?: string | null
     designations?: string | null
@@ -233,6 +234,10 @@ export function AccountSettingsForm({ user, doctorBackground, redirectPath, titl
               <Label htmlFor="personalEmail">Personal email</Label>
               <Input id="personalEmail" name="personalEmail" type="email" defaultValue={personalEmail} onChange={(e) => setPersonalEmail(e.target.value)} />
             </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="address">Address</Label>
+              <Input id="address" name="address" defaultValue={user.address ?? doctorBackground?.address ?? ""} placeholder="Enter your address" />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Current password</Label>
@@ -326,10 +331,6 @@ export function AccountSettingsForm({ user, doctorBackground, redirectPath, titl
                   <div className="space-y-2">
                     <Label htmlFor="suffix">Suffix</Label>
                     <Input id="suffix" name="suffix" defaultValue={doctorBackground.suffix} placeholder="e.g. Jr., MD" />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input id="address" name="address" defaultValue={doctorBackground.address} placeholder="Enter full address" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="credentials">Credentials</Label>

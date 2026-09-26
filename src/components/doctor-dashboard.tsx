@@ -14,6 +14,7 @@ type DoctorDashboardProps = {
   todayPatients?: number
   confirmedAppointments?: number
   sessionsCount?: number
+  failedToVisitCount?: number
   nextAppointments?: Array<{
     id?: string
     time?: string
@@ -34,6 +35,7 @@ export function DoctorDashboard({
   todayPatients = 0,
   confirmedAppointments = 0,
   sessionsCount = 0,
+  failedToVisitCount = 0,
   nextAppointments = [],
   appointmentTrend = [],
   topProcedures = [],
@@ -52,7 +54,11 @@ export function DoctorDashboard({
     <div className="flex flex-1 flex-col">
       <div className="flex flex-col gap-6 py-4 md:py-6">
         <div className="grid gap-4 px-4 md:grid-cols-4 lg:px-6">
-          <Card>
+          <Card
+            style={{
+              backgroundImage: "linear-gradient(to top, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.07) 45%, hsl(var(--card) / 1) 100%)",
+            }}
+          >
             <CardHeader className="flex items-start justify-between gap-4 pb-2">
               <div>
                 <CardTitle className="text-sm font-medium">Today’s Patients</CardTitle>
@@ -71,7 +77,11 @@ export function DoctorDashboard({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            style={{
+              backgroundImage: "linear-gradient(to top, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.07) 45%, hsl(var(--card) / 1) 100%)",
+            }}
+          >
             <CardHeader className="flex items-start justify-between gap-4 pb-2">
               <div>
                 <CardTitle className="text-sm font-medium">Appointments</CardTitle>
@@ -90,7 +100,11 @@ export function DoctorDashboard({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            style={{
+              backgroundImage: "linear-gradient(to top, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.07) 45%, hsl(var(--card) / 1) 100%)",
+            }}
+          >
             <CardHeader className="flex items-start justify-between gap-4 pb-2">
               <div>
                 <CardTitle className="text-sm font-medium">Sessions</CardTitle>
@@ -109,18 +123,22 @@ export function DoctorDashboard({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            style={{
+              backgroundImage: "linear-gradient(to top, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.07) 45%, hsl(var(--card) / 1) 100%)",
+            }}
+          >
             <CardHeader className="flex items-start justify-between gap-4 pb-2">
               <div>
-                <CardTitle className="text-sm font-medium">Files to review</CardTitle>
-                <CardDescription>Lab results & notes</CardDescription>
+                <CardTitle className="text-sm font-medium">Failed to Visit</CardTitle>
+                <CardDescription>Patients who missed their appointment</CardDescription>
               </div>
               <ClipboardList className="size-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-semibold">6</div>
+              <div className="text-3xl font-semibold">{failedToVisitCount}</div>
               <div className="mt-2 flex items-center gap-2 text-xs text-foreground/70">
-                <span className="rounded-full bg-muted px-2 py-1">3 urgent</span>
+                <span className="rounded-full bg-muted px-2 py-1">Missed visits</span>
               </div>
             </CardContent>
           </Card>

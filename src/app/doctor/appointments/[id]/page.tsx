@@ -56,9 +56,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   // Use a parameterized raw query to avoid Prisma date-parsing errors
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `
-      SELECT a.*, u.name AS user_name, u.profile_image AS user_profile_image,
+      SELECT a.*, u.name AS user_name, u.profile_image AS user_profile_image, u.address AS user_address,
              d.prefix AS doctor_prefix, d.first_name AS doctor_first_name, d.middle_name AS doctor_middle_name, d.last_name AS doctor_last_name,
-             d.address AS doctor_address,
              s.appointment_type AS session_appointment_type,
              to_char(COALESCE(a.appointment_date, s.session_date), 'YYYY-MM-DD') AS appointment_date_text,
              to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time_text
@@ -94,7 +93,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
 
   const patientAge = appointment.age != null ? `${appointment.age} years old` : "—"
   const patientGender = appointment.gender ?? "—"
-  const patientAddress = appointment.doctor_address || "—"
+  const patientAddress = appointment.user_address || "—"
   const patientNotes = appointment.reason_for_visit ?? "No patient notes recorded."
   const doctorNotes = appointment.additional_notes ?? "No doctor notes recorded."
   const followUp = appointment.symptoms ?? "No follow-up plan recorded."

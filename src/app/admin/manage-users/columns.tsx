@@ -147,7 +147,9 @@ export const columns: ColumnDef<UserRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>User actions</DropdownMenuLabel>
-            <DropdownMenuItem>View profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("open-view-user", { detail: user }))}>
+              View profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("open-edit-user", { detail: user }))}>
               Edit
             </DropdownMenuItem>

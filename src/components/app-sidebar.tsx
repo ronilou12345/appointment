@@ -75,6 +75,11 @@ const doctorNavMain = [
     url: "/doctor/appointments",
     icon: <ListIcon />,
   },
+  {
+    title: "Calendar",
+    url: "/doctor/calendar",
+    icon: <CalendarDays />,
+  },
 ]
 
 const settingsNavItems = [

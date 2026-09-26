@@ -65,7 +65,7 @@ async function getDoctorAppointmentTrend(userId: string): Promise<AppointmentTre
   const end = new Date(today)
   end.setHours(23, 59, 59, 999)
 
-  const rows = await prisma.$queryRawUnsafe<Array<{ date: string; visitors: number }>>(
+  const rows = await prisma.$queryRawUnsafe<Array<{ date: Date | string; visitors: number }>>(
     `
       SELECT
         s.session_date::date AS date,
@@ -86,7 +86,7 @@ async function getDoctorAppointmentTrend(userId: string): Promise<AppointmentTre
   )
 
   return rows.map((row) => ({
-    date: row.date,
+    date: row.date instanceof Date ? row.date.toISOString().slice(0, 10) : String(row.date).slice(0, 10),
     visitors: Number(row.visitors ?? 0),
   }))
 }
@@ -102,6 +102,7 @@ async function getDoctorDashboardCounts(userId: string) {
       todayPatients: 0,
       confirmedAppointments: 0,
       sessionsCount: 0,
+      failedToVisitCount: 0,
     }
   }
 
@@ -144,10 +145,21 @@ async function getDoctorDashboardCounts(userId: string) {
     },
   })
 
+  const failedToVisitCount = await prisma.appointment.count({
+    where: {
+      doctor_id: doctor.doctor_id,
+      appointment_status: {
+        equals: "Failed to Visit",
+        mode: "insensitive",
+      },
+    },
+  })
+
   return {
     todayPatients,
     confirmedAppointments,
     sessionsCount,
+    failedToVisitCount,
   }
 }
 
@@ -215,6 +227,7 @@ export default async function DoctorDashboardPage() {
           todayPatients: 0,
           confirmedAppointments: 0,
           sessionsCount: 0,
+          failedToVisitCount: 0,
         }
 
   const nextAppointments =

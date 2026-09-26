@@ -14,6 +14,7 @@ export async function getSession() {
         id: true,
         email: true,
         name: true,
+        address: true,
         role: true,
         status: true,
         profile_image: true,

@@ -65,6 +65,7 @@ export default async function DoctorSettingsPage() {
             id: session.id,
             name: session.name,
             email: session.email,
+            address: session.address?.trim() || doctor?.address || "",
             role: session.role,
             status: session.status,
             avatar: resolveProfileAvatar(session.id, user?.profile_image ?? session.profile_image),

@@ -207,13 +207,22 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
   const [bookedTimes, setBookedTimes] = useState<string[]>([])
   const [loadingBookedTimes, setLoadingBookedTimes] = useState(false)
   const [error, setError] = useState("")
-  const [loadingAction, setLoadingAction] = useState<"" | "Confirm" | "Complete" | "Cancel" | "Reschedule">("")
+  const [loadingAction, setLoadingAction] = useState<"" | "Confirm" | "Complete" | "Cancel" | "Reschedule" | "FailedToVisit">("")
 
   const statusValue = appointment.status.toLowerCase()
   const isAwaitingCancellation = statusValue === "awaiting cancellation" || statusValue === "cancel requested"
-  const canConfirm = !isAwaitingCancellation && statusValue !== "confirmed" && statusValue !== "completed" && statusValue !== "cancelled" && statusValue !== "canceled"
-  const canComplete = !isAwaitingCancellation && statusValue !== "completed" && statusValue !== "cancelled" && statusValue !== "canceled"
-  const canCancel = statusValue !== "confirmed" && statusValue !== "completed" && statusValue !== "cancelled" && statusValue !== "canceled"
+  const isTerminalStatus = ["completed", "cancelled", "canceled", "failed to visit"].includes(statusValue)
+  const scheduledAt = appointment.date && appointment.timeValue
+    ? new Date(`${appointment.date}T${appointment.timeValue}:00`)
+    : null
+  const canMarkFailedToVisit =
+    statusValue === "confirmed" &&
+    scheduledAt !== null &&
+    !Number.isNaN(scheduledAt.getTime()) &&
+    scheduledAt.getTime() <= Date.now()
+  const canConfirm = !isAwaitingCancellation && statusValue !== "confirmed" && !isTerminalStatus
+  const canComplete = statusValue !== "pending" && !isAwaitingCancellation && !isTerminalStatus
+  const canCancel = statusValue !== "confirmed" && !isTerminalStatus
 
   const renderLabCheckbox = (id: string, label: string) => {
     const checked = Boolean(selectedLabTests[id])
@@ -376,7 +385,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
     }
   }, [appointment.doctorId, appointment.id, drawerOpen, selectedDate])
 
-  const submitAction = async (action: "Confirm" | "Complete" | "Cancel", reason?: string) => {
+  const submitAction = async (action: "Confirm" | "Complete" | "Cancel" | "FailedToVisit", reason?: string) => {
     setLoadingAction(action)
 
     try {
@@ -396,7 +405,13 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
         throw new Error(result.error || "Unable to update appointment status")
       }
 
-      const statusLabel = action === "Confirm" ? "confirmed" : action === "Complete" ? "completed" : "cancelled"
+      const statusLabel = action === "Confirm"
+        ? "confirmed"
+        : action === "Complete"
+          ? "completed"
+          : action === "FailedToVisit"
+            ? "marked as failed to visit"
+            : "cancelled"
       const notificationMessage = result.emailSent && result.smsSent
         ? `${appointment.patientName} has been notified via email and SMS.`
         : result.emailSent
@@ -405,7 +420,9 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
             ? `${appointment.patientName} has been notified via SMS.`
             : ""
       toast.success(
-        action === "Cancel"
+        action === "FailedToVisit"
+          ? `Appointment marked as failed to visit.`
+          : action === "Cancel"
           ? `Cancellation approved.${notificationMessage ? ` ${notificationMessage}` : ""}`
           : action === "Confirm" && notificationMessage
             ? `Appointment confirmed. ${notificationMessage}`
@@ -424,7 +441,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
     }
   }
 
-  const handleAction = async (action: "Confirm" | "Complete" | "Cancel") => {
+  const handleAction = async (action: "Confirm" | "Complete" | "Cancel" | "FailedToVisit") => {
     setMenuOpen(false)
 
     if (action === "Cancel") {
@@ -605,6 +622,12 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
             <Check className="mr-2 h-4 w-4" />
             Complete
           </DropdownMenuItem>
+          {canMarkFailedToVisit ? (
+            <DropdownMenuItem disabled={loadingAction === "FailedToVisit"} onSelect={() => handleAction("FailedToVisit")}>
+              <X className="mr-2 h-4 w-4" />
+              Failed to Visit
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             onSelect={() => {
               setMenuOpen(false)
@@ -614,14 +637,18 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
             <Printer className="mr-2 h-4 w-4" />
             Print
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={openLabDialog}>
-            <Printer className="mr-2 h-4 w-4" />
-            Laboratory Request Form
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={openPrescriptionDialog}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print Prescription
-          </DropdownMenuItem>
+          {statusValue === "completed" ? (
+            <>
+              <DropdownMenuItem onSelect={openLabDialog}>
+                <Printer className="mr-2 h-4 w-4" />
+                Laboratory Request Form
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={openPrescriptionDialog}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Prescription
+              </DropdownMenuItem>
+            </>
+          ) : null}
           <DropdownMenuItem variant="destructive" disabled={!canCancel} onSelect={() => handleAction("Cancel") }>
             <X className="mr-2 h-4 w-4" />
             {isAwaitingCancellation ? "Approve cancel" : "Cancel"}

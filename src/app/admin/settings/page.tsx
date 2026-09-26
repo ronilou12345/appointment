@@ -26,6 +26,7 @@ export default async function AdminSettingsPage() {
             id: session.id,
             name: session.name,
             email: session.email,
+            address: session.address,
             role: session.role,
             status: session.status,
           }}

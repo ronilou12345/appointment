@@ -179,6 +179,10 @@ export async function PATCH(request: NextRequest) {
         updatedAt: new Date(),
       }
 
+      if (address !== undefined) {
+        updateData.address = address || null
+      }
+
       if (password) {
         updateData.password = password
       }

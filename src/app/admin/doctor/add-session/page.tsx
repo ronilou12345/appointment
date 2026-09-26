@@ -107,7 +107,8 @@ export default function AddSessionPage() {
       const response = await fetch("/api/sessions?mine=true")
       const result = await response.json()
       if (response.ok && result.success) {
-        setData(result.sessions ?? [])
+        const sessions = (result.sessions ?? []) as SessionRow[]
+        setData(sessions.sort((left, right) => right.id.localeCompare(left.id, undefined, { numeric: true })))
       } else {
         setData([])
       }

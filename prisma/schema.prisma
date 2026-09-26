@@ -11,6 +11,7 @@ model user {
   email         String        @unique(map: "User_email_key")
   name          String
   profile_image String?
+  address       String?
   role          user_role     @default(PATIENT)
   status        user_status   @default(ACTIVE)
   designations  String?

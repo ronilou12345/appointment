@@ -162,6 +162,10 @@ export function SignupForm({
                 <Input id="name" name="name" type="text" placeholder="Juan Dela Cruz" required />
               </Field>
               <Field>
+                <FieldLabel htmlFor="address">Address</FieldLabel>
+                <Input id="address" name="address" type="text" placeholder="Enter your address" />
+              </Field>
+              <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"

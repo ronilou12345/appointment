@@ -290,7 +290,7 @@ function medicalCertificatePage(appointment: AppointmentRow) {
       <div class="certificate-patient">
         <div><b>Patient:</b> ${escapeHtml(appointment.patientName)}</div>
         <div><b>Age:</b> ${escapeHtml(appointment.age || "—")} years old</div>
-        <div><b>Address:</b> ${escapeHtml("—")}</div>
+        <div><b>Address:</b> ${escapeHtml(appointment.patientAddress || "—")}</div>
         <div><b>Gender:</b> ${escapeHtml(appointment.gender || "—")}</div>
       </div>
       <div class="certificate-section"><b>Complaints:</b><p>${escapeHtml(appointment.chiefComplaints || appointment.reasonForVisit || "—")}</p></div>

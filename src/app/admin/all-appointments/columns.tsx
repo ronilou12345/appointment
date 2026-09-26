@@ -28,6 +28,7 @@ export type AppointmentRow = {
   patientName: string
   patientEmail: string
   patientAvatar: string
+  patientAddress?: string
   doctorName: string
   doctorBoardCertification?: string
   date: string
@@ -110,7 +111,9 @@ function AdminAppointmentActions({ appointment }: { appointment: AppointmentRow 
             <Link href={`/admin/all-appointments/${appointment.id}`}>View details</Link>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => printSingleAppointment(appointment)}>Print</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setCertificateOpen(true)}>Print Medical Certificate</DropdownMenuItem>
+          {appointment.status.trim().toLowerCase() === "completed" ? (
+            <DropdownMenuItem onClick={() => setCertificateOpen(true)}>Print Medical Certificate</DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -136,7 +139,7 @@ function AdminAppointmentActions({ appointment }: { appointment: AppointmentRow 
               <div className="grid grid-cols-2 gap-x-16 gap-y-2">
                 <div><b>Patient:</b> {appointment.patientName}</div>
                 <div><b>Age:</b> {appointment.age || "—"} years old</div>
-                <div><b>Address:</b> —</div>
+                <div><b>Address:</b> {appointment.patientAddress || "—"}</div>
                 <div><b>Gender:</b> {appointment.gender || "—"}</div>
               </div>
               <div className="mt-10 space-y-6">
