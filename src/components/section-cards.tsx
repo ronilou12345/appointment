@@ -81,7 +81,7 @@ export async function SectionCards() {
       title: "Total Doctors",
       value: doctorsTotal,
       badge: `${doctorsActive.toLocaleString()} active`,
-      footer: "Staff on roster",
+      footer: "Doctors on roster",
       hint: "Doctors registered in the clinic",
       href: "/admin/all-doctors",
     },

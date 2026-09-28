@@ -207,13 +207,17 @@ export async function PATCH(request: NextRequest) {
         first_name: firstName || existingDoctor?.first_name || "",
         middle_name: middleName || existingDoctor?.middle_name || null,
         last_name: lastName || existingDoctor?.last_name || "",
-        prefix: prefix || existingDoctor?.prefix || null,
-        suffix: suffix || existingDoctor?.suffix || null,
+        prefix: body?.prefix !== undefined ? prefix || null : existingDoctor?.prefix || null,
+        suffix: body?.suffix !== undefined ? suffix || null : existingDoctor?.suffix || null,
         address: address !== undefined ? address || null : existingDoctor?.address || null,
-        credentials: credentials || existingDoctor?.credentials || null,
-        license_number: licenseNumber || existingDoctor?.license_number || "",
+        credentials: body?.credentials !== undefined ? credentials || null : existingDoctor?.credentials || null,
+        license_number: body?.licenseNumber !== undefined
+          ? licenseNumber || `temp-${userId}`
+          : existingDoctor?.license_number || `temp-${userId}`,
         years_of_experience: yearsOfExperience ? Number.parseInt(yearsOfExperience, 10) : existingDoctor?.years_of_experience ?? 0,
-        board_certification: boardCertifications || existingDoctor?.board_certification || null,
+        board_certification: body?.boardCertifications !== undefined
+          ? boardCertifications || null
+          : existingDoctor?.board_certification || null,
       }
 
       if (existingDoctor) {

@@ -61,7 +61,7 @@ export default async function Page() {
     prefix: user.doctor?.prefix ?? null,
     suffix: user.doctor?.suffix ?? null,
     credentials: user.doctor?.credentials ?? user.designations ?? null,
-    licenseNumber: user.doctor?.license_number ?? "",
+    licenseNumber: user.doctor?.license_number?.startsWith("temp-") ? "" : user.doctor?.license_number ?? "",
     yearsOfExperience: user.doctor?.years_of_experience?.toString() ?? "",
     boardCertifications: user.doctor?.board_certification ?? "",
   }))
