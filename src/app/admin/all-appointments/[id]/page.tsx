@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { formatAppointmentTime } from "@/app/client/appointments/status"
 import prisma from "@/lib/prisma"
 
 type Props = { params: Promise<{ id: string }> }
@@ -38,7 +39,7 @@ const formatDate = (date?: Date | null) => {
 
 const formatTime = (time?: Date | null) => {
   if (!time) return "—"
-  return time.toISOString().slice(11, 16)
+  return formatAppointmentTime(time.toISOString().slice(11, 16))
 }
 
 export default async function AdminAppointmentDetailPage({ params }: Props) {
@@ -76,6 +77,17 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
           start_time: true,
         },
       },
+      soap_notes: {
+        orderBy: { created_at: "desc" },
+        take: 1,
+        select: {
+          chief_complaints: true,
+          physical_examination: true,
+          diagnosis: true,
+          prescription: true,
+          next_follow_up: true,
+        },
+      },
     },
   })
 
@@ -96,6 +108,7 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
   const patientRelationship = appointment.relationship ?? "N/A"
   const patientReason = appointment.reason_for_visit ?? "N/A"
   const patientSymptoms = appointment.symptoms ?? "No symptoms recorded."
+  const soap = appointment.soap_notes[0]
 
   const doctorName = appointment.doctor
     ? [appointment.doctor.first_name, appointment.doctor.middle_name, appointment.doctor.last_name]
@@ -216,19 +229,23 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
             <div className="mt-6 space-y-6">
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Chief Complaints</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{patientReason}</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{soap?.chief_complaints || "-"}</p>
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Physical Examination</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{patientSymptoms}</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{soap?.physical_examination || "-"}</p>
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Diagnosis</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{appointment.appointment_status ?? "Pending"}</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{soap?.diagnosis || "-"}</p>
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>
-                <p className="mt-3 text-sm leading-7 text-foreground">{appointment.additional_notes ?? "No plan provided."}</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{soap?.prescription || "-"}</p>
+              </div>
+              <div className="rounded-3xl border border-border bg-muted/50 p-5">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Next Follow-up</p>
+                <p className="mt-3 text-sm leading-7 text-foreground">{soap?.next_follow_up || "-"}</p>
               </div>
             </div>
           </aside>

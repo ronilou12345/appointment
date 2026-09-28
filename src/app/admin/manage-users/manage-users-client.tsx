@@ -57,6 +57,23 @@ const USER_ROLE_OPTIONS = [
   { value: "DOCTOR", label: "Doctor" },
 ] as const
 
+function getAssignedRoleLabel(role?: string) {
+  switch (role?.trim().toUpperCase()) {
+    case "ADMIN":
+      return "Admin"
+    case "DOCTOR":
+    case "NURSE":
+      return "Doctor"
+    case "STAFF":
+      return "Staff"
+    case "PATIENT":
+    case "CLIENT":
+      return "Patient"
+    default:
+      return role || "—"
+  }
+}
+
 function slugEmailPart(value: string) {
   return value
     .trim()
@@ -884,7 +901,7 @@ function ViewUserSheet({
 }) {
   const details = [
     ["Email", user?.email],
-    ["Role", user?.role],
+    ["Role", getAssignedRoleLabel(user?.role)],
     ["Address", user?.address],
     ["Prefix", user?.prefix],
     ["Suffix", user?.suffix],

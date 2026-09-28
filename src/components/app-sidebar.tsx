@@ -205,7 +205,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                 </div>
                 <span className="flex flex-col items-start">
                   <span className="text-sm font-semibold leading-tight">C2M Family Clinic</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">v1.0.0-beta.15 · © 2026 C2M Clinic</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">v1.0.0-beta.19 · © 2026 C2M Clinic</span>
                 </span>
               </a>
             </SidebarMenuButton>

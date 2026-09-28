@@ -3,6 +3,8 @@ import { createUserAction } from "@/lib/actions/user"
 import prisma from "@/lib/prisma"
 import { resolveProfileAvatar, saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
 import { logCurrentUserActivity } from "@/lib/activity-log"
+import { getSession } from "@/lib/auth-utils"
+import { normalizeUserRole } from "@/lib/user-role"
 
 function normalizeRole(value: string | null) {
   const role = (value ?? "PATIENT").toString().trim().toUpperCase()
@@ -112,6 +114,11 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const session = await getSession()
+    if (!session || session.status !== "ACTIVE" || normalizeUserRole(session.role) !== "ADMIN") {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
     const body = await request.json()
     const userId = String(body?.id ?? "").trim()
 
