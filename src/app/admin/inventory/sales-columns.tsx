@@ -1,7 +1,6 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export type MedicineSaleRow = {
   id: string
@@ -42,28 +41,12 @@ export const salesColumns: ColumnDef<MedicineSaleRow>[] = [
     header: "Medicine Name",
     cell: ({ row }) => {
       const medicineName = row.original.medicineName || "Unknown medicine"
-      const initials = medicineName
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase() || "M"
-
       const medicineCategory = row.original.medicineCategory || "Uncategorized"
 
       return (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 overflow-hidden rounded-full bg-transparent shadow-none ring-0">
-            {row.original.medicineImage ? (
-              <AvatarImage src={row.original.medicineImage} alt={medicineName} className="object-cover" />
-            ) : null}
-            <AvatarFallback className="rounded-full bg-muted text-[10px] font-semibold">{initials}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <div className="truncate font-medium text-foreground">{medicineName}</div>
-            <div className="text-xs text-muted-foreground">{medicineCategory}</div>
-          </div>
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{medicineName}</div>
+          <div className="text-xs text-muted-foreground">{medicineCategory}</div>
         </div>
       )
     },

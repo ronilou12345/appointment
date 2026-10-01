@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 type DoctorOption = {
   id: number
@@ -32,9 +33,13 @@ type SessionOption = {
   startTime: string
   endTime: string
   slots: number
+  status?: string
   appointmentType?: string
   appointmentTypes?: string[]
 }
+
+const isActiveSession = (session: SessionOption) =>
+  String(session.status ?? "Active").trim().toLowerCase() === "active"
 
 const namedPatientRelationships = new Set(["My Child", "My Father", "My Mother", "My Spouse"])
 
@@ -71,6 +76,8 @@ export function BookAppointmentContent() {
   const [showAllMobileDoctors, setShowAllMobileDoctors] = useState(false)
   const [sessions, setSessions] = useState<SessionOption[]>([])
   const [loadingSessions, setLoadingSessions] = useState(true)
+  const [bookedDates, setBookedDates] = useState<string[]>([])
+  const [loadingBookedDates, setLoadingBookedDates] = useState(false)
   const [sessionError, setSessionError] = useState("")
   const [dateConflictMessage, setDateConflictMessage] = useState("")
   const [checkingDateConflict, setCheckingDateConflict] = useState(false)
@@ -263,23 +270,34 @@ export function BookAppointmentContent() {
 
   const getDayIndicatorColor = (isoDate: string) => {
     if (!selectedDoctorId) return null
-    const daySessions = sessions.filter((s) => s.doctorId === selectedDoctorId && s.date === isoDate)
+    const daySessions = sessions.filter(
+      (session) =>
+        session.doctorId === selectedDoctorId &&
+        session.date === isoDate &&
+        String(session.status ?? "Active").trim().toLowerCase() !== "cancelled",
+    )
     if (!daySessions.length) return null
 
-    // If any slot in the day is in the future and has remaining slots -> green
-    for (const s of daySessions) {
-      const start = parseTimeToMinutes(s.startTime)
-      const end = parseTimeToMinutes(s.endTime)
-      for (let minutes = start; minutes < end; minutes += 20) {
-        const hh = Math.floor(minutes / 60)
-        const mm = minutes % 60
-        const key = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
-        const remaining = s.slots ?? 0
-        if (remaining > 0 && isSlotInFuture(isoDate, key)) return "green"
+    if (isoDate > formatLocalDateValue(new Date()) && !bookedDates.includes(isoDate)) {
+      // If any active slot in the day is in the future and has remaining capacity, mark it available.
+      for (const session of daySessions.filter(isActiveSession)) {
+        const start = parseTimeToMinutes(session.startTime)
+        const end = parseTimeToMinutes(session.endTime)
+        for (let minutes = start; minutes < end; minutes += 20) {
+          const hh = Math.floor(minutes / 60)
+          const mm = minutes % 60
+          const key = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+          const remaining = session.slots ?? 0
+          if (remaining > 0 && isSlotInFuture(isoDate, key)) return "green"
+        }
       }
     }
 
-    // Sessions exist but none available (either full or all past) -> red
+    if (daySessions.some((session) => String(session.status ?? "Active").trim().toLowerCase() === "inactive")) {
+      return "yellow"
+    }
+
+    // Sessions exist but are booked, full, or past.
     return "red"
   }
 
@@ -293,8 +311,49 @@ export function BookAppointmentContent() {
   }
 
   const selectedDoctorId = formData.doctorId
+
+  useEffect(() => {
+    if (!selectedDoctorId) {
+      setBookedDates([])
+      setLoadingBookedDates(false)
+      return
+    }
+
+    let active = true
+    const fromDate = formatLocalDateValue(new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1))
+    const toDate = formatLocalDateValue(new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 1))
+
+    setBookedDates([])
+    setLoadingBookedDates(true)
+
+    const params = new URLSearchParams({ doctorId: selectedDoctorId, from: fromDate, to: toDate })
+    void fetch(`/api/appointments?${params.toString()}`)
+      .then(async (response) => {
+        const result = await response.json()
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Unable to load booked dates")
+        }
+        if (active) {
+          setBookedDates(Array.isArray(result.bookedDates) ? result.bookedDates : [])
+        }
+      })
+      .catch(() => {
+        if (active) setBookedDates([])
+      })
+      .finally(() => {
+        if (active) setLoadingBookedDates(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedDoctorId, displayedMonth])
+
   const selectedDateSessions = sessions.filter(
-    (session) => session.doctorId === selectedDoctorId && session.date === formData.date,
+    (session) =>
+      session.doctorId === selectedDoctorId &&
+      session.date === formData.date &&
+      isActiveSession(session),
   )
 
   const selectedDateTimeSlotAvailability = selectedDateSessions.reduce<Record<string, number>>((acc, session) => {
@@ -323,7 +382,9 @@ export function BookAppointmentContent() {
   }
 
   const hasActiveSessionOnDate = (dateValue: string) =>
-    sessions.some((session) => session.doctorId === selectedDoctorId && session.date === dateValue)
+    sessions.some((session) =>
+      session.doctorId === selectedDoctorId && session.date === dateValue && isActiveSession(session),
+    )
 
   const selectedDateSessionRanges = selectedDateSessions
     .map((session) => `${formatTimeLabel(session.startTime)} - ${formatTimeLabel(session.endTime)}`)
@@ -391,7 +452,7 @@ export function BookAppointmentContent() {
   const todayIso = formatLocalDateValue(new Date())
 
   const doctorIsAvailableToday = (doctorId: number) => {
-    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
+    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso && isActiveSession(s))
     if (!doctorSessions.length) return false
 
     const now = new Date()
@@ -406,7 +467,7 @@ export function BookAppointmentContent() {
   }
 
   const getDoctorSlotCount = (doctorId: number) => {
-    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
+    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso && isActiveSession(s))
     const now = new Date()
     const currentMinutes = now.getHours() * 60 + now.getMinutes()
 
@@ -420,39 +481,13 @@ export function BookAppointmentContent() {
   const getDoctorMonthSessionCount = (doctorId: number) => {
     return sessions.filter((session) => {
       if (String(session.doctorId) !== String(doctorId)) return false
+      if (!isActiveSession(session)) return false
       if (Number(session.slots ?? 0) <= 0) return false
       if (new Date(`${session.date}T00:00:00`).getTime() < startOfDay(new Date()).getTime()) return false
 
       const [year, month] = String(session.date).split("-").map(Number)
       return year === displayedMonth.getFullYear() && month === displayedMonth.getMonth() + 1
     }).length
-  }
-
-  const getDoctorNextSessionDate = (doctorId: number) => {
-    const today = startOfDay(new Date())
-
-    const upcomingDates = Array.from(
-      new Set(
-        sessions
-          .filter(
-            (session) =>
-              String(session.doctorId) === String(doctorId) &&
-              Number(session.slots ?? 0) > 0 &&
-              new Date(`${session.date}T00:00:00`).getTime() > today.getTime(),
-          )
-          .map((session) => session.date),
-      ),
-    ).sort()
-
-    if (upcomingDates.length === 0) {
-      return "No upcoming schedule"
-    }
-
-    return new Date(`${upcomingDates[0]}T00:00:00`).toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    })
   }
 
   const getDoctorSessionDateSummary = (doctorId: number) => {
@@ -462,8 +497,9 @@ export function BookAppointmentContent() {
           .filter(
             (session) =>
               String(session.doctorId) === String(doctorId) &&
+              isActiveSession(session) &&
               Number(session.slots ?? 0) > 0 &&
-              new Date(`${session.date}T00:00:00`).getTime() >= startOfDay(new Date()).getTime(),
+              session.date > todayIso,
           )
           .map((session) => session.date),
       ),
@@ -474,7 +510,6 @@ export function BookAppointmentContent() {
     }
 
     return upcomingDates
-      .slice(0, 3)
       .map((date) =>
         new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
           weekday: "short",
@@ -482,13 +517,13 @@ export function BookAppointmentContent() {
           day: "numeric",
         }),
       )
-      .join(" • ")
+      .join(", ")
   }
 
   const doctorAppointmentTypes = Array.from(
     new Set(
       sessions
-        .filter((s) => String(s.doctorId) === String(selectedDoctorId) && s.date === formData.date)
+        .filter((s) => String(s.doctorId) === String(selectedDoctorId) && s.date === formData.date && isActiveSession(s))
         .flatMap((s) => {
           const single = (s as any).appointmentType
           const arr = (s as any).appointmentTypes
@@ -543,6 +578,7 @@ export function BookAppointmentContent() {
 
     if (stepIndex === 1) {
       if (!formData.date) return { success: false, message: "Please choose a date before continuing." }
+      if (formData.date <= todayIso) return { success: false, message: "Appointments must be booked at least one day in advance." }
       if (!formData.time) return { success: false, message: "Please choose a time before continuing." }
       return { success: true }
     }
@@ -581,6 +617,11 @@ export function BookAppointmentContent() {
   }
 
   const handleSubmit = async () => {
+    if (formData.date <= todayIso) {
+      toast.error("Appointments must be booked at least one day in advance.")
+      return
+    }
+
     if (!formData.sessionId) {
       toast.error("Please select a valid session time.")
       return
@@ -698,6 +739,7 @@ export function BookAppointmentContent() {
                         sessions
                           .filter((session) => {
                             if (String(session.doctorId) !== String(doctor.id)) return false
+                            if (!isActiveSession(session)) return false
 
                             const sessionDate = new Date(session.date)
                             const today = new Date()
@@ -823,7 +865,7 @@ export function BookAppointmentContent() {
                                   <span>Next session</span>
                                 </div>
                                 <div className="mt-1 font-semibold text-foreground">
-                                  {getDoctorNextSessionDate(doctor.id)}
+                                  {getDoctorSessionDateSummary(doctor.id)}
                                 </div>
                               </div>
                             </div>
@@ -898,29 +940,73 @@ export function BookAppointmentContent() {
 
                   <div className="grid grid-cols-7 gap-2">
                     {monthMatrix(displayedMonth).map((dayObj) => {
-                      const isPast = new Date(`${dayObj.iso}T00:00:00`) < startOfDay(new Date())
+                      const isTodayOrPast = dayObj.iso <= todayIso
+                      const isBooked = bookedDates.includes(dayObj.iso)
+                      const hasAvailableSession = getDayIndicatorColor(dayObj.iso) === "green"
+                      const isUnavailable = isTodayOrPast || isBooked || loadingBookedDates || loadingSessions || !hasAvailableSession
                       const isSelected = formData.date === dayObj.iso
                       const isToday = isSameDay(new Date(`${dayObj.iso}T00:00:00`), new Date())
                       return (
                         <button
                           key={dayObj.iso}
+                          type="button"
+                          disabled={isUnavailable}
+                          title={isTodayOrPast
+                            ? "Appointments must be booked at least one day in advance"
+                            : isBooked
+                              ? "Already booked with this doctor"
+                              : !hasAvailableSession
+                                ? "No available session"
+                                : undefined}
                           onClick={() => {
-                            if (!isPast) {
+                            if (!isUnavailable) {
                               const nextDate = dayObj.iso
                               setFormData((prev) => ({ ...prev, date: nextDate, time: "", sessionId: "" }))
                               void checkDateConflict(selectedDoctorId, nextDate)
                             }
                           }}
-                          className={`h-12 flex items-center justify-center rounded-lg transition-all ${isSelected ? 'bg-white text-black font-semibold' : dayObj.inMonth ? 'bg-transparent hover:bg-muted' : 'text-muted-foreground'} ${isPast ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                          className={`h-12 flex items-center justify-center rounded-lg transition-all ${isSelected ? 'bg-white text-black font-semibold' : dayObj.inMonth ? 'bg-transparent hover:bg-muted' : 'text-muted-foreground'} ${isUnavailable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <div className="relative w-full h-full flex items-center justify-center">
                             <span>{dayObj.day}</span>
                             {isToday && <span className="absolute bottom-1 left-1 w-1 h-1 rounded-full bg-white/70" />}
                             {selectedDoctorId && getDayIndicatorColor(dayObj.iso) === "green" && (
-                              <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-emerald-500" />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span
+                                    tabIndex={0}
+                                    role="img"
+                                    aria-label={`Available sessions on ${formatLocalDateLabel(dayObj.iso)}`}
+                                    className="absolute bottom-0.5 right-0.5 flex size-4 cursor-help items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  >
+                                    <span className="size-2 rounded-full bg-emerald-500" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="center" className="flex-col items-start gap-1">
+                                  <span className="font-semibold">Available sessions</span>
+                                  {sessions
+                                    .filter((session) =>
+                                      session.doctorId === selectedDoctorId &&
+                                      session.date === dayObj.iso &&
+                                                  isActiveSession(session) &&
+                                      Number(session.slots ?? 0) > 0,
+                                    )
+                                    .map((session) => (
+                                      <span key={session.id}>
+                                        {formatTimeLabel(session.startTime)}–{formatTimeLabel(session.endTime)} · {session.slots} {session.slots === 1 ? "slot" : "slots"} available
+                                      </span>
+                                    ))}
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                             {selectedDoctorId && getDayIndicatorColor(dayObj.iso) === "red" && (
                               <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-red-500" />
+                            )}
+                            {selectedDoctorId && getDayIndicatorColor(dayObj.iso) === "yellow" && (
+                              <span
+                                title="Inactive session"
+                                className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-amber-500"
+                              />
                             )}
                           </div>
                         </button>

@@ -4,7 +4,6 @@ import { ColumnDef } from "@tanstack/react-table"
 import { AlertTriangle, CheckCircle2, MoreHorizontal, PencilIcon, ShoppingCart, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,28 +59,6 @@ const getStatusClasses = (status: string) => {
 }
 
 export const columns: ColumnDef<MedicineRow>[] = [
-  {
-    id: "image",
-    header: "",
-    cell: ({ row }) => {
-      const image = row.original.image
-      const name = row.getValue("name") as string
-      const initials = name
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase() || "M"
-
-      return (
-        <Avatar className="h-10 w-10">
-          {image ? <AvatarImage src={image} alt={name} /> : null}
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
-      )
-    },
-  },
   {
     accessorKey: "name",
     header: "Medicine Name",

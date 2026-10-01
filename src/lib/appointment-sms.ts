@@ -45,7 +45,7 @@ Date: ${appointmentDate}
 Time: ${appointmentTime}
 Doctor: ${doctorName}
 
-Please arrive 10-15 minutes early.
+Note: Please arrive on time or as early as possible. Strictly 5 minutes late, we will proceed with the next patient.
 
 — C2M Family Clinic`
   }

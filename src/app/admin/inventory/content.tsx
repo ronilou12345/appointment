@@ -27,7 +27,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Search, Box, CheckCircle, AlertTriangle, XCircle, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 
@@ -107,21 +106,10 @@ function CheckoutSummaryDialog({
 
         <div className="max-h-72 space-y-3 overflow-y-auto">
           {items.map((item) => {
-            const initials = item.name
-              .split(" ")
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((part) => part[0])
-              .join("")
-              .toUpperCase() || "M"
             const lineTotal = item.price * item.quantity
 
             return (
               <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
-                <Avatar className="h-12 w-12 flex-shrink-0">
-                  {item.image ? <AvatarImage src={item.image} alt={item.name} /> : null}
-                  <AvatarFallback>{initials}</AvatarFallback>
-                </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{item.name}</p>
                   <p className="text-xs text-muted-foreground">
@@ -756,28 +744,14 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
                             onCheckedChange={() => toggleSelectedMedicine(medicine.id)}
                             aria-label={`Select ${medicine.name}`}
                           />
-                          <div className="flex min-w-0 items-center gap-3">
-                            <Avatar className="h-9 w-9 flex-shrink-0">
-                              {medicine.image ? <AvatarImage src={medicine.image} alt={medicine.name} /> : null}
-                              <AvatarFallback>
-                                {medicine.name
-                                  .split(" ")
-                                  .filter(Boolean)
-                                  .slice(0, 2)
-                                  .map((part) => part[0])
-                                  .join("")
-                                  .toUpperCase() || "M"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{medicine.name}</p>
-                              <p className="text-xs text-muted-foreground">{medicine.category}</p>
-                              {outOfStock ? (
-                                <p className="text-xs font-medium text-rose-600">Out of stock</p>
-                              ) : lowStock ? (
-                                <p className="text-xs font-medium text-amber-600">Low stock · {stock} left</p>
-                              ) : null}
-                            </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{medicine.name}</p>
+                            <p className="text-xs text-muted-foreground">{medicine.category}</p>
+                            {outOfStock ? (
+                              <p className="text-xs font-medium text-rose-600">Out of stock</p>
+                            ) : lowStock ? (
+                              <p className="text-xs font-medium text-amber-600">Low stock · {stock} left</p>
+                            ) : null}
                           </div>
                         </div>
 
@@ -815,24 +789,12 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
                     item.name.toLowerCase().includes(cartSearchQuery.toLowerCase())
                   )
                   .map((item) => {
-                    const initials = item.name
-                      .split(" ")
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((part) => part[0])
-                      .join("")
-                      .toUpperCase() || "M"
                     const medicine = rows.find((row) => row.id === item.id)
                     const stockInfo = medicine ? getStockInfo(medicine) : { stock: 0, outOfStock: true, lowStock: false }
                     const atMaxQuantity = item.quantity >= stockInfo.stock
 
                     return (
-                      <div key={item.id} className="flex items-center gap-4 rounded-lg border border-border p-3">
-                        <Avatar className="h-16 w-16 flex-shrink-0">
-                          {item.image ? <AvatarImage src={item.image} alt={item.name} /> : null}
-                          <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
-
+                      <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{item.name}</h4>
                           <p className="text-sm text-muted-foreground">₱{item.price.toFixed(2)}</p>

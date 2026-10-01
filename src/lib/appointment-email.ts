@@ -185,7 +185,8 @@ function statusCopy(status: AppointmentEmailStatus, details: AppointmentEmailDet
       intro: `Your appointment at ${CLINIC_NAME} has been confirmed.`,
       status: "Confirmed",
       closing: [
-        "Please arrive 10-15 minutes before your scheduled appointment and bring any necessary medical records or documents.",
+        "Note: Please arrive on time or as early as possible. Strictly 5 minutes late, we will proceed with the next patient.",
+        "Please bring any necessary medical records or documents.",
         "Thank you, and we look forward to seeing you!",
       ],
     }

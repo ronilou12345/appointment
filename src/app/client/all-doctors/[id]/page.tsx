@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { StatusBadge } from "@/app/admin/manage-users/columns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { DoctorSessionsCalendar, type DoctorProfileSession } from "./doctor-sessions-calendar"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -130,23 +131,28 @@ export default async function ClientDoctorPage({ params }: Props) {
     : getBoardCertificates(credentials)
   const specialties = getSpecialties(credentials)
   const yearsOfExperience = formatExperience(doctor.years_of_experience)
-  const sessions = await prisma.session_tbl.findMany({
-    where: {
-      doctor_id: doctor.doctor_id,
-      session_date: {
-        gte: new Date(new Date().setHours(0, 0, 0, 0)),
-      },
-    },
-    orderBy: [{ session_date: "asc" }, { start_time: "asc" }],
-    select: {
-      session_id: true,
-      session_date: true,
-      start_time: true,
-      end_time: true,
-      slots: true,
-      appointment_type: true,
-    },
-  })
+  const todayInManila = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date())
+  const sessions = await prisma.$queryRaw<DoctorProfileSession[]>`
+    SELECT
+      s.session_id::text AS id,
+      to_char(s.session_date, 'YYYY-MM-DD') AS date,
+      to_char(s.start_time, 'HH24:MI') AS "startTime",
+      to_char(s.end_time, 'HH24:MI') AS "endTime",
+      GREATEST(
+        s.slots - COUNT(a.appointment_id) FILTER (
+          WHERE LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+        ),
+        0
+      )::int AS "availableSlots",
+      COALESCE(s.appointment_type, '') AS "appointmentType"
+    FROM "session_tbl" s
+    LEFT JOIN "appointment" a ON a.session_id = s.session_id
+    WHERE s.doctor_id = ${doctor.doctor_id}
+      AND (s.status = 'Active' OR s.status IS NULL)
+      AND s.session_date >= ${todayInManila}::date
+    GROUP BY s.session_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type
+    ORDER BY s.session_date ASC, s.start_time ASC
+  `
   const memberSince = profileUser.createdAt
     ? new Date(profileUser.createdAt).toLocaleDateString("en-US", {
         month: "long",
@@ -154,20 +160,6 @@ export default async function ClientDoctorPage({ params }: Props) {
         year: "numeric",
       })
     : "—"
-  const todaySessions = sessions.filter((session) => {
-    const sessionDate = new Date(session.session_date)
-    const today = new Date()
-    return sessionDate.toDateString() === today.toDateString()
-  })
-
-  const appointmentTypes = Array.from(
-    new Set(
-      todaySessions
-        .map((session) => String(session.appointment_type ?? "").trim())
-        .filter(Boolean),
-    ),
-  )
-
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -203,36 +195,15 @@ export default async function ClientDoctorPage({ params }: Props) {
                 <p className="text-lg font-semibold text-foreground">{profileUser.name}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{profileUser.email || "No email provided"}</p>
               </div>
-              <div className="w-full rounded-[20px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                <p className="font-medium">Available today</p>
-                <p className="mt-1 text-xs text-emerald-600">
-                  {sessions.length ? `${sessions.length} upcoming session${sessions.length > 1 ? "s" : ""}` : "No upcoming sessions"}
-                </p>
-              </div>
               <div className="w-full">
-                <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Services Available Today</p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {appointmentTypes.length ? (
-                    appointmentTypes.map((type) => (
-                      <span
-                        key={type}
-                        className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary"
-                      >
-                        {type}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-foreground">No appointment type available</span>
-                  )}
-                </div>
-
                 <Link
                   href={`/client/book-appointment?doctorId=${doctor.doctor_id}`}
-                  className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                 >
                   Book now
                 </Link>
               </div>
+              <DoctorSessionsCalendar sessions={sessions} />
             </div>
           </div>
 
@@ -302,6 +273,7 @@ export default async function ClientDoctorPage({ params }: Props) {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   )

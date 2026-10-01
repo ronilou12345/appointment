@@ -13,11 +13,9 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { PlusIcon, CameraIcon } from "lucide-react"
+import { PlusIcon } from "lucide-react"
 import { type MedicineRow } from "@/app/admin/inventory/columns"
 
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const emptyForm = {
   medicineName: "",
   category: "",
@@ -27,24 +25,6 @@ const emptyForm = {
   retailPrice: "0.00",
   price: "0.00",
   supplier: "",
-}
-
-function readImageFile(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    if (!file.type.startsWith("image/")) {
-      reject(new Error("Please choose an image file."))
-      return
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      reject(new Error("Image must be under 2MB."))
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result ?? ""))
-    reader.onerror = () => reject(new Error("Unable to read the selected image."))
-    reader.readAsDataURL(file)
-  })
 }
 
 export function AddMedicineDialog({
@@ -62,7 +42,6 @@ export function AddMedicineDialog({
   const isEditing = Boolean(medicine?.id)
   const fieldId = (name: string) => (isEditing ? `edit-${name}` : name)
   const [loading, setLoading] = React.useState(false)
-  const [medicineImage, setMedicineImage] = React.useState("")
   const [form, setForm] = React.useState(emptyForm)
 
   React.useEffect(() => {
@@ -78,25 +57,13 @@ export function AddMedicineDialog({
         price: "0.00",
         supplier: medicine.supplier,
       })
-      setMedicineImage(medicine.image || "")
       return
     }
 
     setForm(emptyForm)
-    setMedicineImage("")
   }, [open, medicine])
 
   const handleChange = (key: string, value: string) => setForm((s) => ({ ...s, [key]: value }))
-
-  function getInitials(name: string) {
-    return name
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase() || "M"
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -112,7 +79,7 @@ export function AddMedicineDialog({
         retailPrice: Number(form.retailPrice) || 0,
         price: Number(form.price) || 0,
         supplier: form.supplier,
-        medicineImage: medicineImage.startsWith("data:image/") ? medicineImage : medicineImage || "",
+        medicineImage: medicine?.image ?? "",
       }
 
       const res = await fetch('/api/medicine-inventory', {
@@ -128,7 +95,6 @@ export function AddMedicineDialog({
 
       toast.success(isEditing ? 'Medicine updated' : 'Successfully added')
       onOpenChange(false)
-      if (!isEditing) setMedicineImage("")
       router.refresh()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -157,39 +123,6 @@ export function AddMedicineDialog({
             </DialogDescription>
           </DialogHeader>
           <form className="grid gap-6" onSubmit={handleSubmit}>
-            {/* Medicine Image Upload */}
-            <div className="flex flex-col items-center justify-center gap-4 text-center sm:col-span-2 sm:flex-row sm:justify-center sm:text-left">
-              <label htmlFor={fieldId("medicineImage")} className="relative flex cursor-pointer items-center justify-center">
-                <Avatar size="lg" className="mx-auto">
-                  {medicineImage ? <AvatarImage src={medicineImage} alt={form.medicineName || "Medicine"} /> : null}
-                  <AvatarFallback>{getInitials(form.medicineName || "Medicine")}</AvatarFallback>
-                </Avatar>
-                <span className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm">
-                  <CameraIcon className="size-3.5" />
-                </span>
-              </label>
-              <div className="grid gap-1 place-items-center text-center sm:place-items-start sm:text-left">
-                <Label htmlFor={fieldId("medicineImage")} className="text-center sm:text-left">Medicine Image</Label>
-                <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, or GIF up to 2MB.</p>
-                <Input
-                  id={fieldId("medicineImage")}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className="h-9 max-w-xs cursor-pointer text-sm"
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0]
-                    if (!file) return
-                    try {
-                      const dataUrl = await readImageFile(file)
-                      setMedicineImage(dataUrl)
-                    } catch (error) {
-                      toast.error(error instanceof Error ? error.message : "Unable to use this image.")
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor={fieldId("medicineName")}>Medicine Name</Label>
