@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { CalendarDays, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export type CalendarAppointment = {
   id: string
@@ -12,13 +11,6 @@ export type CalendarAppointment = {
   time: string
   patientName: string
   status: string
-}
-
-export type CalendarSession = {
-  date: string
-  startTime: string
-  endTime: string
-  availableSlots: number
 }
 
 type CalendarView = "Day" | "Week" | "Month" | "Year"
@@ -38,31 +30,7 @@ function formatPhilippineTime(value: string) {
   if (!match) return ""
 
   const clock = new Date(2000, 0, 1, Number(match[1]), Number(match[2]))
-  return clock.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true })
-}
-
-function SessionIndicator({ date, sessions }: { date: string; sessions: CalendarSession[] }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          tabIndex={0}
-          aria-label={`View session availability on ${date}`}
-          className="inline-flex cursor-help rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <CalendarDays aria-hidden="true" className="size-3 text-amber-600 dark:text-amber-400" />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" align="start" className="flex-col items-start gap-1">
-        <span className="font-semibold">Session availability</span>
-        {sessions.map((session) => (
-          <span key={`${session.date}-${session.startTime}-${session.endTime}`}>
-            {formatPhilippineTime(session.startTime)} - {formatPhilippineTime(session.endTime)} · {session.availableSlots} {session.availableSlots === 1 ? "slot" : "slots"} available
-          </span>
-        ))}
-      </TooltipContent>
-    </Tooltip>
-  )
+  return `${clock.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true })} PHT`
 }
 
 function addDays(date: Date, count: number) {
@@ -85,7 +53,7 @@ function appointmentTone(status: string) {
   return "border-primary/25 bg-primary/10 text-foreground"
 }
 
-export function DoctorCalendar({ appointments, sessions }: { appointments: CalendarAppointment[]; sessions: CalendarSession[] }) {
+export function DoctorCalendar({ appointments }: { appointments: CalendarAppointment[] }) {
   const [view, setView] = useState<CalendarView>("Month")
   const [cursor, setCursor] = useState(() => new Date())
   const [search, setSearch] = useState("")
@@ -101,16 +69,6 @@ export function DoctorCalendar({ appointments, sessions }: { appointments: Calen
     }
     return grouped
   }, [appointments, search])
-  const sessionsByDate = useMemo(() => {
-    const grouped = new Map<string, CalendarSession[]>()
-    for (const session of sessions) {
-      const current = grouped.get(session.date) ?? []
-      current.push(session)
-      grouped.set(session.date, current)
-    }
-    return grouped
-  }, [sessions])
-  const sessionDateSet = useMemo(() => new Set(sessionsByDate.keys()), [sessionsByDate])
 
   const title = view === "Year"
     ? String(cursor.getFullYear())
@@ -181,17 +139,12 @@ export function DoctorCalendar({ appointments, sessions }: { appointments: Calen
             const inMonth = day.getMonth() === monthDate.getMonth()
             const isToday = dateKey(day) === todayKey
             const count = appointmentsByDate.get(dateKey(day))?.length ?? 0
-            const daySessions = sessionsByDate.get(dateKey(day)) ?? []
-            const hasSession = daySessions.length > 0
             return (
               <div
                 key={dateKey(day)}
                 className={`${compact ? "min-h-12 p-1" : "min-h-24 p-1.5 sm:min-h-28 sm:p-2"} min-w-0 border-b border-r border-border/80 ${inMonth ? "bg-card/70" : "bg-muted/15"} ${isToday ? "bg-primary/[0.07]" : ""}`}
               >
-                <div className="flex items-center justify-between">
-                  {hasSession ? (
-                    <SessionIndicator date={dateKey(day)} sessions={daySessions} />
-                  ) : <span className="size-3" />}
+                <div className="flex justify-end">
                   <span className={`${compact ? "size-6 text-[11px]" : "size-7 text-xs sm:size-8 sm:text-sm"} flex items-center justify-center rounded-full ${isToday ? "bg-primary font-semibold text-primary-foreground" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
                     {day.getDate()}
                   </span>
@@ -223,12 +176,7 @@ export function DoctorCalendar({ appointments, sessions }: { appointments: Calen
             <section key={dateKey(day)} className="min-h-48 border-b border-r border-border/80 bg-card/70 p-2 sm:min-h-[420px]">
               <button type="button" onClick={() => { setCursor(day); setView("Day") }} className="flex w-full items-center justify-between gap-1 pb-2 text-left">
                 <span className="text-xs text-muted-foreground">{weekDays[day.getDay()]}</span>
-                <span className="flex items-center gap-1.5">
-                  {sessionDateSet.has(dateKey(day)) ? (
-                    <SessionIndicator date={dateKey(day)} sessions={sessionsByDate.get(dateKey(day)) ?? []} />
-                  ) : null}
-                  <span className={`flex size-8 items-center justify-center rounded-full text-sm ${dateKey(day) === todayKey ? "bg-primary font-semibold text-primary-foreground" : ""}`}>{day.getDate()}</span>
-                </span>
+                <span className={`flex size-8 items-center justify-center rounded-full text-sm ${dateKey(day) === todayKey ? "bg-primary font-semibold text-primary-foreground" : ""}`}>{day.getDate()}</span>
               </button>
               <div className="space-y-1">
                 {dayAppointments.map((appointment) => (
@@ -312,7 +260,6 @@ export function DoctorCalendar({ appointments, sessions }: { appointments: Calen
         <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-sky-500" />Confirmed</span>
         <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-primary" />Pending</span>
         <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-500" />Completed</span>
-        <span className="inline-flex items-center gap-2"><CalendarDays className="size-3 text-amber-600 dark:text-amber-400" />Your session</span>
         <span>{appointmentsByDate.size} appointment dates</span>
       </div>
     </main>

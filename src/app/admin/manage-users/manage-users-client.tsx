@@ -56,43 +56,6 @@ const USER_ROLE_OPTIONS = [
   { value: "PATIENT", label: "Patient" },
   { value: "DOCTOR", label: "Doctor" },
 ] as const
-const EDIT_USER_ROLE_OPTIONS = [
-  ...USER_ROLE_OPTIONS,
-  { value: "STAFF", label: "Staff" },
-] as const
-
-function getEditableRole(role?: string) {
-  switch (role?.trim().toUpperCase()) {
-    case "ADMIN":
-      return "ADMIN"
-    case "DOCTOR":
-    case "NURSE":
-      return "DOCTOR"
-    case "STAFF":
-      return "STAFF"
-    case "PATIENT":
-    case "CLIENT":
-    default:
-      return "PATIENT"
-  }
-}
-
-function getAssignedRoleLabel(role?: string) {
-  switch (role?.trim().toUpperCase()) {
-    case "ADMIN":
-      return "Admin"
-    case "DOCTOR":
-    case "NURSE":
-      return "Doctor"
-    case "STAFF":
-      return "Staff"
-    case "PATIENT":
-    case "CLIENT":
-      return "Patient"
-    default:
-      return role || "—"
-  }
-}
 
 function slugEmailPart(value: string) {
   return value
@@ -202,10 +165,12 @@ function AvatarUploadField({
 function CreateUserModal({
   open,
   onOpenChange,
+  onSuccess,
   existingEmails = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess: (message: string) => void
   existingEmails?: string[]
 }) {
   const router = useRouter()
@@ -333,8 +298,10 @@ function CreateUserModal({
     if (result.success) {
       if (result.verificationSent) {
         toast.success("User account created. A verification email was sent.")
+        onSuccess("User account created. A verification email was sent.")
       } else {
         toast.warning("User account created, but the verification email could not be sent.")
+        onSuccess("User account created, but the verification email could not be sent.")
       }
       resetForm()
       onOpenChange(false)
@@ -687,10 +654,12 @@ function EditUserSheet({
   open,
   onOpenChange,
   user,
+  onSuccess,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: UserRow | null
+  onSuccess: (message: string) => void
 }) {
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
@@ -718,7 +687,7 @@ function EditUserSheet({
       name: user.name ?? "",
       email: user.email ?? "",
       status: normalizeUserStatus(user.status),
-      role: getEditableRole(user.role),
+      role: user.role ?? "PATIENT",
       address: user.address ?? "",
       prefix: user.prefix ?? "",
       suffix: user.suffix ?? "",
@@ -755,6 +724,7 @@ function EditUserSheet({
 
     if (result.success) {
       toast.success("User updated successfully")
+      onSuccess("User updated successfully.")
       onOpenChange(false)
       setTimeout(() => router.refresh(), 100)
     } else {
@@ -839,7 +809,7 @@ function EditUserSheet({
                     value={form.role}
                     onChange={(event) => handleChange("role", event.target.value)}
                   >
-                    {EDIT_USER_ROLE_OPTIONS.map((role) => (
+                    {USER_ROLE_OPTIONS.map((role) => (
                       <option key={role.value} value={role.value}>
                         {role.label}
                       </option>
@@ -864,30 +834,26 @@ function EditUserSheet({
                 </div>
               </div>
 
-              {form.role !== "PATIENT" ? (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-credentials">Credentials</Label>
-                    <Input id="edit-credentials" value={form.credentials} onChange={(e) => handleChange("credentials", e.target.value)} />
-                  </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-credentials">Credentials</Label>
+                <Input id="edit-credentials" value={form.credentials} onChange={(e) => handleChange("credentials", e.target.value)} />
+              </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-license-number">License number</Label>
-                      <Input id="edit-license-number" value={form.licenseNumber} onChange={(e) => handleChange("licenseNumber", e.target.value)} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-years">Years of experience</Label>
-                      <Input id="edit-years" value={form.yearsOfExperience} onChange={(e) => handleChange("yearsOfExperience", e.target.value)} />
-                    </div>
-                  </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-license-number">License number</Label>
+                  <Input id="edit-license-number" value={form.licenseNumber} onChange={(e) => handleChange("licenseNumber", e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-years">Years of experience</Label>
+                  <Input id="edit-years" value={form.yearsOfExperience} onChange={(e) => handleChange("yearsOfExperience", e.target.value)} />
+                </div>
+              </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-board">Board certifications</Label>
-                    <Input id="edit-board" value={form.boardCertifications} onChange={(e) => handleChange("boardCertifications", e.target.value)} />
-                  </div>
-                </>
-              ) : null}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-board">Board certifications</Label>
+                <Input id="edit-board" value={form.boardCertifications} onChange={(e) => handleChange("boardCertifications", e.target.value)} />
+              </div>
             </div>
           </div>
 
@@ -918,7 +884,7 @@ function ViewUserSheet({
 }) {
   const details = [
     ["Email", user?.email],
-    ["Role", getAssignedRoleLabel(user?.role)],
+    ["Role", user?.role],
     ["Address", user?.address],
     ["Prefix", user?.prefix],
     ["Suffix", user?.suffix],
@@ -927,7 +893,6 @@ function ViewUserSheet({
     ["Years of experience", user?.yearsOfExperience],
     ["Board certifications", user?.boardCertifications],
   ] as const
-  const visibleDetails = getEditableRole(user?.role) === "PATIENT" ? details.slice(0, 5) : details
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -952,7 +917,7 @@ function ViewUserSheet({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {visibleDetails.map(([label, value]) => (
+              {details.map(([label, value]) => (
                 <div key={label} className="min-w-0 border-b border-border pb-3">
                   <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
                   <p className="mt-1 break-words text-sm font-medium">
@@ -983,6 +948,7 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
   const [viewOpen, setViewOpen] = React.useState(false)
   const [selectedUser, setSelectedUser] = React.useState<UserRow | null>(null)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
+  const [successMessage, setSuccessMessage] = React.useState("")
 
   React.useEffect(() => {
     const openEditUser = (event: Event) => {
@@ -1025,15 +991,23 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
         </Button>
       </div>
 
+      {successMessage ? (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+          <AlertTitle className="text-sm font-semibold">Success</AlertTitle>
+          <AlertDescription className="text-sm">{successMessage}</AlertDescription>
+        </div>
+      ) : null}
+
       <DataTable columns={columns} data={users} />
 
       <CreateUserModal
         open={createOpen}
         onOpenChange={setCreateOpen}
         existingEmails={(users ?? []).map((user) => user.email ?? "")}
+        onSuccess={(message) => setSuccessMessage(message)}
       />
       <ViewUserSheet open={viewOpen} onOpenChange={setViewOpen} user={selectedUser} />
-      <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={selectedUser} />
+      <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={selectedUser} onSuccess={(message) => setSuccessMessage(message)} />
       <Dialog open={deleteOpen} onOpenChange={(o) => setDeleteOpen(o)}>
         <DialogContent className="mx-auto max-w-md">
           <DialogHeader>

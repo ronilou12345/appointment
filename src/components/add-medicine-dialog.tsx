@@ -24,7 +24,6 @@ const emptyForm = {
   expiryDate: "",
   retailPrice: "0.00",
   price: "0.00",
-  supplier: "",
 }
 
 export function AddMedicineDialog({
@@ -55,7 +54,6 @@ export function AddMedicineDialog({
         expiryDate: medicine.expiryDate && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
         retailPrice: Number(medicine.price ?? 0).toFixed(2),
         price: "0.00",
-        supplier: medicine.supplier,
       })
       return
     }
@@ -78,7 +76,6 @@ export function AddMedicineDialog({
         expiryDate: form.expiryDate,
         retailPrice: Number(form.retailPrice) || 0,
         price: Number(form.price) || 0,
-        supplier: form.supplier,
         medicineImage: medicine?.image ?? "",
       }
 
@@ -122,7 +119,7 @@ export function AddMedicineDialog({
                 : "Add a new medicine to the inventory system."}
             </DialogDescription>
           </DialogHeader>
-          <form className="grid gap-6" onSubmit={handleSubmit}>
+          <form className="grid gap-5" onSubmit={handleSubmit}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor={fieldId("medicineName")}>Medicine Name</Label>
@@ -136,12 +133,11 @@ export function AddMedicineDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={fieldId("category")}>Category</Label>
+                <Label htmlFor={fieldId("category")}>Category <span className="text-muted-foreground">(Optional)</span></Label>
                 <Input
                   id={fieldId("category")}
                   name="category"
                   placeholder="e.g., Antibiotics"
-                  required
                   value={form.category}
                   onChange={(e) => handleChange('category', e.target.value)}
                 />
@@ -178,6 +174,17 @@ export function AddMedicineDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
+                <Label htmlFor={fieldId("expiryDate")}>Expiry Date</Label>
+                <Input
+                  id={fieldId("expiryDate")}
+                  name="expiryDate"
+                  type="date"
+                  required
+                  value={form.expiryDate}
+                  onChange={(e) => handleChange('expiryDate', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor={fieldId("retailPrice")}>Retail Price (₱)</Label>
                 <Input
                   id={fieldId("retailPrice")}
@@ -191,31 +198,9 @@ export function AddMedicineDialog({
                   onChange={(e) => handleChange('retailPrice', e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor={fieldId("supplier")}>Supplier</Label>
-                <Input
-                  id={fieldId("supplier")}
-                  name="supplier"
-                  placeholder="e.g., PharmaCare Inc."
-                  required
-                  value={form.supplier}
-                  onChange={(e) => handleChange('supplier', e.target.value)}
-                />
-              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor={fieldId("expiryDate")}>Expiry Date</Label>
-                <Input
-                  id={fieldId("expiryDate")}
-                  name="expiryDate"
-                  type="date"
-                  required
-                  value={form.expiryDate}
-                  onChange={(e) => handleChange('expiryDate', e.target.value)}
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor={fieldId("price")}>Price (₱)</Label>
                 <Input

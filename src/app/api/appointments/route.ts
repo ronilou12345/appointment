@@ -58,44 +58,8 @@ export async function GET(request: NextRequest) {
 
     const doctorId = Number(request.nextUrl.searchParams.get("doctorId"))
     const selectedDate = request.nextUrl.searchParams.get("date")
-    const fromDate = request.nextUrl.searchParams.get("from")
-    const toDate = request.nextUrl.searchParams.get("to")
 
-    if (!Number.isInteger(doctorId) || doctorId < 1) {
-      return NextResponse.json({ success: false, error: "Missing doctor or date" }, { status: 400 })
-    }
-
-    if (fromDate || toDate) {
-      const isValidDate = (value: string | null) => {
-        if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
-        const date = new Date(`${value}T00:00:00.000Z`)
-        return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
-      }
-
-      if (!isValidDate(fromDate) || !isValidDate(toDate) || fromDate! >= toDate!) {
-        return NextResponse.json({ success: false, error: "Invalid date range" }, { status: 400 })
-      }
-
-      const bookedDateRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT DISTINCT to_char(s.session_date, 'YYYY-MM-DD') AS date
-         FROM "appointment" a
-         INNER JOIN "session_tbl" s ON s.session_id = a.session_id
-         WHERE s.doctor_id = $1
-           AND s.session_date >= $2::date
-           AND s.session_date < $3::date
-           AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')`,
-        doctorId,
-        fromDate,
-        toDate,
-      )
-
-      return NextResponse.json({
-        success: true,
-        bookedDates: bookedDateRows.map((row) => String(row.date ?? "")).filter(Boolean),
-      })
-    }
-
-    if (!selectedDate) {
+    if (!doctorId || !selectedDate) {
       return NextResponse.json({ success: false, error: "Missing doctor or date" }, { status: 400 })
     }
 
@@ -395,11 +359,6 @@ export async function POST(request: NextRequest) {
       }
 
       const selectedAppointmentDate = session[0].session_date ? String(session[0].session_date).slice(0, 10) : appointmentDate
-      const todayInManila = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date())
-      if (!selectedAppointmentDate || selectedAppointmentDate <= todayInManila) {
-        throw new Error("Appointments must be booked at least one day in advance.")
-      }
-
       const selectedAppointmentTimeValue = appointmentTime && /^\d{1,2}:\d{2}$/.test(appointmentTime)
         ? appointmentTime
         : session[0].start_time ? String(session[0].start_time).slice(0, 5) : null
@@ -510,11 +469,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, smsSent: smsResult.success, emailSent: emailResult.success })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const status = message.includes("already have an appointment")
-      ? 409
-      : message.includes("at least one day in advance")
-        ? 400
-        : 500
+    const status = message.includes("already have an appointment") ? 409 : 500
     return NextResponse.json({ success: false, error: message }, { status })
   }
 }

@@ -69,7 +69,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
       return (
         <div className="min-w-0">
           <div className="truncate font-medium text-foreground">{name}</div>
-          {category ? <div className="text-xs text-muted-foreground">{category}</div> : null}
+          <div className="text-xs text-muted-foreground">{category || "-"}</div>
         </div>
       )
     },
@@ -150,11 +150,6 @@ export const columns: ColumnDef<MedicineRow>[] = [
       const retailPrice = Number(row.original.retailPrice ?? row.getValue("price") ?? 0)
       return `₱${retailPrice.toFixed(2)}`
     },
-  },
-  {
-    accessorKey: "supplier",
-    header: "Supplier",
-    cell: ({ row }) => <span className="whitespace-nowrap">{row.original.supplier || "—"}</span>,
   },
   {
     accessorKey: "status",

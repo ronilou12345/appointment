@@ -31,6 +31,22 @@ type UserOption = {
   status: string
 }
 
+function parseDesignations(value: string | null) {
+  if (!value?.trim()) return []
+
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (Array.isArray(parsed)) {
+      return Array.from(new Set(parsed.map((item) => String(item).trim()).filter(Boolean)))
+    }
+    if (typeof parsed === "string" && parsed.trim()) return [parsed.trim()]
+  } catch {
+    return Array.from(new Set(value.split(",").map((item) => item.trim()).filter(Boolean)))
+  }
+
+  return []
+}
+
 function formatRole(role?: string) {
   const normalized = (role ?? "").toUpperCase()
   if (normalized === "NURSE") return "Doctor"
@@ -143,11 +159,13 @@ export function CreateDoctorDialog({ open, onOpenChange }: { open: boolean; onOp
     if (!nextUser) {
       setSelectedUserId("")
       setSelectedName("")
+      setSelectedDesignations([])
       return
     }
 
     setSelectedUserId(value)
     setSelectedName(nextUser.name)
+    setSelectedDesignations(parseDesignations(nextUser.designations))
     setUserPickerOpen(false)
     setUserQuery("")
   }

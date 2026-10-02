@@ -88,10 +88,10 @@ export const columns: ColumnDef<UserRow>[] = [
       const lastName = nameParts[nameParts.length - 1] ?? ""
       const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase() || "U"
       const isDoctorAccount = user.role === "DOCTOR" || user.role === "NURSE"
-      const formattedName = isDoctorAccount
-        ? [firstName, middleName ? `${middleName[0]}.` : "", lastName].filter(Boolean).join(" ")
-        : name
-      const displayName = [user.prefix, formattedName, user.suffix].filter(Boolean).join(" ").trim()
+      const baseDisplayName = [user.prefix, name].filter(Boolean).join(" ").trim()
+      const displayName = isDoctorAccount
+        ? ["Dr.", firstName, middleName ? `${middleName[0]}.` : "", lastName].filter(Boolean).join(" ").trim()
+        : baseDisplayName || name
       const credentialText = isDoctorAccount ? user.credentials?.trim() : undefined
 
       return (

@@ -10,7 +10,6 @@ function parseMedicinePayload(body: Record<string, unknown>) {
   const expiryDate = body.expiryDate ? new Date(String(body.expiryDate)) : null
   const retailPrice = Number(body.retailPrice ?? body.unitPrice ?? body.price ?? 0) || 0
   const price = Number(body.price ?? 0) || 0
-  const supplier = String(body.supplier ?? "").trim()
   const status = String(body.status ?? "In Stock").trim()
   const medicineImage = body.medicineImage ? String(body.medicineImage).trim() : null
 
@@ -22,7 +21,6 @@ function parseMedicinePayload(body: Record<string, unknown>) {
     expiryDate,
     retailPrice,
     price,
-    supplier,
     status,
     medicineImage,
   }
@@ -33,7 +31,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const payload = parseMedicinePayload(body)
 
-    if (!payload.medicineName || !payload.category || !payload.supplier || !payload.expiryDate) {
+    if (!payload.medicineName || !payload.expiryDate) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
     }
 
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
         expiry_date: payload.expiryDate,
         unit_price: payload.retailPrice,
         price: payload.price,
-        supplier: payload.supplier,
+        supplier: "",
         status: payload.status,
         medicine_image: payload.medicineImage,
       },
@@ -67,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     const id = Number(body.id)
     const payload = parseMedicinePayload(body)
 
-    if (!id || !payload.medicineName || !payload.category || !payload.supplier || !payload.expiryDate) {
+    if (!id || !payload.medicineName || !payload.expiryDate) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
     }
 
@@ -81,7 +79,6 @@ export async function PATCH(request: NextRequest) {
         expiry_date: payload.expiryDate,
         unit_price: payload.retailPrice,
         price: payload.price,
-        supplier: payload.supplier,
         status: payload.status,
         medicine_image: payload.medicineImage,
       },

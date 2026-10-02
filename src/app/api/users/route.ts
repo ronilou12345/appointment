@@ -3,8 +3,6 @@ import { createUserAction } from "@/lib/actions/user"
 import prisma from "@/lib/prisma"
 import { resolveProfileAvatar, saveProfileImageFile, updateUserProfileImage } from "@/lib/profile-image"
 import { logCurrentUserActivity } from "@/lib/activity-log"
-import { getSession } from "@/lib/auth-utils"
-import { normalizeUserRole } from "@/lib/user-role"
 
 function normalizeRole(value: string | null) {
   const role = (value ?? "PATIENT").toString().trim().toUpperCase()
@@ -114,11 +112,6 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSession()
-    if (!session || session.status !== "ACTIVE" || normalizeUserRole(session.role) !== "ADMIN") {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
     const userId = String(body?.id ?? "").trim()
 
@@ -207,17 +200,13 @@ export async function PATCH(request: NextRequest) {
         first_name: firstName || existingDoctor?.first_name || "",
         middle_name: middleName || existingDoctor?.middle_name || null,
         last_name: lastName || existingDoctor?.last_name || "",
-        prefix: body?.prefix !== undefined ? prefix || null : existingDoctor?.prefix || null,
-        suffix: body?.suffix !== undefined ? suffix || null : existingDoctor?.suffix || null,
+        prefix: prefix || existingDoctor?.prefix || null,
+        suffix: suffix || existingDoctor?.suffix || null,
         address: address !== undefined ? address || null : existingDoctor?.address || null,
-        credentials: body?.credentials !== undefined ? credentials || null : existingDoctor?.credentials || null,
-        license_number: body?.licenseNumber !== undefined
-          ? licenseNumber || `temp-${userId}`
-          : existingDoctor?.license_number || `temp-${userId}`,
+        credentials: credentials || existingDoctor?.credentials || null,
+        license_number: licenseNumber || existingDoctor?.license_number || "",
         years_of_experience: yearsOfExperience ? Number.parseInt(yearsOfExperience, 10) : existingDoctor?.years_of_experience ?? 0,
-        board_certification: body?.boardCertifications !== undefined
-          ? boardCertifications || null
-          : existingDoctor?.board_certification || null,
+        board_certification: boardCertifications || existingDoctor?.board_certification || null,
       }
 
       if (existingDoctor) {

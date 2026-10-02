@@ -19,7 +19,7 @@ const appointmentTypeOptions = [
   "Others___",
 ]
 
-type SessionDraft = Omit<SessionRow, "id" | "slots"> & { tempId: string; slots: string }
+type SessionDraft = Omit<SessionRow, "id"> & { tempId: string }
 
 const formatDateValue = (date: Date) => {
   const year = date.getFullYear()
@@ -90,7 +90,7 @@ export default function AddSessionPage() {
       startTime: "",
       endTime: "",
       duration: "",
-      slots: "",
+      slots: 1,
       status: "Active",
       appointmentTypes: [],
     },
@@ -139,7 +139,7 @@ export default function AddSessionPage() {
         startTime: "",
         endTime: "",
         duration: "",
-        slots: "",
+        slots: 1,
         status: "Active",
         appointmentTypes: [],
       },
@@ -152,7 +152,8 @@ export default function AddSessionPage() {
   }
 
   const updateDraft = (tempId: string, field: keyof SessionDraft, value: any) => {
-    setDrafts((d) => d.map((x) => (x.tempId === tempId ? { ...x, [field]: value } : x)))
+    const nextValue = field === "slots" ? sanitizeSlotCount(value) : value
+    setDrafts((d) => d.map((x) => (x.tempId === tempId ? { ...x, [field]: nextValue } : x)))
   }
 
   const toggleAppointmentType = (tempId: string, option: string) => {
@@ -270,7 +271,7 @@ export default function AddSessionPage() {
         startTime: "",
         endTime: "",
         duration: "",
-        slots: "",
+        slots: 1,
         status: "Active",
         appointmentTypes: [],
       },
@@ -363,8 +364,7 @@ export default function AddSessionPage() {
       const hasDate = Boolean(draft.date?.trim())
       const hasStartTime = Boolean(draft.startTime?.trim())
       const hasEndTime = Boolean(draft.endTime?.trim())
-      const slotCount = Number(draft.slots)
-      const hasSlots = draft.slots.trim() !== "" && Number.isInteger(slotCount) && slotCount >= 1
+      const hasSlots = sanitizeSlotCount(draft.slots) > 0
       const hasStatus = ["Active", "Inactive", "Cancelled"].includes(String(draft.status ?? "").trim())
       const pendingOther = (customValues[draft.tempId] ?? "").trim()
       const recordedTypes = (draft.appointmentTypes ?? []).filter((item) => item !== "Others___" && Boolean(String(item).trim()))
@@ -602,7 +602,7 @@ export default function AddSessionPage() {
                     </div>
                     <div>
                       <label className="text-sm text-muted-foreground">Slots</label>
-                      <input type="number" min={1} step={1} required value={d.slots} onChange={(e) => updateDraft(d.tempId, "slots", e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                      <input type="number" min={1} value={d.slots} onChange={(e) => updateDraft(d.tempId, "slots", Number(e.target.value))} className="mt-1 w-full rounded-lg border px-2 py-1" />
                     </div>
                   </div>
 
