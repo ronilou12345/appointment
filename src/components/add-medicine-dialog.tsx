@@ -22,8 +22,8 @@ const emptyForm = {
   quantity: "",
   pieces: "",
   expiryDate: "",
-  retailPrice: "0.00",
-  price: "0.00",
+  retailPrice: "",
+  price: "",
 }
 
 export function AddMedicineDialog({
@@ -53,7 +53,7 @@ export function AddMedicineDialog({
         pieces: "",
         expiryDate: medicine.expiryDate && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
         retailPrice: Number(medicine.price ?? 0).toFixed(2),
-        price: "0.00",
+        price: "",
       })
       return
     }

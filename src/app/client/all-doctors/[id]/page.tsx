@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { StatusBadge } from "@/app/admin/manage-users/columns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DoctorSessionsCalendar, type DoctorProfileSession } from "./doctor-sessions-calendar"
+import { DoctorSessionsCalendar, type DoctorProfileSession } from "@/components/doctor-sessions-calendar"
 
 type Props = {
   params: Promise<{ id: string }>
