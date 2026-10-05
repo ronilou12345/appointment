@@ -50,10 +50,10 @@ export function AddMedicineDialog({
         medicineName: medicine.name,
         category: medicine.category,
         quantity: String(medicine.quantity ?? ""),
-        pieces: "",
+        pieces: String(medicine.pieces ?? 0),
         expiryDate: medicine.expiryDate && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
-        retailPrice: Number(medicine.price ?? 0).toFixed(2),
-        price: "",
+        retailPrice: Number(medicine.retailPrice ?? medicine.price ?? 0).toFixed(2),
+        price: Number(medicine.price ?? 0).toFixed(2),
       })
       return
     }
@@ -202,7 +202,7 @@ export function AddMedicineDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor={fieldId("price")}>Price (₱)</Label>
+                <Label htmlFor={fieldId("price")}>Supplier Price (₱)</Label>
                 <Input
                   id={fieldId("price")}
                   name="price"

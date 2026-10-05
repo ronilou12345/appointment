@@ -128,7 +128,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
   },
   {
     accessorKey: "price",
-    header: "Price",
+    header: "Supplier Price",
     cell: ({ row }) => {
       const price = Number(row.getValue("price") ?? 0)
       return `₱${price.toFixed(2)}`
