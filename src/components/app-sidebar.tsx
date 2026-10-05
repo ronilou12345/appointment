@@ -160,7 +160,24 @@ const data = {
   ],
 }
 
+function formatUpdatedAge(value: string | undefined) {
+  if (!value) return "Updated date unavailable"
+
+  const updatedAt = new Date(value).getTime()
+  if (Number.isNaN(updatedAt)) return "Updated date unavailable"
+
+  const days = Math.max(0, Math.floor((Date.now() - updatedAt) / 86_400_000))
+  if (days === 0) return "Updated today"
+  return `Updated ${days} ${days === 1 ? "day" : "days"} ago`
+}
+
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
+  const [updatedLabel, setUpdatedLabel] = React.useState("Updated recently")
+
+  React.useEffect(() => {
+    setUpdatedLabel(formatUpdatedAge(process.env.NEXT_PUBLIC_APP_UPDATED_AT))
+  }, [])
+
   // Determine navigation based on user role
   const navMain = user?.role === "DOCTOR" ? doctorNavMain : user?.role === "CLIENT" ? clientNavMain : adminNavMain
   const showDocuments = user?.role === "ADMIN" // Only show Inventory and Reports for admin users
@@ -205,7 +222,9 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                 </div>
                 <span className="flex flex-col items-start">
                   <span className="text-sm font-semibold leading-tight">C2M Family Clinic</span>
-                  <span className="text-[11px] text-muted-foreground leading-tight">v1.0.0-beta.19 · © 2026 C2M Clinic</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">
+                    v{process.env.NEXT_PUBLIC_APP_VERSION || "local"} · {updatedLabel}
+                  </span>
                 </span>
               </a>
             </SidebarMenuButton>
