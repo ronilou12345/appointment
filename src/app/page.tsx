@@ -44,9 +44,33 @@ export default function LandingPage() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
+  const landingPageRef = React.useRef<HTMLDivElement>(null)
     React.useEffect(() => {
       setMounted(true)
     }, [])
+
+  React.useEffect(() => {
+    const landingPage = landingPageRef.current
+    if (!landingPage || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    if (!("IntersectionObserver" in window)) return
+
+    const revealTargets = landingPage.querySelectorAll<HTMLElement>("[data-scroll-reveal]")
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.setAttribute("data-revealed", "true")
+        observer.unobserve(entry.target)
+      })
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" })
+
+    document.documentElement.classList.add("scroll-reveal-ready")
+    revealTargets.forEach((target) => observer.observe(target))
+
+    return () => {
+      observer.disconnect()
+      document.documentElement.classList.remove("scroll-reveal-ready")
+    }
+  }, [])
 
   const [contactEmail, setContactEmail] = React.useState("")
   const [contactMessage, setContactMessage] = React.useState("")
@@ -121,7 +145,7 @@ export default function LandingPage() {
   ]
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background font-sans text-foreground transition-colors duration-500">
+    <div ref={landingPageRef} className="relative min-h-screen overflow-hidden bg-background font-sans text-foreground transition-colors duration-500">
       {/* Background elements */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <div className="absolute -top-32 -left-24 size-[28rem] rounded-full bg-primary/12 blur-3xl dark:bg-primary/10" />
@@ -160,7 +184,7 @@ export default function LandingPage() {
 
       {/* Navbar */}
       <header className="relative sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
+        <div className="flex h-16 w-full items-center justify-between px-4 lg:px-6">
           <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
             <div className="overflow-hidden rounded-lg bg-card">
               <Image src="/logo1.jpg" alt="C2M Family Clinic logo" width={40} height={40} className="object-cover" />
@@ -325,7 +349,7 @@ export default function LandingPage() {
       {/* About Section */}
       <section id="about" className="relative z-10 py-24 bg-muted/20 border-y">
         <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
-          <div className="text-center mb-16">
+          <div data-scroll-reveal className="text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">About C2M Family Clinic</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Our platform is designed to ease the administrative load for healthcare professionals, giving them more time to focus on what matters most: patient care.
@@ -334,7 +358,7 @@ export default function LandingPage() {
           
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <div className="flex gap-4">
+              <div data-scroll-reveal className="flex gap-4">
                 <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
                   <ActivityIcon className="size-5 text-primary" />
                 </div>
@@ -343,7 +367,7 @@ export default function LandingPage() {
                   <p className="text-muted-foreground leading-relaxed mt-1">Nurses, Doctors, and administrators get their own specialized toolsets and metrics at a glance, allowing efficient triage and workflow.</p>
                 </div>
               </div>
-              <div className="flex gap-4">
+              <div data-scroll-reveal style={{ "--scroll-reveal-delay": "100ms" } as React.CSSProperties} className="flex gap-4">
                 <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
                   <ShieldCheck className="size-5 text-primary" />
                 </div>
@@ -353,7 +377,7 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-            <div className="relative rounded-2xl border bg-background/50 backdrop-blur-sm p-8 shadow-xl">
+            <div data-scroll-reveal style={{ "--scroll-reveal-delay": "160ms" } as React.CSSProperties} className="relative rounded-2xl border bg-background/50 backdrop-blur-sm p-8 shadow-xl">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Triangle className="size-32" />
               </div>
@@ -369,7 +393,7 @@ export default function LandingPage() {
       {/* Location Section */}
       <section id="location" className="relative z-10 py-24 bg-muted/10">
         <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
-          <div className="text-center mb-12">
+          <div data-scroll-reveal className="text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">Location</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Explore our location on the map. Use the directions map to find the best route to our clinic, and view the exact photo pin on the right.
@@ -385,7 +409,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid gap-8 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+            <div data-scroll-reveal className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
               <div className="border-b border-border px-6 py-5">
                 <h3 className="text-xl font-semibold text-foreground">Map Directions</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Directions from your current location to our pinned clinic address.</p>
@@ -400,7 +424,7 @@ export default function LandingPage() {
               />
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+            <div data-scroll-reveal style={{ "--scroll-reveal-delay": "120ms" } as React.CSSProperties} className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
               <div className="border-b border-border px-6 py-5">
                 <h3 className="text-xl font-semibold text-foreground">Location</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Exact clinic location pinned on the map.</p>
@@ -422,7 +446,7 @@ export default function LandingPage() {
       {/* Client Feedback */}
       <section id="feedback" className="relative z-10 py-24">
         <div className="container mx-auto max-w-6xl px-4 lg:px-8">
-          <div className="mb-16 text-center">
+          <div data-scroll-reveal className="mb-16 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               What Our Clients <span className="text-primary">Say About Us</span>
             </h2>
@@ -432,7 +456,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {clientFeedback.map((item) => {
+            {clientFeedback.map((item, index) => {
               const initials = item.name
                 .split(" ")
                 .filter(Boolean)
@@ -443,6 +467,8 @@ export default function LandingPage() {
               return (
                 <article
                   key={item.name}
+                  data-scroll-reveal
+                  style={{ "--scroll-reveal-delay": `${(index % 3) * 90}ms` } as React.CSSProperties}
                   className="flex flex-col rounded-2xl border border-border bg-card/80 p-6 shadow-sm backdrop-blur-sm"
                 >
                   <div className="flex items-center gap-3">
@@ -473,19 +499,19 @@ export default function LandingPage() {
       {/* Contact Section */}
       <section id="contact" className="relative z-10 py-24">
         <div className="container mx-auto px-4 lg:px-8 max-w-4xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">Get In Touch</h2>
+          <h2 data-scroll-reveal className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground mb-4">Get In Touch</h2>
           <p className="text-lg text-muted-foreground mb-12">
             Have questions about integrating C2M Family Clinic into your facility? Our support team is available around the clock.
           </p>
 
           <div className="grid sm:grid-cols-2 gap-8 items-stretch">
-            <div className="flex flex-col items-center justify-center p-8 rounded-2xl border bg-card text-card-foreground shadow-sm">
+            <div data-scroll-reveal className="flex flex-col items-center justify-center p-8 rounded-2xl border bg-card text-card-foreground shadow-sm">
               <Headset className="size-8 text-primary mb-4" />
               <h3 className="font-semibold text-lg mb-2">Technical Support</h3>
               <p className="text-sm text-muted-foreground mb-4">Stuck on something? Let us help you out.</p>
               <Button variant="outline" className="mt-auto">c2mfamilyclinicpharmacy@gmail.com</Button>
             </div>
-            <div className="flex flex-col text-left p-8 rounded-2xl border bg-card text-card-foreground shadow-sm">
+            <div data-scroll-reveal style={{ "--scroll-reveal-delay": "120ms" } as React.CSSProperties} className="flex flex-col text-left p-8 rounded-2xl border bg-card text-card-foreground shadow-sm">
               <h3 className="font-semibold text-xl mb-6">Drop us a line</h3>
               <form className="flex flex-col gap-4" onSubmit={handleContactSubmit}>
                 <div className="flex flex-col gap-2">
@@ -525,7 +551,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="relative z-10 py-12 border-t bg-muted/10">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-4 md:flex-row">
+        <div data-scroll-reveal className="container mx-auto flex flex-col items-center justify-between gap-6 px-4 md:flex-row">
           <div className="flex items-center gap-2 opacity-60">
             <Triangle className="size-4 fill-current text-foreground" />
             <span className="text-sm font-bold tracking-tight text-foreground">C2M Family Clinic</span>
