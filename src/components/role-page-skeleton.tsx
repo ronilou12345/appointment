@@ -48,6 +48,28 @@ function TableRows({ rows = 6 }: { rows?: number }) {
   )
 }
 
+export function BmiRecordsSkeleton() {
+  return (
+    <main className="min-h-screen w-full bg-background p-6 text-foreground" aria-busy="true" aria-label="Loading BMI records">
+      <PageHeading action />
+      <div className="overflow-x-auto rounded-md border">
+        <div className="min-w-[980px]">
+          <div className="grid grid-cols-[minmax(150px,1.5fr)_repeat(7,minmax(95px,1fr))_40px] gap-4 border-b px-4 py-3">
+            {Array.from({ length: 9 }, (_, index) => <Skeleton key={index} className="h-4 w-4/5" />)}
+          </div>
+          {Array.from({ length: 7 }, (_, rowIndex) => (
+            <div key={rowIndex} className="grid grid-cols-[minmax(150px,1.5fr)_repeat(7,minmax(95px,1fr))_40px] items-center gap-4 border-b px-4 py-3 last:border-b-0">
+              <div className="flex items-center gap-2"><Skeleton className="size-7 shrink-0 rounded-full" /><Skeleton className="h-4 w-24" /></div>
+              {Array.from({ length: 7 }, (_, cellIndex) => <Skeleton key={cellIndex} className="h-4 w-12" />)}
+              <Skeleton className="size-8 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </main>
+  )
+}
+
 function TablePage({ inventory = false, appointments = false }: { inventory?: boolean; appointments?: boolean }) {
   return (
     <main className="min-h-screen w-full p-6" aria-busy="true" aria-label="Loading page content">

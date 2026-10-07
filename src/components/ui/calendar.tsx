@@ -10,10 +10,11 @@ export type CalendarProps = {
   onSelect?: (date: Date | null) => void
   className?: string
   disabled?: (date: Date) => boolean
-  getIndicator?: (date: Date) => "available" | "unavailable" | null
+  getIndicator?: (date: Date) => "available" | "unavailable" | "inactive" | null
+  getTooltip?: (date: Date) => string | undefined
 }
 
-export function Calendar({ selected, onSelect, className, disabled, getIndicator }: CalendarProps) {
+export function Calendar({ selected, onSelect, className, disabled, getIndicator, getTooltip }: CalendarProps) {
   const [viewDate, setViewDate] = React.useState(() => selected ?? new Date())
 
   React.useEffect(() => {
@@ -67,6 +68,7 @@ export function Calendar({ selected, onSelect, className, disabled, getIndicator
             <button
               key={day.toISOString()}
               type="button"
+              title={getTooltip?.(day)}
               disabled={isDisabled}
               onClick={() => onSelect?.(day)}
               className={cn(
@@ -82,7 +84,11 @@ export function Calendar({ selected, onSelect, className, disabled, getIndicator
                 <span
                   className={cn(
                     "absolute bottom-0.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full",
-                    indicator === "available" ? "bg-emerald-500" : "bg-red-500"
+                    indicator === "available"
+                      ? "bg-emerald-500"
+                      : indicator === "inactive"
+                        ? "bg-amber-400"
+                        : "bg-red-500"
                   )}
                 />
               ) : null}

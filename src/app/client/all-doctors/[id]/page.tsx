@@ -3,7 +3,12 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { StatusBadge } from "@/app/admin/manage-users/columns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DoctorSessionsCalendar, type DoctorProfileSession } from "@/components/doctor-sessions-calendar"
+import {
+  DoctorAvailabilityIndicator,
+  DoctorSessionsCalendar,
+  DoctorUpcomingSessionCount,
+  type DoctorProfileSession,
+} from "@/components/doctor-sessions-calendar"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -144,11 +149,12 @@ export default async function ClientDoctorPage({ params }: Props) {
         ),
         0
       )::int AS "availableSlots",
-      COALESCE(s.appointment_type, '') AS "appointmentType"
+      COALESCE(s.appointment_type, '') AS "appointmentType",
+      COALESCE(s.status, 'Active') AS status
     FROM "session_tbl" s
     LEFT JOIN "appointment" a ON a.session_id = s.session_id
     WHERE s.doctor_id = ${doctor.doctor_id}
-      AND (s.status = 'Active' OR s.status IS NULL)
+      AND (s.status IN ('Active', 'Inactive') OR s.status IS NULL)
       AND s.session_date >= ${todayInManila}::date
     GROUP BY s.session_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type
     ORDER BY s.session_date ASC, s.start_time ASC
@@ -187,9 +193,10 @@ export default async function ClientDoctorPage({ params }: Props) {
                   ) : null}
                   <AvatarFallback className="bg-primary/10 text-primary">{getInitials(profileUser.name)}</AvatarFallback>
                 </Avatar>
-                {String(profileUser.status ?? "Active").toLowerCase() === "active" && (
-                  <span className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)] animate-pulse" />
-                )}
+                <DoctorAvailabilityIndicator
+                  sessions={sessions}
+                  doctorActive={String(profileUser.status ?? "Active").toLowerCase() === "active"}
+                />
               </div>
               <div>
                 <p className="text-lg font-semibold text-foreground">{profileUser.name}</p>
@@ -266,7 +273,7 @@ export default async function ClientDoctorPage({ params }: Props) {
                 <div className="space-y-2 rounded-[20px] border border-border bg-background/80 p-4">
                   <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Upcoming sessions</p>
                   <p className="text-base font-medium text-foreground">
-                    {sessions.length ? `${sessions.length}` : "0"}
+                    <DoctorUpcomingSessionCount sessions={sessions} />
                   </p>
                 </div>
               </div>

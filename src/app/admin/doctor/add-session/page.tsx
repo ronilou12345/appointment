@@ -33,7 +33,7 @@ const parseDateValue = (value: string) => {
   return new Date(year, month - 1, day)
 }
 
-const sanitizeSlotCount = (value: unknown, min = 1) => {
+const sanitizeSlotCount = (value: unknown, min = 0) => {
   const parsed = typeof value === "string" ? Number(value.trim()) : Number(value)
   if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < min) {
     return min
@@ -90,7 +90,7 @@ export default function AddSessionPage() {
       startTime: "",
       endTime: "",
       duration: "",
-      slots: 1,
+      slots: 0,
       status: "Active",
       appointmentTypes: [],
     },
@@ -139,7 +139,7 @@ export default function AddSessionPage() {
         startTime: "",
         endTime: "",
         duration: "",
-        slots: 1,
+        slots: 0,
         status: "Active",
         appointmentTypes: [],
       },
@@ -271,7 +271,7 @@ export default function AddSessionPage() {
         startTime: "",
         endTime: "",
         duration: "",
-        slots: 1,
+        slots: 0,
         status: "Active",
         appointmentTypes: [],
       },
@@ -364,7 +364,7 @@ export default function AddSessionPage() {
       const hasDate = Boolean(draft.date?.trim())
       const hasStartTime = Boolean(draft.startTime?.trim())
       const hasEndTime = Boolean(draft.endTime?.trim())
-      const hasSlots = sanitizeSlotCount(draft.slots) > 0
+      const hasSlots = sanitizeSlotCount(draft.slots, 0) > 0
       const hasStatus = ["Active", "Inactive", "Cancelled"].includes(String(draft.status ?? "").trim())
       const pendingOther = (customValues[draft.tempId] ?? "").trim()
       const recordedTypes = (draft.appointmentTypes ?? []).filter((item) => item !== "Others___" && Boolean(String(item).trim()))
@@ -602,7 +602,14 @@ export default function AddSessionPage() {
                     </div>
                     <div>
                       <label className="text-sm text-muted-foreground">Slots</label>
-                      <input type="number" min={1} value={d.slots} onChange={(e) => updateDraft(d.tempId, "slots", Number(e.target.value))} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={d.slots ? String(d.slots) : ""}
+                        onChange={(event) => updateDraft(d.tempId, "slots", event.target.value)}
+                        className="mt-1 w-full rounded-lg border px-2 py-1"
+                      />
                     </div>
                   </div>
 
@@ -723,7 +730,14 @@ export default function AddSessionPage() {
 
               <div>
                 <label className="text-sm text-muted-foreground">Slots</label>
-                <input type="number" min={0} value={editSession.slots} onChange={(e) => setEditSession({ ...editSession, slots: sanitizeSlotCount(e.target.value, 0) })} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={editSession.slots ? String(editSession.slots) : ""}
+                  onChange={(event) => setEditSession({ ...editSession, slots: sanitizeSlotCount(event.target.value, 0) })}
+                  className="mt-1 w-full rounded-lg border px-2 py-1"
+                />
               </div>
 
               <div>

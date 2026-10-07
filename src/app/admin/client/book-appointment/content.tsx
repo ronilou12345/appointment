@@ -32,6 +32,7 @@ type SessionOption = {
   startTime: string
   endTime: string
   slots: number
+  status?: string
   appointmentType?: string
   appointmentTypes?: string[]
 }
@@ -205,6 +206,13 @@ export function BookAppointmentContent() {
     return n
   }
 
+  const isBookableDate = (isoDate: string) => {
+    if (!isoDate) return false
+    const earliestBookableDate = startOfDay(new Date())
+    earliestBookableDate.setDate(earliestBookableDate.getDate() + 1)
+    return new Date(`${isoDate}T00:00:00`) >= earliestBookableDate
+  }
+
   const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -253,6 +261,12 @@ export function BookAppointmentContent() {
     return hh * 60 + mm
   }
 
+  const isActiveSession = (session: SessionOption) =>
+    (session.status ?? "Active").trim().toLowerCase() === "active"
+
+  const isInactiveSession = (session: SessionOption) =>
+    (session.status ?? "Active").trim().toLowerCase() === "inactive"
+
   const isSlotInFuture = (isoDate: string, time: string) => {
     if (!isoDate || !time) return false
     const [year, month, day] = isoDate.split("-").map(Number)
@@ -261,25 +275,20 @@ export function BookAppointmentContent() {
     return dt.getTime() > Date.now()
   }
 
+  const sessionHasTimeRemaining = (session: SessionOption, isoDate: string) => {
+    if (!isActiveSession(session) || Number(session.slots ?? 0) <= 0) return false
+    return isSlotInFuture(isoDate, session.endTime)
+  }
+
   const getDayIndicatorColor = (isoDate: string) => {
     if (!selectedDoctorId) return null
     const daySessions = sessions.filter((s) => s.doctorId === selectedDoctorId && s.date === isoDate)
     if (!daySessions.length) return null
 
-    // If any slot in the day is in the future and has remaining slots -> green
-    for (const s of daySessions) {
-      const start = parseTimeToMinutes(s.startTime)
-      const end = parseTimeToMinutes(s.endTime)
-      for (let minutes = start; minutes < end; minutes += 20) {
-        const hh = Math.floor(minutes / 60)
-        const mm = minutes % 60
-        const key = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
-        const remaining = s.slots ?? 0
-        if (remaining > 0 && isSlotInFuture(isoDate, key)) return "green"
-      }
+    if (isBookableDate(isoDate) && daySessions.some((session) => sessionHasTimeRemaining(session, isoDate))) {
+      return "green"
     }
-
-    // Sessions exist but none available (either full or all past) -> red
+    if (daySessions.some(isInactiveSession)) return "yellow"
     return "red"
   }
 
@@ -294,13 +303,13 @@ export function BookAppointmentContent() {
 
   const selectedDoctorId = formData.doctorId
   const selectedDateSessions = sessions.filter(
-    (session) => session.doctorId === selectedDoctorId && session.date === formData.date,
+    (session) => session.doctorId === selectedDoctorId && session.date === formData.date && isActiveSession(session),
   )
 
   const selectedDateTimeSlotAvailability = selectedDateSessions.reduce<Record<string, number>>((acc, session) => {
     const start = parseTimeToMinutes(session.startTime)
     const end = parseTimeToMinutes(session.endTime)
-    for (let minutes = start; minutes < end; minutes += 20) {
+    for (let minutes = start; minutes < end; minutes += 30) {
       const hh = Math.floor(minutes / 60)
       const mm = minutes % 60
       const key = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
@@ -392,27 +401,14 @@ export function BookAppointmentContent() {
 
   const doctorIsAvailableToday = (doctorId: number) => {
     const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
-    if (!doctorSessions.length) return false
-
-    const now = new Date()
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-
-    return doctorSessions.some((session) => {
-      const end = parseTimeToMinutes(session.endTime)
-      if ((session.slots ?? 0) <= 0) return false
-
-      return currentMinutes < end
-    })
+    return doctorSessions.some((session) => sessionHasTimeRemaining(session, todayIso))
   }
 
   const getDoctorSlotCount = (doctorId: number) => {
     const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
-    const now = new Date()
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
 
     return doctorSessions.reduce((sum, session) => {
-      if (Number(session.slots ?? 0) <= 0) return sum
-      if (currentMinutes >= parseTimeToMinutes(session.endTime)) return sum
+      if (!sessionHasTimeRemaining(session, todayIso)) return sum
       return sum + Number(session.slots ?? 0)
     }, 0)
   }
@@ -420,6 +416,7 @@ export function BookAppointmentContent() {
   const getDoctorMonthSessionCount = (doctorId: number) => {
     return sessions.filter((session) => {
       if (String(session.doctorId) !== String(doctorId)) return false
+      if (!isActiveSession(session)) return false
       if (Number(session.slots ?? 0) <= 0) return false
       if (new Date(`${session.date}T00:00:00`).getTime() < startOfDay(new Date()).getTime()) return false
 
@@ -437,6 +434,7 @@ export function BookAppointmentContent() {
           .filter(
             (session) =>
               String(session.doctorId) === String(doctorId) &&
+              isActiveSession(session) &&
               Number(session.slots ?? 0) > 0 &&
               new Date(`${session.date}T00:00:00`).getTime() > today.getTime(),
           )
@@ -462,6 +460,7 @@ export function BookAppointmentContent() {
           .filter(
             (session) =>
               String(session.doctorId) === String(doctorId) &&
+              isActiveSession(session) &&
               Number(session.slots ?? 0) > 0 &&
               new Date(`${session.date}T00:00:00`).getTime() >= startOfDay(new Date()).getTime(),
           )
@@ -488,7 +487,7 @@ export function BookAppointmentContent() {
   const doctorAppointmentTypes = Array.from(
     new Set(
       sessions
-        .filter((s) => String(s.doctorId) === String(selectedDoctorId) && s.date === formData.date)
+        .filter((s) => String(s.doctorId) === String(selectedDoctorId) && s.date === formData.date && isActiveSession(s))
         .flatMap((s) => {
           const single = (s as any).appointmentType
           const arr = (s as any).appointmentTypes
@@ -698,6 +697,7 @@ export function BookAppointmentContent() {
                         sessions
                           .filter((session) => {
                             if (String(session.doctorId) !== String(doctor.id)) return false
+                            if (!isActiveSession(session)) return false
 
                             const sessionDate = new Date(session.date)
                             const today = new Date()
@@ -898,29 +898,50 @@ export function BookAppointmentContent() {
 
                   <div className="grid grid-cols-7 gap-2">
                     {monthMatrix(displayedMonth).map((dayObj) => {
-                      const isPast = new Date(`${dayObj.iso}T00:00:00`) < startOfDay(new Date())
+                      const isNotBookable = !isBookableDate(dayObj.iso)
                       const isSelected = formData.date === dayObj.iso
                       const isToday = isSameDay(new Date(`${dayObj.iso}T00:00:00`), new Date())
+                      const daySessions = sessions.filter(
+                        (session) => session.doctorId === selectedDoctorId && session.date === dayObj.iso,
+                      )
+                      const dayIndicatorColor = getDayIndicatorColor(dayObj.iso)
+                      const sessionTooltip = daySessions.length
+                        ? [
+                            formatLocalDateLabel(dayObj.iso),
+                            ...daySessions.map((session) => {
+                              const sessionText = session.appointmentTypes?.length
+                                ? session.appointmentTypes.join(", ")
+                                : session.appointmentType || "General Consultation"
+                              const sessionDetails = `${formatTimeLabel(session.startTime)} - ${formatTimeLabel(session.endTime)} · ${sessionText}`
+                              return isActiveSession(session) ? sessionDetails : `${session.status} session · ${sessionDetails}`
+                            }),
+                          ].join("\n")
+                        : undefined
                       return (
                         <button
                           key={dayObj.iso}
+                          title={sessionTooltip}
+                          disabled={isNotBookable}
                           onClick={() => {
-                            if (!isPast) {
+                            if (!isNotBookable) {
                               const nextDate = dayObj.iso
                               setFormData((prev) => ({ ...prev, date: nextDate, time: "", sessionId: "" }))
                               void checkDateConflict(selectedDoctorId, nextDate)
                             }
                           }}
-                          className={`h-12 flex items-center justify-center rounded-lg transition-all ${isSelected ? 'bg-white text-black font-semibold' : dayObj.inMonth ? 'bg-transparent hover:bg-muted' : 'text-muted-foreground'} ${isPast ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                          className={`h-12 flex items-center justify-center rounded-lg transition-all ${isSelected ? 'bg-white text-black font-semibold' : dayObj.inMonth ? 'bg-transparent hover:bg-muted' : 'text-muted-foreground'} ${isNotBookable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <div className="relative w-full h-full flex items-center justify-center">
                             <span>{dayObj.day}</span>
                             {isToday && <span className="absolute bottom-1 left-1 w-1 h-1 rounded-full bg-white/70" />}
-                            {selectedDoctorId && getDayIndicatorColor(dayObj.iso) === "green" && (
+                            {dayIndicatorColor === "green" && (
                               <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-emerald-500" />
                             )}
-                            {selectedDoctorId && getDayIndicatorColor(dayObj.iso) === "red" && (
+                            {dayIndicatorColor === "red" && (
                               <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-red-500" />
+                            )}
+                            {dayIndicatorColor === "yellow" && (
+                              <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-amber-400" />
                             )}
                           </div>
                         </button>
@@ -965,6 +986,10 @@ export function BookAppointmentContent() {
                     <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
                       Select a highlighted date to view available session times.
                     </div>
+                  ) : !isBookableDate(formData.date) ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      Please book appointments at least one day in advance.
+                    </div>
                   ) : selectedDateSessions.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
                       No active sessions for this date.
@@ -980,7 +1005,7 @@ export function BookAppointmentContent() {
                         const remaining = selectedDateTimeSlotAvailability[slot] ?? 0
                         const isPast = !isSlotInFuture(formData.date, slot)
                         const alreadyBooked = bookedTimes.includes(slot)
-                        const available = remaining > 0 && !isPast && !alreadyBooked
+                        const available = remaining > 0 && isBookableDate(formData.date) && !isPast && !alreadyBooked
                         const disabled = !available || selected
                         const baseClass = selected
                           ? 'bg-primary text-white border-primary opacity-90'
