@@ -8,6 +8,7 @@ import { columns, type SessionRow } from "./columns"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
 import { Calendar } from "@/components/ui/calendar"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Pencil } from "lucide-react"
 
 const appointmentTypeOptions = [
@@ -78,9 +79,10 @@ const timeRangesOverlap = (startA: string, endA: string, startB: string, endB: s
   return startAValue < endBValue && startBValue < endAValue
 }
 
-export default function AddSessionPage() {
+export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssignedSpecialty?: boolean }) {
   const [data, setData] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [specialtyAlertOpen, setSpecialtyAlertOpen] = useState(!hasAssignedSpecialty)
 
   const [open, setOpen] = useState(false)
   const [drafts, setDrafts] = useState<SessionDraft[]>([
@@ -293,6 +295,35 @@ export default function AddSessionPage() {
     setErrorMessage("")
     setOpen(false)
   }
+
+  const renderSessionsSkeleton = () => (
+    <div className="space-y-4" aria-label="Loading sessions" role="status">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-9 w-full max-w-sm" />
+        <Skeleton className="h-9 w-24 shrink-0" />
+      </div>
+      <div className="overflow-x-auto rounded-md border border-border bg-card">
+        <div className="min-w-[720px]">
+          <div className="grid grid-cols-6 gap-4 bg-muted p-3">
+            {Array.from({ length: 6 }, (_, index) => (
+              <Skeleton key={`header-${index}`} className="h-4 w-20" />
+            ))}
+          </div>
+          {Array.from({ length: 6 }, (_, rowIndex) => (
+            <div key={`row-${rowIndex}`} className="grid grid-cols-6 items-center gap-4 border-t border-border p-4">
+              {Array.from({ length: 6 }, (_, columnIndex) => (
+                <Skeleton key={`cell-${rowIndex}-${columnIndex}`} className="h-4 w-full max-w-28" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-8 w-40" />
+      </div>
+    </div>
+  )
 
   // Edit sheet state
   const [editOpen, setEditOpen] = useState(false)
@@ -541,13 +572,27 @@ export default function AddSessionPage() {
           <p className="mt-2 text-muted-foreground">Create new consultation sessions and set your availability for patients.</p>
         </div>
         <div>
-          <Button onClick={() => setOpen(true)} className="bg-primary">Add Session</Button>
+          <Button onClick={() => setOpen(true)} className="bg-primary" disabled={!hasAssignedSpecialty}>Add Session</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {loading ? <div className="text-sm text-muted-foreground">Loading sessions…</div> : <DataTable columns={columns} data={data} />}
+        {loading ? renderSessionsSkeleton() : <DataTable columns={columns} data={data} />}
       </div>
+
+      <Dialog open={specialtyAlertOpen} onOpenChange={setSpecialtyAlertOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Specialty assignment required</DialogTitle>
+            <DialogDescription>
+              You need an assigned specialty before you can add sessions. Please contact an administrator to assign your specialty.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" onClick={() => setSpecialtyAlertOpen(false)}>Understood</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent>
@@ -864,4 +909,8 @@ export default function AddSessionPage() {
       </Dialog>
     </div>
   )
+}
+
+export default function AddSessionPage() {
+  return <AddSessionManager />
 }

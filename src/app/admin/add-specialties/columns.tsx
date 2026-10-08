@@ -13,12 +13,14 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "@/components/ui/avatar"
 
 export type SpecialtyRow = {
   id: string
   name: string
   description: string
   availableDoctors: number
+  assignedDoctors?: Array<{ id: string; name: string; avatar: string | null }>
   status: string
 }
 
@@ -35,8 +37,25 @@ export const columns: ColumnDef<SpecialtyRow>[] = [
   },
   {
     accessorKey: "availableDoctors",
-    header: "Available Doctors",
-    cell: ({ row }) => <span className="font-semibold">{row.getValue("availableDoctors")}</span>,
+    header: "Assigned Doctors",
+    cell: ({ row }) => {
+      const doctors = row.original.assignedDoctors ?? []
+      if (!doctors.length) return <span className="font-semibold">0</span>
+
+      return (
+        <AvatarGroup aria-label={`${doctors.length} assigned doctor${doctors.length === 1 ? "" : "s"}`}>
+          {doctors.slice(0, 3).map((doctor) => (
+            <Avatar key={doctor.id} size="sm" title={doctor.name}>
+              {doctor.avatar ? <AvatarImage src={doctor.avatar} alt={doctor.name} /> : null}
+              <AvatarFallback>
+                {doctor.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "DR"}
+              </AvatarFallback>
+            </Avatar>
+          ))}
+          {doctors.length > 3 ? <AvatarGroupCount>+{doctors.length - 3}</AvatarGroupCount> : null}
+        </AvatarGroup>
+      )
+    },
   },
   {
     accessorKey: "status",

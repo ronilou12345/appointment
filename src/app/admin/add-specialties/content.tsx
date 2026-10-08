@@ -11,6 +11,8 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { X } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -40,9 +42,9 @@ function EditSpecialtySheet({
     id: "",
     name: "",
     description: "",
-    availableDoctors: "0",
     status: "Active",
   })
+  const [assignedDoctorIds, setAssignedDoctorIds] = React.useState<string[]>([])
 
   React.useEffect(() => {
     if (!specialty) return
@@ -50,9 +52,9 @@ function EditSpecialtySheet({
       id: specialty.id,
       name: specialty.name,
       description: specialty.description,
-      availableDoctors: String(specialty.availableDoctors ?? 0),
       status: specialty.status || "Active",
     })
+    setAssignedDoctorIds((specialty.assignedDoctors ?? []).map((doctor) => doctor.id))
     setErrorMsg("")
   }, [specialty])
 
@@ -74,8 +76,8 @@ function EditSpecialtySheet({
           id: Number(form.id),
           name: form.name,
           description: form.description,
-          availableDoctors: Number(form.availableDoctors) || 0,
           status: form.status,
+          assignedDoctorIds,
         }),
       })
 
@@ -103,7 +105,7 @@ function EditSpecialtySheet({
         <form onSubmit={handleSubmit} className="flex h-full flex-col">
           <SheetHeader className="border-b px-6 py-4">
             <SheetTitle>Edit Specialty</SheetTitle>
-            <SheetDescription>Update specialty details and available doctor count.</SheetDescription>
+            <SheetDescription>Update specialty details and manage assigned doctors.</SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
@@ -125,18 +127,6 @@ function EditSpecialtySheet({
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="edit-available-doctors">Available Doctors</Label>
-                <Input
-                  id="edit-available-doctors"
-                  type="number"
-                  min="0"
-                  value={form.availableDoctors}
-                  onChange={(e) => handleChange("availableDoctors", e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="grid gap-2">
                 <Label htmlFor="edit-specialty-status">Status</Label>
                 <Select value={form.status} onValueChange={(value) => handleChange("status", value)}>
                   <SelectTrigger id="edit-specialty-status">
@@ -150,6 +140,38 @@ function EditSpecialtySheet({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Assigned doctors</Label>
+                <div className="space-y-2 rounded-md border border-border p-2">
+                  {specialty?.assignedDoctors?.filter((doctor) => assignedDoctorIds.includes(doctor.id)).length ? (
+                    specialty.assignedDoctors
+                      .filter((doctor) => assignedDoctorIds.includes(doctor.id))
+                      .map((doctor) => (
+                        <div key={doctor.id} className="flex items-center gap-2 rounded-sm px-1 py-1">
+                          <Avatar size="sm">
+                            {doctor.avatar ? <AvatarImage src={doctor.avatar} alt="" /> : null}
+                            <AvatarFallback>
+                              {doctor.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "DR"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="min-w-0 flex-1 truncate text-sm">{doctor.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove ${doctor.name} from ${specialty.name}`}
+                            onClick={() => setAssignedDoctorIds((current) => current.filter((id) => id !== doctor.id))}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="px-1 py-2 text-sm text-muted-foreground">No doctors assigned.</p>
+                  )}
+                </div>
               </div>
 
               <div className="grid gap-2">

@@ -487,7 +487,11 @@ export function BookAppointmentContent() {
   const doctorAppointmentTypes = Array.from(
     new Set(
       sessions
-        .filter((s) => String(s.doctorId) === String(selectedDoctorId) && s.date === formData.date && isActiveSession(s))
+        .filter((session) =>
+          String(session.doctorId) === String(selectedDoctorId) &&
+          session.date === formData.date &&
+          sessionHasTimeRemaining(session, session.date),
+        )
         .flatMap((s) => {
           const single = (s as any).appointmentType
           const arr = (s as any).appointmentTypes
@@ -497,6 +501,12 @@ export function BookAppointmentContent() {
         }),
     ),
   )
+
+    useEffect(() => {
+      if (formData.appointmentType && !doctorAppointmentTypes.includes(formData.appointmentType)) {
+        setFormData((current) => ({ ...current, appointmentType: "" }))
+      }
+    }, [doctorAppointmentTypes, formData.appointmentType])
 
   const doctorCardLimit = isMobileView ? 5 : 6
   const availableTodayDoctors = doctors.filter((doctor) => doctorIsAvailableToday(doctor.id))
@@ -1071,14 +1081,12 @@ export function BookAppointmentContent() {
                     onChange={handleInputChange}
                     className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
-                    <option value="">Select appointment type</option>
-                    {doctorAppointmentTypes.length === 0 ? (
-                      <option value="General Consultation">General Consultation</option>
-                    ) : (
-                      doctorAppointmentTypes.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))
-                    )}
+                    <option value="" disabled>
+                      {doctorAppointmentTypes.length ? "Select appointment type" : "Appointment type not available"}
+                    </option>
+                    {doctorAppointmentTypes.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </select>
                 </div>
               <div>
