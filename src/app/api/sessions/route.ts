@@ -179,6 +179,14 @@ export async function GET(request: NextRequest) {
       return String(value).slice(0, 5)
     }
 
+    const knownAppointmentTypeOptions = [
+      "General Consultation",
+      "Follow-up Consultation",
+      "Medical Certificate",
+      "Prescription Refill",
+      "Check Up",
+    ]
+
     const sessions = rows.map((row) => {
       const capacity = Number(row.slots ?? 0)
       const bookedCount = Number(row.booked_count ?? 0)
@@ -189,6 +197,20 @@ export async function GET(request: NextRequest) {
         ? requestedStatus
         : "Active"
 
+      const appointmentValues = row.appointmenttype || row.appointmentType
+        ? String(row.appointmenttype ?? row.appointmentType)
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .filter((value) => {
+              if (!value || value === "Others___" || value === "...") return false
+              const isPrefixOfKnownType = knownAppointmentTypeOptions.some((option) =>
+                option.toLowerCase().startsWith(value.toLowerCase()) && option.length > value.length,
+              )
+              return !isPrefixOfKnownType
+            })
+        : []
+
       return {
         id: String(row.id),
         doctorId: String(row.doctor_id),
@@ -198,7 +220,7 @@ export async function GET(request: NextRequest) {
         duration: "",
         slots: remaining,
         status: normalizedStatus,
-        appointmentTypes: row.appointmenttype || row.appointmentType ? String(row.appointmenttype ?? row.appointmentType).split(",").map((s) => s.trim()).filter(Boolean) : [],
+        appointmentTypes: appointmentValues,
       }
     })
 
@@ -308,11 +330,34 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const types = Array.isArray(session.appointmentTypes)
-        ? session.appointmentTypes.map((t) => String(t).trim().slice(0, 50)).filter(Boolean)
-        : (session.appointmentType ? [String(session.appointmentType).trim().slice(0, 50)] : ["General Consultation"])
+      const knownAppointmentTypeOptions = [
+        "General Consultation",
+        "Follow-up Consultation",
+        "Medical Certificate",
+        "Prescription Refill",
+        "Check Up",
+      ]
 
-      const appointmentType = types.join(", ").slice(0, 50)
+      const rawTypes = Array.isArray(session.appointmentTypes)
+        ? session.appointmentTypes.map((t) => String(t).trim()).filter(Boolean)
+        : (session.appointmentType ? [String(session.appointmentType).trim()] : [])
+
+      const compactedTypes = rawTypes.filter((type) => {
+        if (!type || type === "Others___" || type === "...") return false
+        const isPrefixOfKnownType = knownAppointmentTypeOptions.some((option) =>
+          option.toLowerCase().startsWith(type.toLowerCase()) && option.length > type.length,
+        )
+        return !isPrefixOfKnownType
+      })
+      if (!compactedTypes.length) {
+        return NextResponse.json(
+          { success: false, error: "Select at least one appointment type before adding the session." },
+          { status: 400 },
+        )
+      }
+
+      const typeText = compactedTypes.join(", ")
+      const appointmentType = typeText
       const requestedStatus = normalizeStatusValue(session.status)
 
       try {
@@ -377,10 +422,16 @@ export async function PUT(request: NextRequest) {
 
     const typedSessionName = body?.sessionName || body?.appointmentType || (Array.isArray(body?.appointmentTypes) ? body.appointmentTypes[0] : "")
     const types = Array.isArray(body?.appointmentTypes)
-      ? body.appointmentTypes.map((t: any) => String(t).trim().slice(0, 50)).filter(Boolean)
-      : (typedSessionName ? [String(typedSessionName).trim().slice(0, 50)] : [])
+      ? body.appointmentTypes.map((t: any) => String(t).trim()).filter(Boolean)
+      : (typedSessionName ? [String(typedSessionName).trim()] : [])
 
-    const appointmentType = types.length ? types.join(', ').slice(0, 50) : null
+    const appointmentType = types.length ? types.join(', ') : null
+    if (!appointmentType) {
+      return NextResponse.json(
+        { success: false, error: "Select at least one appointment type before updating the session." },
+        { status: 400 },
+      )
+    }
 
     const requestedStatus = normalizeStatusValue(body?.status)
 

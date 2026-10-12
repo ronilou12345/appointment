@@ -19,6 +19,44 @@ const appointmentTypeOptions = [
   "Check Up",
   "Others___",
 ]
+const selectableAppointmentTypeOptions = appointmentTypeOptions.filter((option) => option !== "Check Up")
+
+const isLikelyTruncatedAppointmentType = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed === "..." || trimmed === "Others___") return false
+
+  return appointmentTypeOptions.some((option) =>
+    option.toLowerCase().startsWith(trimmed.toLowerCase()) && option.length > trimmed.length,
+  )
+}
+
+const normalizeAppointmentTypeEntry = (value: unknown) => {
+  if (typeof value !== "string") return null
+
+  const trimmed = value.trim()
+  if (!trimmed || trimmed === "Others___" || trimmed === "...") return null
+
+  if (isLikelyTruncatedAppointmentType(trimmed)) {
+    return null
+  }
+
+  const exactMatch = appointmentTypeOptions.some((option) => option.toLowerCase() === trimmed.toLowerCase())
+  if (exactMatch) {
+    return trimmed
+  }
+
+  return trimmed
+}
+
+const formatAppointmentTypeSummary = (types: string[] | undefined) => {
+  const visibleTypes = (types ?? [])
+    .map((item) => normalizeAppointmentTypeEntry(item))
+    .filter((item): item is string => Boolean(item))
+
+  if (!visibleTypes.length) return "Not selected"
+
+  return visibleTypes.join(", ")
+}
 
 type SessionDraft = Omit<SessionRow, "id"> & { tempId: string }
 
@@ -83,6 +121,7 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
   const [data, setData] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [specialtyAlertOpen, setSpecialtyAlertOpen] = useState(!hasAssignedSpecialty)
+  const [editCalendarOpen, setEditCalendarOpen] = useState(false)
 
   const [open, setOpen] = useState(false)
   const [drafts, setDrafts] = useState<SessionDraft[]>([
@@ -131,6 +170,11 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
     return date < today
   }
 
+  const hasExistingSessionOnDate = (date: Date) => {
+    const dateKey = formatDateValue(date)
+    return data.some((session) => session.date === dateKey)
+  }
+
   const addDraft = () => {
     const id = `t${Date.now()}`
     setDrafts((prev) => [
@@ -176,7 +220,9 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
   }
 
   const getCustomAppointmentEntries = (appointmentTypes: string[] | undefined) =>
-    (appointmentTypes ?? []).filter((item) => typeof item === "string" && item.trim() && !appointmentTypeOptions.includes(item) && item !== "Others___")
+    (appointmentTypes ?? [])
+      .map((item) => normalizeAppointmentTypeEntry(item))
+      .filter((item): item is string => typeof item === "string" && Boolean(item) && !appointmentTypeOptions.includes(item) && item !== "Others___")
 
   const recordCustomAppointmentType = (current: string[] | undefined, nextValue: string, replacing?: string | null) => {
     const trimmed = nextValue.trim()
@@ -379,8 +425,11 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
       }
 
       await loadSessions()
+      toast.success("Session successfully deleted")
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to delete session')
+      const message = err instanceof Error ? err.message : 'Failed to delete session'
+      setErrorMessage(message)
+      toast.error(message)
       // rollback: refetch sessions
       try {
         const r = await fetch('/api/sessions?mine=true')
@@ -405,7 +454,10 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
     })
 
     if (incompleteDrafts.length > 0) {
-      setErrorMessage("Please complete all session fields for each entry before adding. Select date, start time, end time, status, slots, and appointment type before confirming.")
+      toast.error("Please complete all session fields for each entry before adding. Select date, start time, end time, status, slots, and appointment type before confirming.", {
+        id: "session-form-validation",
+      })
+      setErrorMessage("")
       return
     }
 
@@ -429,7 +481,10 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
     })
 
     if (overlappingDrafts.length > 0) {
-      setErrorMessage("You cannot create a session on the same date when the time range overlaps another selected session.")
+      toast.error("You cannot create a session on the same date when the time range overlaps another selected session.", {
+        id: "session-time-range-conflict",
+      })
+      setErrorMessage("")
       return
     }
 
@@ -443,7 +498,10 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
     })
 
     if (timeConflicts.length > 0) {
-      setErrorMessage("This selected time conflicts with an existing session and cannot be created.")
+      toast.error("This selected time conflicts with an existing session and cannot be created. Please choose a time range that does not fall within an existing session.", {
+        id: "session-time-range-conflict",
+      })
+      setErrorMessage("")
       return
     }
 
@@ -462,7 +520,10 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
     })
 
     if (duplicates.length > 0) {
-      setErrorMessage("A session with the same date and start time already exists. You can add the same date with a different time.")
+      toast.error("A session with the same date and start time already exists. You can add the same date with a different time.", {
+        id: "session-time-range-conflict",
+      })
+      setErrorMessage("")
       return
     }
 
@@ -489,12 +550,14 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
             slots: sanitizeSlotCount(draft.slots),
             status: normalizeSessionStatus(draft.status),
             appointmentTypes: (() => {
-              const pendingOther = (customValues[draft.tempId] ?? "").trim()
+                      const pendingOther = (customValues[draft.tempId] ?? "").trim()
               const recorded = pendingOther
                 ? recordCustomAppointmentType(draft.appointmentTypes, pendingOther)
                 : (draft.appointmentTypes ?? [])
-              const visible = recorded.filter((item) => item !== "Others___" && Boolean(String(item).trim()))
-              return visible.length ? visible : ["General Consultation"]
+              const visible = recorded
+                .map((item) => normalizeAppointmentTypeEntry(item))
+                .filter((item): item is string => Boolean(item) && item !== "Others___")
+              return visible
             })(),
           })),
         }),
@@ -523,7 +586,7 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
       : (editSession.appointmentTypes ?? [])
     const visibleTypes = recordedTypes.filter((item) => item !== "Others___" && Boolean(String(item).trim()))
     const normalizedStatus = normalizeSessionStatus(editSession.status)
-    const sessionName = String(visibleTypes[0] ?? "").trim() || "General Consultation"
+    const sessionName = String(visibleTypes[0] ?? "").trim()
 
     try {
       const response = await fetch('/api/sessions', {
@@ -536,7 +599,7 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
           endTime: editSession.endTime,
           slots: sanitizeSlotCount(editSession.slots, 0),
           appointmentType: sessionName,
-          appointmentTypes: visibleTypes.length ? visibleTypes : [sessionName],
+          appointmentTypes: visibleTypes,
           status: normalizedStatus,
         }),
       })
@@ -550,7 +613,7 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
         endTime: editSession.endTime,
         slots: sanitizeSlotCount(editSession.slots, 0),
         status: normalizedStatus,
-        appointmentTypes: visibleTypes.length ? visibleTypes : [sessionName],
+        appointmentTypes: visibleTypes,
       } : row))
 
       await loadSessions()
@@ -595,14 +658,13 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
       </Dialog>
 
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Multiple Sessions</DialogTitle>
             <DialogDescription>Add one or more sessions below. Use "Add another" to create multiple entries.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 max-h-[60vh] overflow-auto py-2">
-            {errorMessage ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{errorMessage}</div> : null}
+          <div className="space-y-4 max-h-[60vh] overflow-auto py-2 pr-1">
             {drafts.map((d) => (
               <div key={d.tempId} className="rounded-lg border border-border p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -661,19 +723,19 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
                   <div>
                     <label className="text-sm text-muted-foreground">Appointment Types</label>
                     <div className="mt-1 space-y-2 rounded-lg border px-2 py-2">
-                      {appointmentTypeOptions.map((option) => (
-                        <label key={option} className="flex items-center gap-2 text-sm">
+                      {selectableAppointmentTypeOptions.map((option) => (
+                        <label key={option} className="flex min-w-0 items-center gap-2 text-sm">
                           <input
                             type="checkbox"
                             checked={(d.appointmentTypes ?? []).includes(option)}
                             onChange={() => toggleAppointmentType(d.tempId, option)}
                           />
-                          <span>{option}</span>
+                          <span className="min-w-0 break-words">{option}</span>
                         </label>
                       ))}
                       {(d.appointmentTypes ?? []).includes("Others___") && (
                         <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
                             <input
                               type="text"
                               value={getOtherTextValue(d.tempId)}
@@ -685,7 +747,7 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
                                 }
                               }}
                               placeholder={editingDraftCustom[d.tempId] ? "Edit other appointment type" : "Enter other appointment type"}
-                              className="mt-1 w-full rounded-lg border px-2 py-1 text-sm"
+                              className="mt-1 w-full min-w-0 rounded-lg border px-2 py-1 text-sm"
                             />
                             <Button
                               type="button"
@@ -697,14 +759,14 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
                             </Button>
                           </div>
                           {getCustomAppointmentEntries(d.appointmentTypes).map((item) => (
-                            <div key={item} className="flex items-center justify-between gap-2 text-sm">
+                            <div key={item} className="flex min-w-0 items-center justify-between gap-2 text-sm">
                               <label className="flex min-w-0 items-center gap-2">
                                 <input
                                   type="checkbox"
                                   checked
                                   onChange={() => removeCustomAppointmentType(d.tempId, item)}
                                 />
-                                <span className="truncate">{item}</span>
+                                <span className="min-w-0 break-all">{item}</span>
                               </label>
                               <Button
                                 type="button"
@@ -740,17 +802,45 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
       </Dialog>
 
       <Sheet open={editOpen} onOpenChange={(o) => { if (!o) { setEditSession(null); setEditCustomValue(""); setEditingEditCustom(null) }; setEditOpen(o) }}>
-        <SheetContent side="right">
+        <SheetContent side="right" className="w-[calc(100vw-2rem)] max-w-lg">
           <SheetHeader>
             <SheetTitle>Edit Session</SheetTitle>
             <SheetDescription>Modify session details and save.</SheetDescription>
           </SheetHeader>
 
           {editSession ? (
-            <div className="space-y-4 p-4">
+            <div className="space-y-4 overflow-hidden p-4">
               <div>
                 <label className="text-sm text-muted-foreground">Date</label>
-                <input type="date" value={editSession.date} onChange={(e) => setEditSession({ ...editSession, date: e.target.value })} className="mt-1 w-full rounded-lg border px-2 py-1" />
+                <input
+                  type="text"
+                  readOnly
+                  value={editSession.date}
+                  placeholder="Select Date"
+                  onClick={() => setEditCalendarOpen(true)}
+                  className="mt-1 w-full rounded-lg border px-2 py-1"
+                />
+                {editCalendarOpen && (
+                  <div className="mt-2 rounded-md border border-border p-2">
+                    <Calendar
+                      selected={editSession.date ? parseDateValue(editSession.date) : null}
+                      disabled={isDateSelectable}
+                      getIndicator={(date) => hasExistingSessionOnDate(date) ? "available" : null}
+                      getTooltip={(date) => hasExistingSessionOnDate(date) ? "Session already exists on this date" : undefined}
+                      onSelect={(date) => {
+                        if (date && !isDateSelectable(date)) {
+                          setEditSession((current) => current ? { ...current, date: formatDateValue(date) } : current)
+                        }
+                        setEditCalendarOpen(false)
+                      }}
+                    />
+                    <div className="mt-2 flex justify-end">
+                      <Button variant="outline" onClick={() => setEditCalendarOpen(false)}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -788,8 +878,8 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
               <div>
                 <label className="text-sm text-muted-foreground">Appointment Types</label>
                 <div className="mt-1 space-y-2 rounded-lg border px-2 py-2">
-                  {appointmentTypeOptions.map((option) => (
-                    <label key={option} className="flex items-center gap-2 text-sm">
+                  {selectableAppointmentTypeOptions.map((option) => (
+                    <label key={option} className="flex min-w-0 items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         checked={(editSession.appointmentTypes ?? []).includes(option)}
@@ -799,12 +889,12 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
                           setEditSession({ ...editSession, appointmentTypes: next })
                         }}
                       />
-                      <span>{option}</span>
+                      <span className="min-w-0 break-words">{option}</span>
                     </label>
                   ))}
                   {((editSession.appointmentTypes ?? []).includes("Others___") || getCustomAppointmentEntries(editSession.appointmentTypes).length > 0) && (
                     <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <input
                           type="text"
                           value={editCustomValue}
@@ -816,7 +906,7 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
                             }
                           }}
                           placeholder={editingEditCustom ? "Edit other appointment type" : "Enter other appointment type"}
-                          className="mt-1 w-full rounded-lg border px-2 py-1 text-sm"
+                          className="mt-1 w-full min-w-0 rounded-lg border px-2 py-1 text-sm"
                         />
                         <Button
                           type="button"
@@ -828,14 +918,14 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
                         </Button>
                       </div>
                       {getCustomAppointmentEntries(editSession.appointmentTypes).map((item) => (
-                        <div key={item} className="flex items-center justify-between gap-2 text-sm">
+                        <div key={item} className="flex min-w-0 items-center justify-between gap-2 text-sm">
                           <label className="flex min-w-0 items-center gap-2">
                             <input
                               type="checkbox"
                               checked
                               onChange={() => removeEditSessionCustomType(item)}
                             />
-                            <span className="truncate">{item}</span>
+                            <span className="min-w-0 break-all">{item}</span>
                           </label>
                           <Button
                             type="button"
@@ -890,6 +980,8 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
               <Calendar
                 selected={drafts.find((draft) => draft.tempId === calendarOpenFor)?.date ? parseDateValue(drafts.find((draft) => draft.tempId === calendarOpenFor)!.date) : null}
                 disabled={isDateSelectable}
+                getIndicator={(date) => hasExistingSessionOnDate(date) ? "available" : null}
+                getTooltip={(date) => hasExistingSessionOnDate(date) ? "Session already exists on this date" : undefined}
                 onSelect={(date) => {
                   const currentDraft = drafts.find((draft) => draft.tempId === calendarOpenFor)
                   if (date && currentDraft && !isDateSelectable(date)) {
@@ -907,6 +999,7 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
           ) : null}
         </DialogContent>
       </Dialog>
+
     </div>
   )
 }

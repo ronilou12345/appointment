@@ -86,14 +86,42 @@ const formatDisplayTime = (value: unknown) => {
   return text
 }
 
+const knownAppointmentTypeOptions = [
+  "General Consultation",
+  "Follow-up Consultation",
+  "Medical Certificate",
+  "Prescription Refill",
+  "Check Up",
+]
+
+const normalizeStoredAppointmentType = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed === "Others___" || trimmed === "...") return null
+
+  const isPrefixOfKnownType = knownAppointmentTypeOptions.some((option) =>
+    option.toLowerCase().startsWith(trimmed.toLowerCase()) && option.length > trimmed.length,
+  )
+  if (isPrefixOfKnownType) return null
+
+  return trimmed
+}
+
+const formatAppointmentTypeSummary = (value: string[] | undefined) => {
+  const visibleTypes = (value ?? [])
+    .map((item) => normalizeStoredAppointmentType(String(item ?? "")))
+    .filter((item): item is string => Boolean(item))
+
+  const joined = visibleTypes.join(", ")
+  return joined || "Not selected"
+}
+
 export const columns: ColumnDef<SessionRow>[] = [
   {
     accessorKey: "appointmentTypes",
     header: "Appointment Type",
     cell: ({ row }) => {
       const value = row.getValue("appointmentTypes") as string[] | undefined
-      const visibleTypes = (value ?? []).filter((item) => typeof item === "string" && item.trim() && item !== "Others___")
-      return <span className="text-sm">{visibleTypes.length > 0 ? visibleTypes.join(", ") : "Not selected"}</span>
+      return <span className="whitespace-normal break-words text-sm">{formatAppointmentTypeSummary(value)}</span>
     },
   },
   {

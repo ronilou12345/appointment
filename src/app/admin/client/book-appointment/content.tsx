@@ -82,7 +82,6 @@ export function BookAppointmentContent() {
     date: "",
     time: "",
     appointmentType: "",
-    reason: "",
     patientRelationship: "",
     patientRelationshipOther: "",
     patientName: "",
@@ -563,7 +562,6 @@ export function BookAppointmentContent() {
         return { success: false, message: "Please enter the patient's relationship." }
       if (namedPatientRelationships.has(formData.patientRelationship) && !formData.patientName.trim())
         return { success: false, message: "Please enter the patient's name." }
-      if (!formData.reason) return { success: false, message: "Please enter the reason for the visit." }
       return { success: true }
     }
 
@@ -613,7 +611,6 @@ export function BookAppointmentContent() {
       appointmentDate: formData.date || undefined,
       appointmentTime: formData.time || undefined,
       appointmentType: formData.appointmentType || "General Consultation",
-      reasonForVisit: formData.reason,
       relationship:
         formData.patientRelationship === "Other"
           ? formData.patientRelationshipOther || "Other"
@@ -649,7 +646,6 @@ export function BookAppointmentContent() {
         date: "",
         time: "",
         appointmentType: "",
-        reason: "",
         patientRelationship: "",
         patientRelationshipOther: "",
         patientName: "",
@@ -1136,17 +1132,6 @@ export function BookAppointmentContent() {
                 </div>
               )}
 
-              <div>
-                <Label htmlFor="reason">Reason for Visit</Label>
-                <input
-                  id="reason"
-                  name="reason"
-                  placeholder="e.g., Check-up, Follow-up, New concern"
-                  value={formData.reason}
-                  onChange={handleInputChange}
-                  className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                />
-              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <Label htmlFor="age">Age</Label>
@@ -1373,10 +1358,6 @@ export function BookAppointmentContent() {
 
                     <div className="space-y-4 p-5 sm:p-6">
                       <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Visit details</p>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Reason for visit</p>
-                        <p className="mt-1 font-semibold">{formData.reason || "Not provided"}</p>
-                      </div>
                       {formData.symptoms ? (
                         <>
                           <Separator />
@@ -1438,8 +1419,7 @@ export function BookAppointmentContent() {
               onClick={handleNext}
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
-                (currentStep === 1 && (!formData.date || !formData.time || hasActiveDateConflict)) ||
-                (currentStep === 2 && !formData.reason)
+                (currentStep === 1 && (!formData.date || !formData.time || hasActiveDateConflict))
               }
               className="bg-orange-500 hover:bg-orange-600"
             >
