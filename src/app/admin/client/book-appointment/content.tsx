@@ -445,34 +445,7 @@ export function BookAppointmentContent() {
       return "No upcoming schedule"
     }
 
-    return new Date(`${upcomingDates[0]}T00:00:00`).toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    })
-  }
-
-  const getDoctorSessionDateSummary = (doctorId: number) => {
-    const upcomingDates = Array.from(
-      new Set(
-        sessions
-          .filter(
-            (session) =>
-              String(session.doctorId) === String(doctorId) &&
-              isActiveSession(session) &&
-              Number(session.slots ?? 0) > 0 &&
-              new Date(`${session.date}T00:00:00`).getTime() >= startOfDay(new Date()).getTime(),
-          )
-          .map((session) => session.date),
-      ),
-    ).sort()
-
-    if (upcomingDates.length === 0) {
-      return "No available dates"
-    }
-
     return upcomingDates
-      .slice(0, 3)
       .map((date) =>
         new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
           weekday: "short",
@@ -480,7 +453,7 @@ export function BookAppointmentContent() {
           day: "numeric",
         }),
       )
-      .join(" • ")
+      .join(" · ")
   }
 
   const doctorAppointmentTypes = Array.from(
@@ -826,9 +799,9 @@ export function BookAppointmentContent() {
                               <div className="rounded-xl border border-border bg-muted/30 p-2.5">
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
                                   <Clock3 className="h-3.5 w-3.5" />
-                                  <span>Next session</span>
+                                  <span>Next sessions</span>
                                 </div>
-                                <div className="mt-1 font-semibold text-foreground">
+                                <div className="mt-1 break-words font-semibold leading-relaxed text-foreground">
                                   {getDoctorNextSessionDate(doctor.id)}
                                 </div>
                               </div>
@@ -1250,7 +1223,7 @@ export function BookAppointmentContent() {
 
         {/* Step 4: Confirmation */}
         {currentStep === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {(() => {
               const selectedDoctor = doctors.find((d) => d.id.toString() === formData.doctorId)
               const doctorName = selectedDoctor?.name || "Not selected"
@@ -1270,18 +1243,21 @@ export function BookAppointmentContent() {
 
               return (
                 <>
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Confirmation</p>
-                    <h2 className="mt-2 text-2xl font-semibold">Review and confirm</h2>
-                    <p className="mt-2 text-muted-foreground">
-                      Please review your appointment details before confirming.
-                    </p>
+                  <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
+                    <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
+                      <CheckCircle className="size-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase text-emerald-800 dark:text-emerald-300">Confirmation</p>
+                      <h2 className="mt-1 text-xl font-semibold text-foreground">Review and confirm</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Please review your appointment details before confirming.
+                      </p>
+                    </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card to-muted/30">
-                    <div className="flex flex-col gap-4 bg-card p-5 sm:flex-row sm:items-center sm:p-6">
+                  <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                    <div className="flex flex-col gap-4 bg-muted/30 p-4 sm:flex-row sm:items-center sm:p-5">
                       <div className="relative flex-shrink-0">
                         <Avatar className="h-20 w-20 border-2 border-white shadow-md ring-4 ring-primary/5">
                           {selectedDoctor?.avatar ? (
@@ -1294,8 +1270,8 @@ export function BookAppointmentContent() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Doctor</p>
-                        <p className="mt-2 text-2xl font-semibold text-foreground">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">Doctor</p>
+                        <p className="mt-1 break-words text-xl font-semibold text-foreground">
                           {doctorName}
                         </p>
                         <p className="mt-1 text-sm font-medium text-primary">
@@ -1310,28 +1286,28 @@ export function BookAppointmentContent() {
                     <Separator />
 
                     <div className="grid gap-0 sm:grid-cols-3">
-                      <div className="p-5 sm:p-6">
-                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Appointment type</p>
-                        <p className="mt-2 font-semibold">{formData.appointmentType || "Not selected"}</p>
+                      <div className="min-w-0 p-4 sm:p-5">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">Appointment type</p>
+                        <p className="mt-2 break-words font-semibold">{formData.appointmentType || "Not selected"}</p>
                       </div>
-                      <div className="border-t border-border p-5 sm:border-t-0 sm:border-l sm:p-6">
-                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Date</p>
+                      <div className="border-t border-border bg-muted/15 p-4 sm:border-t-0 sm:border-l sm:p-5">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">Date</p>
                         <p className="mt-2 font-semibold">{formData.date || "Not selected"}</p>
                       </div>
-                      <div className="border-t border-border p-5 sm:border-t-0 sm:border-l sm:p-6">
-                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Time</p>
+                      <div className="border-t border-border p-4 sm:border-t-0 sm:border-l sm:p-5">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">Time</p>
                         <p className="mt-2 font-semibold">{formData.time || "Not selected"}</p>
                       </div>
                     </div>
 
                     <Separator />
 
-                    <div className="space-y-4 p-5 sm:p-6">
-                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Patient</p>
-                      <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-4 p-4 sm:p-5">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">Patient</p>
+                      <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
                         <div>
                           <p className="text-sm text-muted-foreground">Who is the patient?</p>
-                          <p className="mt-1 font-semibold">{patientLabel}</p>
+                          <p className="mt-1 break-words font-semibold">{patientLabel}</p>
                         </div>
                         {namedPatientRelationships.has(formData.patientRelationship) ? (
                           <div>
@@ -1356,14 +1332,14 @@ export function BookAppointmentContent() {
 
                     <Separator />
 
-                    <div className="space-y-4 p-5 sm:p-6">
-                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Visit details</p>
+                    <div className="space-y-4 bg-muted/15 p-4 sm:p-5">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">Visit details</p>
                       {formData.symptoms ? (
                         <>
                           <Separator />
                           <div>
                             <p className="text-sm text-muted-foreground">Symptoms</p>
-                            <p className="mt-1 font-semibold">{formData.symptoms}</p>
+                            <p className="mt-1 break-words font-semibold">{formData.symptoms}</p>
                           </div>
                         </>
                       ) : null}
@@ -1372,7 +1348,7 @@ export function BookAppointmentContent() {
                           <Separator />
                           <div>
                             <p className="text-sm text-muted-foreground">Duration of symptoms</p>
-                            <p className="mt-1 font-semibold">{formData.durationOfSymptoms}</p>
+                            <p className="mt-1 break-words font-semibold">{formData.durationOfSymptoms}</p>
                           </div>
                         </>
                       ) : null}
@@ -1388,7 +1364,7 @@ export function BookAppointmentContent() {
                           <Separator />
                           <div>
                             <p className="text-sm text-muted-foreground">Additional notes</p>
-                            <p className="mt-1 font-semibold">{formData.notes}</p>
+                            <p className="mt-1 whitespace-pre-wrap break-words font-semibold">{formData.notes}</p>
                           </div>
                         </>
                       ) : null}

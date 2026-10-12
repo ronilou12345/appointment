@@ -29,6 +29,10 @@ function formatTime(value: string) {
   })
 }
 
+function getAppointmentTypes(value: string) {
+  return value.split(",").map((type) => type.trim()).filter(Boolean)
+}
+
 function isActiveSession(session: DoctorProfileSession) {
   return (session.status ?? "Active").trim().toLowerCase() === "active"
 }
@@ -186,9 +190,17 @@ export function DoctorSessionsCalendar({ sessions }: { sessions: DoctorProfileSe
               {selectedSessions.map((session) => (
                 <div key={session.id} className="rounded-md border border-border p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium">{formatTime(session.startTime)}–{formatTime(session.endTime)}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{session.appointmentType || "General consultation"}</p>
+                      <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                        {getAppointmentTypes(session.appointmentType).length ? (
+                          getAppointmentTypes(session.appointmentType).map((type, index) => (
+                            <p key={`${session.id}-${index}`} className="break-words">{type}</p>
+                          ))
+                        ) : (
+                          <p>No appointment types listed</p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       {!isActiveSession(session) ? (

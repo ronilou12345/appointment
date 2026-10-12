@@ -268,7 +268,7 @@ type AppointmentPayload = {
   appointmentDate?: string | null
   appointmentTime?: string | null
   appointmentType?: string
-  reasonForVisit: string
+  reasonForVisit?: string
   relationship: string
   age?: number | null
   gender?: string | null
@@ -292,13 +292,13 @@ export async function POST(request: NextRequest) {
     const doctorId = Number(payload.doctorId)
     const sessionId = Number(payload.sessionId)
 
-    if (!doctorId || !sessionId || !payload.reasonForVisit || !payload.relationship) {
+    if (!doctorId || !sessionId || !payload.relationship?.trim()) {
       return NextResponse.json({ success: false, error: "Missing required appointment fields" }, { status: 400 })
     }
 
     const appointmentType = payload.appointmentType ? String(payload.appointmentType).trim().slice(0, 50) : "General Consultation"
     const relationship = payload.relationship.trim().slice(0, 100)
-    const reasonForVisit = payload.reasonForVisit.trim().slice(0, 500)
+    const reasonForVisit = payload.reasonForVisit?.trim().slice(0, 500) ?? ""
     const rawContactNumber = payload.contactNumber ? String(payload.contactNumber).trim().slice(0, 20) : null
     const contactNumber = rawContactNumber ? normalizePhilippineMobile(rawContactNumber) : null
     if (rawContactNumber && !contactNumber) {
