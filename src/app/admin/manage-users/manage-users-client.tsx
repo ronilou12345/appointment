@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { columns, getStatusDotClass, normalizeUserStatus, StatusBadge, UserRow } from "./columns"
 import { DataTable } from "@/components/data-table"
@@ -13,8 +14,10 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useTheme } from "@/components/theme-provider"
 import { toast } from "sonner"
-import { CameraIcon, MailIcon, UserIcon, LockIcon, HashIcon, CheckIcon, XIcon, Eye, EyeOff } from "lucide-react"
+import SignatureCanvas from "react-signature-canvas"
+import { CameraIcon, MailIcon, UserIcon, LockIcon, HashIcon, CheckIcon, XIcon, Eye, EyeOff, PenLine } from "lucide-react"
 
 export type CreateUserForm = {
   userType: string
@@ -31,6 +34,7 @@ export type CreateUserForm = {
   licenseNumber: string
   yearsofexperience: string
   address: string
+  signature: string
 }
 
 type EditUserForm = {
@@ -46,6 +50,7 @@ type EditUserForm = {
   licenseNumber: string
   yearsOfExperience: string
   boardCertifications: string
+  signature: string
 }
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -162,15 +167,197 @@ function AvatarUploadField({
   )
 }
 
+function tintSignatureDataUrl(source: string, color: string) {
+  return new Promise<string>((resolve) => {
+    const image = new window.Image()
+    image.onload = () => {
+      const canvas = document.createElement("canvas")
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      const context = canvas.getContext("2d")
+      if (!context) {
+        resolve(source)
+        return
+      }
+
+      context.drawImage(image, 0, 0)
+      context.globalCompositeOperation = "source-in"
+      context.fillStyle = color
+      context.fillRect(0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL("image/png"))
+    }
+    image.onerror = () => resolve(source)
+    image.src = source
+  })
+}
+
+function DoctorSignatureField({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (signature: string) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [preview, setPreview] = React.useState("")
+  const signatureRef = React.useRef<SignatureCanvas | null>(null)
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+  const inkColor = isDark ? "#ffffff" : "#111827"
+  const [displaySignature, setDisplaySignature] = React.useState(value)
+  const [displayPreview, setDisplayPreview] = React.useState(preview)
+
+  React.useEffect(() => {
+    let cancelled = false
+    if (!value) {
+      setDisplaySignature("")
+      return
+    }
+
+    void tintSignatureDataUrl(value, inkColor).then((signature) => {
+      if (!cancelled) setDisplaySignature(signature)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [inkColor, value])
+
+  React.useEffect(() => {
+    let cancelled = false
+    if (!preview) {
+      setDisplayPreview("")
+      return
+    }
+
+    void tintSignatureDataUrl(preview, inkColor).then((signature) => {
+      if (!cancelled) setDisplayPreview(signature)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [inkColor, preview])
+
+  React.useEffect(() => {
+    const pad = signatureRef.current
+    if (!open || !pad || pad.isEmpty()) return
+
+    let cancelled = false
+    const canvas = pad.getCanvas()
+    void tintSignatureDataUrl(pad.toDataURL("image/png"), inkColor).then((signature) => {
+      if (cancelled) return
+      const image = new window.Image()
+      image.onload = () => {
+        if (cancelled) return
+        const context = canvas.getContext("2d")
+        context?.clearRect(0, 0, canvas.width, canvas.height)
+        context?.drawImage(image, 0, 0, canvas.width, canvas.height)
+        setPreview(signature)
+      }
+      image.src = signature
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [inkColor, open])
+
+  const closeEditor = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) {
+      signatureRef.current?.clear()
+      setPreview("")
+    }
+  }
+
+  const saveSignature = () => {
+    if (!signatureRef.current || signatureRef.current.isEmpty()) {
+      toast.error("Draw your signature before saving.")
+      return
+    }
+
+    onChange(signatureRef.current.toDataURL("image/png"))
+    closeEditor(false)
+  }
+
+  return (
+    <div className="grid gap-2 sm:col-span-2">
+      <Label>Doctor signature</Label>
+      <div className="flex min-h-32 flex-col gap-3 rounded-lg border bg-background p-3">
+        <div className="flex min-h-16 flex-1 items-center">
+          {displaySignature ? (
+            <Image src={displaySignature} alt="Saved doctor signature" width={480} height={120} unoptimized className="h-16 max-w-full object-contain object-left" />
+          ) : (
+            <p className="text-sm text-muted-foreground">No signature saved</p>
+          )}
+        </div>
+        <Button type="button" variant="outline" className="mt-auto gap-2 self-start" onClick={() => setOpen(true)}>
+          <PenLine className="size-4" />
+          Draw Your Signature
+        </Button>
+      </div>
+
+      <Dialog open={open} onOpenChange={closeEditor}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Draw Your Signature</DialogTitle>
+            <DialogDescription>Sign using your mouse, trackpad, touchscreen, or stylus.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="aspect-[3/1] min-h-32 w-full overflow-hidden rounded-md border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900">
+              <SignatureCanvas
+                ref={signatureRef}
+                penColor={inkColor}
+                minWidth={1}
+                maxWidth={2.5}
+                canvasProps={{
+                  width: 720,
+                  height: 240,
+                  className: "block h-full w-full touch-none",
+                  style: { backgroundColor: isDark ? "#0f172a" : "#ffffff" },
+                }}
+                onEnd={() => setPreview(signatureRef.current?.toDataURL("image/png") ?? "")}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Preview</Label>
+              <div className="flex h-20 items-center rounded-md border bg-white px-3 dark:border-slate-700 dark:bg-slate-900">
+                {displayPreview ? (
+                  <Image src={displayPreview} alt="Signature preview" width={480} height={120} unoptimized className="h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Your signature preview will appear here.</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                signatureRef.current?.clear()
+                setPreview("")
+              }}
+            >
+              Clear
+            </Button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button type="button" variant="outline" onClick={() => closeEditor(false)}>Cancel</Button>
+              <Button type="button" onClick={saveSignature}>Save Signature</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
 function CreateUserModal({
   open,
   onOpenChange,
-  onSuccess,
   existingEmails = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: (message: string) => void
   existingEmails?: string[]
 }) {
   const router = useRouter()
@@ -195,6 +382,7 @@ function CreateUserModal({
     licenseNumber: "",
     yearsofexperience: "",
     address: "",
+    signature: "",
   })
 
   const takenEmails = React.useMemo(
@@ -246,6 +434,7 @@ function CreateUserModal({
       licenseNumber: "",
       yearsofexperience: "",
       address: "",
+      signature: "",
     })
     setProfileImage("")
     setErrorMsg("")
@@ -306,10 +495,8 @@ function CreateUserModal({
     if (result.success) {
       if (result.verificationSent) {
         toast.success("User account created. A verification email was sent.")
-        onSuccess("User account created. A verification email was sent.")
       } else {
         toast.warning("User account created, but the verification email could not be sent.")
-        onSuccess("User account created, but the verification email could not be sent.")
       }
       resetForm()
       onOpenChange(false)
@@ -658,6 +845,10 @@ function CreateUserModal({
                       Add multiple certifications separated by commas.
                     </FieldDescription>
                   </Field>
+                  <DoctorSignatureField
+                    value={form.signature}
+                    onChange={(signature) => handleChange("signature", signature)}
+                  />
                 </FieldGroup>
               ) : null}
             </div>
@@ -689,12 +880,10 @@ function EditUserSheet({
   open,
   onOpenChange,
   user,
-  onSuccess,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: UserRow | null
-  onSuccess: (message: string) => void
 }) {
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
@@ -713,6 +902,7 @@ function EditUserSheet({
     licenseNumber: "",
     yearsOfExperience: "",
     boardCertifications: "",
+    signature: "",
   })
 
   React.useEffect(() => {
@@ -722,7 +912,7 @@ function EditUserSheet({
       name: user.name ?? "",
       email: user.email ?? "",
       status: normalizeUserStatus(user.status),
-      role: user.role ?? "PATIENT",
+      role: user.role === "NURSE" ? "DOCTOR" : user.role ?? "PATIENT",
       address: user.address ?? "",
       prefix: user.prefix ?? "",
       suffix: user.suffix ?? "",
@@ -730,6 +920,7 @@ function EditUserSheet({
       licenseNumber: user.licenseNumber ?? "",
       yearsOfExperience: user.yearsOfExperience ?? "",
       boardCertifications: user.boardCertifications ?? "",
+      signature: user.signature ?? "",
     })
     setProfileImage(user.avatar ?? "")
     setErrorMsg("")
@@ -759,7 +950,6 @@ function EditUserSheet({
 
     if (result.success) {
       toast.success("User updated successfully")
-      onSuccess("User updated successfully.")
       onOpenChange(false)
       setTimeout(() => router.refresh(), 100)
     } else {
@@ -786,111 +976,115 @@ function EditUserSheet({
               </Alert>
             ) : null}
 
-            <div className="grid gap-4">
-              <AvatarUploadField
-                inputId="edit-profile-image"
-                preview={profileImage}
-                name={form.name}
-                onSelect={setProfileImage}
-              />
+            <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <AvatarUploadField
+                  inputId="edit-profile-image"
+                  preview={profileImage}
+                  name={form.name}
+                  onSelect={setProfileImage}
+                />
+              </div>
 
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
                 <Label htmlFor="edit-name">Full name</Label>
-                <Input id="edit-name" value={form.name} onChange={(e) => handleChange("name", e.target.value)} />
+                <Input id="edit-name" className="h-10" value={form.name} onChange={(e) => handleChange("name", e.target.value)} />
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
                 <Label htmlFor="edit-email">Email</Label>
-                <Input id="edit-email" type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
+                <Input id="edit-email" type="email" className="h-10" value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-status">Status</Label>
-                  <Select value={form.status} onValueChange={(value) => handleChange("status", value)}>
-                    <SelectTrigger id="edit-status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="Active">
-                          <span className="flex items-center gap-2">
-                            <span className={`size-2 rounded-full ${getStatusDotClass("Active")}`} />
-                            <span className="text-emerald-700 dark:text-emerald-300">Active</span>
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="Inactive">
-                          <span className="flex items-center gap-2">
-                            <span className={`size-2 rounded-full ${getStatusDotClass("Inactive")}`} />
-                            <span className="text-slate-600 dark:text-slate-300">Inactive</span>
-                          </span>
-                        </SelectItem>
-                        <SelectItem value="Suspended">
-                          <span className="flex items-center gap-2">
-                            <span className={`size-2 rounded-full ${getStatusDotClass("Suspended")}`} />
-                            <span className="text-rose-700 dark:text-rose-300">Suspended</span>
-                          </span>
-                        </SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-role">Role</Label>
-                  <select
-                    id="edit-role"
-                    className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                    value={form.role}
-                    onChange={(event) => handleChange("role", event.target.value)}
-                  >
-                    {USER_ROLE_OPTIONS.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="grid min-w-0 gap-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select value={form.status} onValueChange={(value) => handleChange("status", value)}>
+                  <SelectTrigger id="edit-status" className="h-10">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="Active">
+                        <span className="flex items-center gap-2">
+                          <span className={`size-2 rounded-full ${getStatusDotClass("Active")}`} />
+                          <span className="text-emerald-700 dark:text-emerald-300">Active</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="Inactive">
+                        <span className="flex items-center gap-2">
+                          <span className={`size-2 rounded-full ${getStatusDotClass("Inactive")}`} />
+                          <span className="text-slate-600 dark:text-slate-300">Inactive</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="Suspended">
+                        <span className="flex items-center gap-2">
+                          <span className={`size-2 rounded-full ${getStatusDotClass("Suspended")}`} />
+                          <span className="text-rose-700 dark:text-rose-300">Suspended</span>
+                        </span>
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
+                <Label htmlFor="edit-role">Role</Label>
+                <select
+                  id="edit-role"
+                  className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={form.role}
+                  onChange={(event) => handleChange("role", event.target.value)}
+                >
+                  {USER_ROLE_OPTIONS.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid min-w-0 gap-2 sm:col-span-2">
                 <Label htmlFor="edit-address">Address</Label>
-                <Input id="edit-address" value={form.address} onChange={(e) => handleChange("address", e.target.value)} />
+                <Input id="edit-address" className="h-10" value={form.address} onChange={(e) => handleChange("address", e.target.value)} />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-prefix">Prefix</Label>
-                  <Input id="edit-prefix" value={form.prefix} onChange={(e) => handleChange("prefix", e.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-suffix">Suffix</Label>
-                  <Input id="edit-suffix" value={form.suffix} onChange={(e) => handleChange("suffix", e.target.value)} />
-                </div>
+              <div className="grid min-w-0 gap-2">
+                <Label htmlFor="edit-prefix">Prefix</Label>
+                <Input id="edit-prefix" className="h-10" value={form.prefix} onChange={(e) => handleChange("prefix", e.target.value)} />
+              </div>
+
+              <div className="grid min-w-0 gap-2">
+                <Label htmlFor="edit-suffix">Suffix</Label>
+                <Input id="edit-suffix" className="h-10" value={form.suffix} onChange={(e) => handleChange("suffix", e.target.value)} />
               </div>
 
               {form.role === "DOCTOR" ? (
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-credentials">Credentials</Label>
-                  <Input id="edit-credentials" value={form.credentials} onChange={(e) => handleChange("credentials", e.target.value)} />
-                </div>
+                <section className="grid min-w-0 gap-4 border-t pt-4 sm:col-span-2">
+                  <h3 className="text-sm font-semibold">Doctor details</h3>
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-2">
+                      <Label htmlFor="edit-credentials">Credentials</Label>
+                      <Input id="edit-credentials" className="h-10" value={form.credentials} onChange={(e) => handleChange("credentials", e.target.value)} />
+                    </div>
+                    <div className="grid min-w-0 gap-2">
+                      <Label htmlFor="edit-license-number">License number</Label>
+                      <Input id="edit-license-number" className="h-10" value={form.licenseNumber} onChange={(e) => handleChange("licenseNumber", e.target.value)} />
+                    </div>
+                    <div className="grid min-w-0 gap-2">
+                      <Label htmlFor="edit-years">Years of experience</Label>
+                      <Input id="edit-years" className="h-10" value={form.yearsOfExperience} onChange={(e) => handleChange("yearsOfExperience", e.target.value)} />
+                    </div>
+                    <div className="grid min-w-0 gap-2 sm:col-span-2">
+                      <Label htmlFor="edit-board">Board certifications</Label>
+                      <Input id="edit-board" className="h-10" value={form.boardCertifications} onChange={(e) => handleChange("boardCertifications", e.target.value)} />
+                    </div>
+                    <DoctorSignatureField
+                      value={form.signature}
+                      onChange={(signature) => handleChange("signature", signature)}
+                    />
+                  </div>
+                </section>
               ) : null}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-license-number">License number</Label>
-                  <Input id="edit-license-number" value={form.licenseNumber} onChange={(e) => handleChange("licenseNumber", e.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-years">Years of experience</Label>
-                  <Input id="edit-years" value={form.yearsOfExperience} onChange={(e) => handleChange("yearsOfExperience", e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="edit-board">Board certifications</Label>
-                <Input id="edit-board" value={form.boardCertifications} onChange={(e) => handleChange("boardCertifications", e.target.value)} />
-              </div>
             </div>
           </div>
 
@@ -985,7 +1179,6 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
   const [viewOpen, setViewOpen] = React.useState(false)
   const [selectedUser, setSelectedUser] = React.useState<UserRow | null>(null)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
-  const [successMessage, setSuccessMessage] = React.useState("")
 
   React.useEffect(() => {
     const openEditUser = (event: Event) => {
@@ -1028,23 +1221,15 @@ export default function ManageUsersClient({ users = [] }: { users?: UserRow[] })
         </Button>
       </div>
 
-      {successMessage ? (
-        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-          <AlertTitle className="text-sm font-semibold">Success</AlertTitle>
-          <AlertDescription className="text-sm">{successMessage}</AlertDescription>
-        </div>
-      ) : null}
-
       <DataTable columns={columns} data={users} />
 
       <CreateUserModal
         open={createOpen}
         onOpenChange={setCreateOpen}
         existingEmails={(users ?? []).map((user) => user.email ?? "")}
-        onSuccess={(message) => setSuccessMessage(message)}
       />
       <ViewUserSheet open={viewOpen} onOpenChange={setViewOpen} user={selectedUser} />
-      <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={selectedUser} onSuccess={(message) => setSuccessMessage(message)} />
+      <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={selectedUser} />
       <Dialog open={deleteOpen} onOpenChange={(o) => setDeleteOpen(o)}>
         <DialogContent className="mx-auto max-w-md">
           <DialogHeader>

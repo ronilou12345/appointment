@@ -160,6 +160,7 @@ export async function createUserAction(formData: FormData) {
   const licenseNumber = formData.get("licenseNumber")?.toString().trim() ?? ""
   const yearsOfExperience = formData.get("yearsofexperience")?.toString().trim() ?? ""
   const address = formData.get("address")?.toString().trim() ?? ""
+  const signature = formData.get("signature")?.toString().trim() ?? ""
 
   if (!email) {
     return { success: false, error: "Personal email is required." }
@@ -242,6 +243,7 @@ export async function createUserAction(formData: FormData) {
           role,
           status: normalizedStatus,
           designations: null,
+          signature: signature || null,
           password,
           profile_image: "",
           updatedAt: new Date(),
@@ -262,6 +264,7 @@ export async function createUserAction(formData: FormData) {
             license_number: licenseNumber,
             years_of_experience: yearsOfExperience ? Number.parseInt(yearsOfExperience, 10) : 0,
             board_certification: boardCertifications || null,
+            signature: signature || null,
           },
         })
       }

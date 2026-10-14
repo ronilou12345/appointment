@@ -11,6 +11,7 @@ type UserResult = {
   profile_image: string | null
   role: string | null
   designations: string | null
+  signature: string | null
   doctor: {
     address: string | null
     prefix: string | null
@@ -19,6 +20,7 @@ type UserResult = {
     license_number: string | null
     years_of_experience: number | null
     board_certification: string | null
+    signature: string | null
   } | null
 }
 
@@ -33,6 +35,7 @@ export default async function Page() {
       profile_image: true,
       role: true,
       designations: true,
+      signature: true,
       doctor: {
         select: {
           address: true,
@@ -42,6 +45,7 @@ export default async function Page() {
           license_number: true,
           years_of_experience: true,
           board_certification: true,
+          signature: true,
         },
       },
     },
@@ -64,6 +68,7 @@ export default async function Page() {
     licenseNumber: user.doctor?.license_number ?? "",
     yearsOfExperience: user.doctor?.years_of_experience?.toString() ?? "",
     boardCertifications: user.doctor?.board_certification ?? "",
+    signature: user.signature ?? user.doctor?.signature ?? null,
   }))
 
   return <ManageUsersClient users={rows} />

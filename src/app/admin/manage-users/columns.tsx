@@ -29,6 +29,7 @@ export type UserRow = {
   licenseNumber?: string
   yearsOfExperience?: string
   boardCertifications?: string
+  signature?: string | null
 }
 
 export function normalizeUserStatus(status?: string) {

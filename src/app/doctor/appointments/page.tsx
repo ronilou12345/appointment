@@ -35,6 +35,8 @@ async function getDoctorAppointments(userId: string): Promise<DoctorAppointmentR
         first_name: true,
         middle_name: true,
         last_name: true,
+        signature: true,
+        license_number: true,
       },
     })
 
@@ -124,6 +126,8 @@ async function getDoctorAppointments(userId: string): Promise<DoctorAppointmentR
         patientGender: appointment.gender ?? "—",
         doctorId: String(doctor.doctor_id),
         doctorName,
+        doctorSignature: doctor.signature,
+        doctorLicenseNumber: doctor.license_number,
         sessionId: appointment.session_id != null ? String(appointment.session_id) : undefined,
         specialty,
         date,

@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       "licenseNumber",
       "yearsofexperience",
       "address",
+      "signature",
     ]
 
     Object.entries(body).forEach(([key, value]) => {
@@ -153,6 +154,7 @@ export async function PATCH(request: NextRequest) {
     const licenseNumber = String(body?.licenseNumber ?? "").trim()
     const yearsOfExperience = String(body?.yearsOfExperience ?? "").trim()
     const boardCertifications = String(body?.boardCertifications ?? "").trim()
+    const signature = typeof body?.signature === "string" ? body.signature.trim() : undefined
     const password = String(body?.password ?? "").trim()
     const designationsRaw = body?.designations
     const designations = Array.isArray(designationsRaw)
@@ -179,6 +181,10 @@ export async function PATCH(request: NextRequest) {
         status,
         designations,
         updatedAt: new Date(),
+      }
+
+      if (signature !== undefined) {
+        updateData.signature = signature || null
       }
 
       if (address !== undefined) {
@@ -209,6 +215,7 @@ export async function PATCH(request: NextRequest) {
         license_number: licenseNumber || existingDoctor?.license_number || "",
         years_of_experience: yearsOfExperience ? Number.parseInt(yearsOfExperience, 10) : existingDoctor?.years_of_experience ?? 0,
         board_certification: boardCertifications || existingDoctor?.board_certification || null,
+        signature: signature !== undefined ? signature || null : existingDoctor?.signature ?? null,
       }
 
       if (existingDoctor) {
@@ -216,7 +223,7 @@ export async function PATCH(request: NextRequest) {
           where: { user_id: userId },
           data: doctorPayload,
         })
-      } else if (role === "NURSE" || licenseNumber || yearsOfExperience || boardCertifications || address || prefix || suffix || credentials) {
+      } else if (role === "NURSE" || licenseNumber || yearsOfExperience || boardCertifications || address || prefix || suffix || credentials || signature) {
         await tx.doctor.create({
           data: {
             user_id: userId,
