@@ -177,6 +177,8 @@ function CreateUserModal({
   const [loading, setLoading] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
   const [showPassword, setShowPassword] = React.useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
+  const [confirmPassword, setConfirmPassword] = React.useState("")
   const [profileImage, setProfileImage] = React.useState("")
   const [form, setForm] = React.useState<CreateUserForm>({
     userType: "PATIENT",
@@ -248,6 +250,8 @@ function CreateUserModal({
     setProfileImage("")
     setErrorMsg("")
     setShowPassword(false)
+    setShowConfirmPassword(false)
+    setConfirmPassword("")
     autoEmailRef.current = ""
   }, [])
 
@@ -256,7 +260,7 @@ function CreateUserModal({
     setErrorMsg("")
 
     const requiredError =
-      !profileImage.trim()
+      form.userType !== "PATIENT" && !profileImage.trim()
         ? "Please upload a profile image."
         : !form.email.trim()
           ? "Please enter a personal email."
@@ -274,6 +278,10 @@ function CreateUserModal({
                       ? "Please enter a password."
                       : form.password.length < 8
                         ? "Password must be at least 8 characters long."
+                        : !confirmPassword
+                          ? "Please confirm the password."
+                          : form.password !== confirmPassword
+                            ? "Passwords do not match."
                         : ""
 
     if (requiredError) {
@@ -356,7 +364,7 @@ function CreateUserModal({
                 inputId="create-profile-image"
                 preview={profileImage}
                 name={[form.firstName, form.lastName].filter(Boolean).join(" ")}
-                required
+                required={form.userType !== "PATIENT"}
                 onSelect={setProfileImage}
               />
             </div>
@@ -533,18 +541,18 @@ function CreateUserModal({
               </Field>
 
               <FieldGroup className="grid-cols-1 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="credentials">
-                    Credentials<span className="text-destructive"></span>
-                  </FieldLabel>
-                  <Input
-                    id="credentials"
-                    placeholder="e.g. PhD, MD, RN"
-                    className="h-10 text-sm"
-                    value={form.credentials}
-                    onChange={(e) => handleChange("credentials", e.target.value)}
-                  />
-                </Field>
+                {form.userType === "DOCTOR" ? (
+                  <Field>
+                    <FieldLabel htmlFor="credentials">Credentials</FieldLabel>
+                    <Input
+                      id="credentials"
+                      placeholder="e.g. PhD, MD, RN"
+                      className="h-10 text-sm"
+                      value={form.credentials}
+                      onChange={(e) => handleChange("credentials", e.target.value)}
+                    />
+                  </Field>
+                ) : null}
                 <Field>
                   <FieldLabel htmlFor="password">
                     Password <span className="text-destructive">*</span>
@@ -568,6 +576,33 @@ function CreateUserModal({
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="confirm-password">
+                    Confirm password <span className="text-destructive">*</span>
+                  </FieldLabel>
+                  <div className="relative">
+                    <LockIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
+                    <Input
+                      id="confirm-password"
+                      name="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Re-enter password"
+                      className="h-10 pl-10 pr-10 text-sm"
+                      required
+                      minLength={8}
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((visible) => !visible)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
                 </Field>
@@ -834,10 +869,12 @@ function EditUserSheet({
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="edit-credentials">Credentials</Label>
-                <Input id="edit-credentials" value={form.credentials} onChange={(e) => handleChange("credentials", e.target.value)} />
-              </div>
+              {form.role === "DOCTOR" ? (
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-credentials">Credentials</Label>
+                  <Input id="edit-credentials" value={form.credentials} onChange={(e) => handleChange("credentials", e.target.value)} />
+                </div>
+              ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
@@ -888,7 +925,7 @@ function ViewUserSheet({
     ["Address", user?.address],
     ["Prefix", user?.prefix],
     ["Suffix", user?.suffix],
-    ["Credentials", user?.credentials],
+    ...(user?.role === "DOCTOR" ? [["Credentials", user.credentials] as const] : []),
     ["License number", user?.licenseNumber],
     ["Years of experience", user?.yearsOfExperience],
     ["Board certifications", user?.boardCertifications],

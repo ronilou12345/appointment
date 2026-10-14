@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
     })
 
     const profileImage = String(body.profileImage ?? "").trim()
-    if (!profileImage.startsWith("data:image/")) {
+    const hasProfileImage = profileImage.startsWith("data:image/")
+    const requiresProfileImage = String(body.userType ?? "PATIENT").toUpperCase() !== "PATIENT"
+    if (!hasProfileImage && (requiresProfileImage || profileImage)) {
       return NextResponse.json({ success: false, error: "Profile image is required." }, { status: 400 })
     }
 
@@ -88,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 })
     }
-    if (result.userId) {
+    if (result.userId && hasProfileImage) {
       const imageUrl = await saveProfileImageFile(result.userId, profileImage)
       await updateUserProfileImage(result.userId, imageUrl)
     }

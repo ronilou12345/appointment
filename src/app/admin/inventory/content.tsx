@@ -6,6 +6,7 @@ import { DataTable } from "@/components/data-table"
 import { columns, getExpiryStatus, MedicineRow } from "./columns"
 import { salesColumns, MedicineSaleRow } from "./sales-columns"
 import { PrintMedicineSalesButton } from "./print-sales"
+import { PrintMedicineInventoryButton } from "./print-inventory"
 import { AddMedicineDialog } from "@/components/add-medicine-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,12 +27,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Search, Box, CheckCircle, AlertTriangle, XCircle, ShoppingCart, Plus, Minus, Trash2 } from "lucide-react"
+import { Search, Box, CheckCircle, AlertTriangle, XCircle, ShoppingCart, Plus, Minus, Trash2, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import type { FilterFn } from "@tanstack/react-table"
 
 type CartItem = {
   id: string
+  recordType?: "medicine" | "product"
   name: string
   price: number
   quantity: number
@@ -49,6 +60,24 @@ function formatSalesDate(value: string) {
     day: "numeric",
     year: "numeric",
   })
+}
+
+const inventoryGlobalFilter: FilterFn<MedicineRow> = (row, _columnId, filterValue) => {
+  const query = String(filterValue ?? "").trim().toLocaleLowerCase()
+  if (!query) return true
+
+  const medicine = row.original
+  const expiryDate = medicine.expiryDate
+  const parsedExpiryDate = new Date(`${expiryDate}T00:00:00`)
+  const formattedExpiryDate = Number.isNaN(parsedExpiryDate.getTime())
+    ? ""
+    : [
+        parsedExpiryDate.toLocaleDateString("en-US"),
+        parsedExpiryDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      ].join(" ")
+
+  return [...Object.values(medicine), formattedExpiryDate]
+    .some((value) => String(value ?? "").toLocaleLowerCase().includes(query))
 }
 
 function getStockInfo(medicine: Pick<MedicineRow, "quantity" | "pieces" | "status" | "reorderLevel">) {
@@ -84,14 +113,15 @@ function CheckoutSummaryDialog({
   onConfirm: () => void
 }) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
-  const [cashReceived, setCashReceived] = useState(0)
-  const numericCash = Number.isFinite(cashReceived) ? cashReceived : 0
+  const [cashReceived, setCashReceived] = useState("")
+  const parsedCashReceived = Number(cashReceived)
+  const numericCash = Number.isFinite(parsedCashReceived) ? parsedCashReceived : 0
   const change = Math.max(0, numericCash - total)
   const isPaymentEnough = numericCash >= total
 
   useEffect(() => {
     if (!open) return
-    setCashReceived(0)
+    setCashReceived("")
   }, [open, total])
 
   return (
@@ -143,12 +173,14 @@ function CheckoutSummaryDialog({
               <span className="text-sm">₱</span>
               <Input
                 id="cash-received"
-                type="number"
-                min={0}
-                step="0.01"
-                value={numericCash}
-                onChange={(event) => setCashReceived(Number(event.target.value || 0))}
-                className="h-9 w-32 text-right"
+                type="text"
+                inputMode="decimal"
+                value={cashReceived}
+                onChange={(event) => {
+                  const value = event.target.value
+                  if (/^\d*\.?\d*$/.test(value)) setCashReceived(value)
+                }}
+                className="h-9 w-32 text-right font-medium text-foreground"
                 aria-label="Cash received from customer"
               />
             </div>
@@ -201,14 +233,14 @@ function DeleteMedicineDialog({
       const response = await fetch("/api/medicine-inventory", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: Number(medicine.id) }),
+        body: JSON.stringify({ id: medicine.id, recordType: medicine.recordType ?? "medicine" }),
       })
       const result = await response.json()
       if (!response.ok || !result.success) {
         throw new Error(result.error || "Unable to delete medicine")
       }
 
-      toast.success("Medicine deleted")
+      toast.success(medicine.recordType === "product" ? "Product deleted" : "Medicine deleted")
       onOpenChange(false)
       router.refresh()
     } catch (error) {
@@ -222,9 +254,9 @@ function DeleteMedicineDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="mx-auto max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete medicine</DialogTitle>
+          <DialogTitle>Delete {medicine?.recordType === "product" ? "product" : "medicine"}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete {medicine?.name ? `"${medicine.name}"` : "this medicine"}? Existing sales records will be kept. This action cannot be undone.
+            Are you sure you want to delete {medicine?.name ? `"${medicine.name}"` : "this item"}? Existing sales records will be kept. This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -254,6 +286,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [discountInput, setDiscountInput] = useState("")
   const [selectedSaleDate, setSelectedSaleDate] = useState("")
+  const [inventoryTypeFilter, setInventoryTypeFilter] = useState<"all" | "product" | "medicine">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "in-stock" | "low-stock" | "out-of-stock" | "expired">("all")
 
   const statusFilterMatches = (medicine: MedicineRow, filter: typeof statusFilter) => {
@@ -274,16 +307,26 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
     }
   }
 
-  const filteredRows = statusFilter === "all"
+  const typeFilteredRows = inventoryTypeFilter === "all"
     ? rows
-    : rows.filter((medicine) => statusFilterMatches(medicine, statusFilter))
+    : rows.filter((medicine) => (medicine.recordType ?? "medicine") === inventoryTypeFilter)
+  const filteredRows = statusFilter === "all"
+    ? typeFilteredRows
+    : typeFilteredRows.filter((medicine) => statusFilterMatches(medicine, statusFilter))
+  const activeInventoryFilters = [
+    inventoryTypeFilter === "all" ? "" : inventoryTypeFilter === "product" ? "Product" : "Medicine",
+    statusFilter === "all" ? "" : statusFilter.replace("-", " ").replace(/\b\w/g, (char) => char.toUpperCase()),
+  ].filter(Boolean)
+  const inventoryReportLabel = activeInventoryFilters.length > 0
+    ? `${activeInventoryFilters.join(" · ")} items`
+    : "All items"
 
   const statusCounts = {
-    total: rows.length,
-    inStock: rows.filter((medicine) => (medicine.pieces ?? 0) > 20).length,
-    lowStock: rows.filter((medicine) => (medicine.pieces ?? 0) > 0 && (medicine.pieces ?? 0) <= 20).length,
-    outOfStock: rows.filter((medicine) => (medicine.pieces ?? 0) <= 0).length,
-    expired: rows.filter((medicine) => getExpiryStatus(medicine.expiryDate) === "expired").length,
+    total: typeFilteredRows.length,
+    inStock: typeFilteredRows.filter((medicine) => (medicine.pieces ?? 0) > 20).length,
+    lowStock: typeFilteredRows.filter((medicine) => (medicine.pieces ?? 0) > 0 && (medicine.pieces ?? 0) <= 20).length,
+    outOfStock: typeFilteredRows.filter((medicine) => (medicine.pieces ?? 0) <= 0).length,
+    expired: typeFilteredRows.filter((medicine) => getExpiryStatus(medicine.expiryDate) === "expired").length,
   }
 
   const searchResults = cartSearchQuery.trim()
@@ -319,7 +362,14 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
           item.id === medicineId ? { ...item, quantity: item.quantity + 1 } : item
         )
       }
-      return [...prev, { id: medicineId, name: medicine.name, price: medicine.price, quantity: 1, image: medicine.image }]
+      return [...prev, {
+        id: medicineId,
+        recordType: medicine.recordType ?? "medicine",
+        name: medicine.name,
+        price: medicine.retailPrice ?? 0,
+        quantity: 1,
+        image: medicine.image,
+      }]
     })
     setCartOpen(true)
   }
@@ -329,21 +379,18 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   }
 
   const updateQuantity = (medicineId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(medicineId)
-      return
-    }
+    const nextQuantity = Math.max(0, newQuantity)
 
     const medicine = rows.find((item) => item.id === medicineId)
     const stock = medicine?.pieces ?? 0
-    if (newQuantity > stock) {
+    if (nextQuantity > stock) {
       toast.warning(`${medicine?.name ?? "This medicine"} has reached the maximum quantity (${stock}).`)
       return
     }
 
     setCartItems((prev) =>
       prev.map((item) =>
-        item.id === medicineId ? { ...item, quantity: newQuantity } : item
+        item.id === medicineId ? { ...item, quantity: nextQuantity } : item
       )
     )
   }
@@ -411,8 +458,9 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
 
       nextItems.push({
         id: medicine.id,
+        recordType: medicine.recordType ?? "medicine",
         name: medicine.name,
-        price: medicine.price,
+        price: medicine.retailPrice ?? 0,
         quantity: 1,
         image: medicine.image,
       })
@@ -459,9 +507,10 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const selectedDateSales = selectedSaleDate
     ? sales.filter((sale) => getDateKey(sale.saleDate) === selectedSaleDate)
     : sales
+  const checkoutableCartItems = cartItems.filter((item) => item.quantity > 0)
 
   const openCheckoutSummary = () => {
-    if (cartItems.length === 0) return
+    if (checkoutableCartItems.length === 0) return
     setCartOpen(false)
     setCheckoutOpen(true)
   }
@@ -475,7 +524,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   }
 
   const confirmCheckout = async () => {
-    if (cartItems.length === 0) return
+    if (checkoutableCartItems.length === 0) return
     setCheckoutLoading(true)
 
     try {
@@ -483,8 +532,9 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: cartItems.map((item) => ({
-            id: Number(item.id),
+          items: checkoutableCartItems.map((item) => ({
+            id: item.id,
+            recordType: item.recordType ?? "medicine",
             quantity: item.quantity,
           })),
           discountPercent,
@@ -536,15 +586,15 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   }, [rows, addToCart])
 
   return (
-    <div className="min-h-screen w-full bg-background p-6 text-foreground">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="min-h-screen w-full min-w-0 overflow-x-clip bg-background p-4 text-foreground sm:p-6">
+      <div className="mb-6 flex min-w-0 flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground">Medicine Inventory</h1>
+          <h1 className="text-3xl font-semibold text-foreground">Product &amp; Medicine Inventory</h1>
           <p className="mt-2 text-muted-foreground">
-            Manage medical supplies and medicine stock levels. Monitor expiry dates and reorder as needed.
+            Manage products and medicines, monitor stock levels and expiry dates, and reorder as needed.
           </p>
         </div>
-        <div className="flex flex-shrink-0 gap-3">
+        <div className="flex w-full flex-shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-start">
           <Button
             size="sm"
             className="shadow-md shadow-primary/20"
@@ -553,11 +603,45 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
             <ShoppingCart className="size-4 mr-2" />
             Add to Cart
           </Button>
-          <AddMedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              className="shadow-md shadow-primary/20"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="mr-2 size-4" />
+              New
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-9 w-8 px-0 text-muted-foreground hover:text-foreground"
+                  aria-label="Filter inventory by type"
+                  title="Filter inventory by type"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuLabel>Show in table</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={inventoryTypeFilter}
+                  onValueChange={(value) => setInventoryTypeFilter(value as typeof inventoryTypeFilter)}
+                >
+                  <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="product">Product</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="medicine">Medicine</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <AddMedicineDialog open={dialogOpen} onOpenChange={setDialogOpen} showTrigger={false} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {[
@@ -625,14 +709,34 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
         {statusFilter !== "all" ? (
           <div className="flex items-center justify-between rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
             <span>Showing: {statusFilter.replace("-", " ").replace(/\b\w/g, (char) => char.toUpperCase())}</span>
-            <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStatusFilter("all")}
+            >
               Clear filter
             </Button>
           </div>
         ) : null}
 
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          {inventoryTypeFilter === "all" || statusFilter !== "all" ? (
+            <p className="text-sm text-muted-foreground">
+              {statusFilter === "all"
+                ? "All inventory items"
+                : `${statusFilter.replace("-", " ").replace(/\b\w/g, (char) => char.toUpperCase())} items`}
+            </p>
+          ) : null}
+          <div className="ml-auto flex-shrink-0">
+            <PrintMedicineInventoryButton
+              rows={filteredRows}
+              reportLabel={inventoryReportLabel}
+            />
+          </div>
+        </div>
+
         {/* Data Table */}
-        <DataTable columns={columns} data={filteredRows} />
+        <DataTable columns={columns} data={filteredRows} globalFilterFn={inventoryGlobalFilter} />
       </div>
 
       <Separator className="my-10 h-px w-full bg-border" />
@@ -704,12 +808,12 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
             </SheetDescription>
           </SheetHeader>
 
-          {/* Search medicine to add */}
+          {/* Search inventory items to add */}
           <div className="border-b py-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search medicine name..."
+                placeholder="Search medicine or product..."
                 value={cartSearchQuery}
                 onChange={(e) => setCartSearchQuery(e.target.value)}
                 className="pl-10 h-9"
@@ -719,7 +823,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
             {cartSearchQuery.trim() && (
               <div className="mt-3 overflow-hidden rounded-lg border border-border bg-background">
                 <div className="flex items-center justify-between border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <span>Available medicines</span>
+                  <span>Available inventory items</span>
                   <span>{selectedCount} selected</span>
                 </div>
 
@@ -746,7 +850,9 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
                           />
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{medicine.name}</p>
-                            <p className="text-xs text-muted-foreground">{medicine.category}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {medicine.recordType === "product" ? "Product" : medicine.category || "Uncategorized"}
+                            </p>
                             {outOfStock ? (
                               <p className="text-xs font-medium text-rose-600">Out of stock</p>
                             ) : lowStock ? (
@@ -755,7 +861,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
                           </div>
                         </div>
 
-                        <span className="text-sm font-medium">₱{medicine.price.toFixed(2)}</span>
+                        <span className="text-sm font-medium">₱{Number(medicine.retailPrice ?? 0).toFixed(2)}</span>
                       </label>
                       )
                     })
@@ -887,6 +993,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
               <Button
                 className="mt-2 w-full shadow-md shadow-primary/20"
                 onClick={openCheckoutSummary}
+                disabled={checkoutableCartItems.length === 0}
               >
                 Checkout
               </Button>
@@ -909,7 +1016,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
       <CheckoutSummaryDialog
         open={checkoutOpen}
         onOpenChange={handleCheckoutOpenChange}
-        items={cartItems}
+        items={checkoutableCartItems}
         subtotal={subtotal}
         discount={discount}
         discountPercent={discountPercent}

@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 
 export type MedicineSaleRow = {
   id: string
+  recordType?: "medicine" | "product"
   medicineName: string
   medicineCategory?: string
   medicineImage?: string
@@ -38,10 +39,12 @@ function formatSaleDate(value: string) {
 export const salesColumns: ColumnDef<MedicineSaleRow>[] = [
   {
     accessorKey: "medicineName",
-    header: "Medicine Name",
+    header: "Medicine / Product",
     cell: ({ row }) => {
-      const medicineName = row.original.medicineName || "Unknown medicine"
-      const medicineCategory = row.original.medicineCategory || "Uncategorized"
+      const medicineName = row.original.medicineName || "Unknown inventory item"
+      const medicineCategory = row.original.recordType === "product"
+        ? "Product"
+        : row.original.medicineCategory || "Uncategorized"
 
       return (
         <div className="min-w-0">

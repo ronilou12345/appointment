@@ -14,13 +14,13 @@ import {
 
 export type MedicineRow = {
   id: string
+  recordType?: "medicine" | "product"
   name: string
   category: string
   quantity: string
   pieces?: number
   reorderLevel: number
   expiryDate: string
-  price: number
   retailPrice?: number
   supplier: string
   status: string
@@ -61,15 +61,16 @@ const getStatusClasses = (status: string) => {
 export const columns: ColumnDef<MedicineRow>[] = [
   {
     accessorKey: "name",
-    header: "Medicine Name",
+    header: "Medicine / Product",
     cell: ({ row }) => {
       const name = String(row.getValue("name") ?? "")
       const category = String(row.original.category ?? "")
+      const sublabel = row.original.recordType === "product" ? "Product" : category || "-"
 
       return (
         <div className="min-w-0">
           <div className="truncate font-medium text-foreground">{name}</div>
-          <div className="text-xs text-muted-foreground">{category || "-"}</div>
+          <div className="text-xs text-muted-foreground">{sublabel}</div>
         </div>
       )
     },
@@ -77,12 +78,22 @@ export const columns: ColumnDef<MedicineRow>[] = [
   {
     accessorKey: "quantity",
     header: "Quantity",
-    cell: ({ row }) => <span className="font-medium">{String(row.getValue("quantity") ?? "") || "—"}</span>,
+    cell: ({ row }) => {
+      const quantity = String(row.getValue("quantity") ?? "")
+      if (row.original.recordType === "product") {
+        return <span className="font-medium">{`${row.original.pieces ?? 0} ${quantity || "pieces"}`}</span>
+      }
+      return <span className="font-medium">{quantity || "—"}</span>
+    },
   },
   {
     accessorKey: "pieces",
     header: "Pieces",
-    cell: ({ row }) => <span className="font-medium">{Number(row.original.pieces ?? 0)}</span>,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {row.original.recordType === "product" ? "—" : Number(row.original.pieces ?? 0)}
+      </span>
+    ),
   },
   {
     accessorKey: "expiryDate",
@@ -127,27 +138,10 @@ export const columns: ColumnDef<MedicineRow>[] = [
     },
   },
   {
-    accessorKey: "price",
-    header: "Supplier Price",
-    cell: ({ row }) => {
-      const price = Number(row.getValue("price") ?? 0)
-      return `₱${price.toFixed(2)}`
-    },
-  },
-  {
-    id: "subtotal",
-    header: "Sub Total",
-    cell: ({ row }) => {
-      const pieces = Number(row.original.pieces ?? 0)
-      const price = Number(row.original.price ?? 0)
-      return `₱${(pieces * price).toFixed(2)}`
-    },
-  },
-  {
     accessorKey: "retailPrice",
     header: "Retail Price",
     cell: ({ row }) => {
-      const retailPrice = Number(row.original.retailPrice ?? row.getValue("price") ?? 0)
+      const retailPrice = Number(row.original.retailPrice ?? 0)
       return `₱${retailPrice.toFixed(2)}`
     },
   },
@@ -202,7 +196,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Medicine actions</DropdownMenuLabel>
+            <DropdownMenuLabel>{medicine.recordType === "product" ? "Product actions" : "Medicine actions"}</DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() => window.dispatchEvent(new CustomEvent("open-edit-medicine", { detail: medicine }))}
             >

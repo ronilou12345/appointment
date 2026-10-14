@@ -58,7 +58,7 @@ function buildSalesReport(sales: MedicineSaleRow[], reportLabel: string) {
       const amount = amountForSale(sale)
       return `<tr>
         <td>${escapeHtml(formatDate(sale.saleDate))}</td>
-        <td>${escapeHtml(sale.medicineName)}</td>
+        <td>${escapeHtml(sale.medicineName)}${sale.recordType === "product" ? " (Product)" : ""}</td>
         <td class="number">${sale.quantitySold}</td>
         <td class="number">₱${sale.unitPrice.toFixed(2)}</td>
         <td class="number">${Number(sale.discountPercent ?? 0).toFixed(2)}%</td>
@@ -107,13 +107,13 @@ function buildSalesReport(sales: MedicineSaleRow[], reportLabel: string) {
     </div>
     <main class="report">
       <h1>C2M Family Clinic</h1>
-      <p class="subtitle">Medicine Sales Report</p>
+      <p class="subtitle">Inventory Sales Report</p>
       <div class="meta">
         <span>Report scope: ${escapeHtml(reportLabel)}</span>
         <span>Generated: ${escapeHtml(formatDate(new Date().toISOString()))}</span>
       </div>
       <table>
-        <thead><tr><th>Sale Date</th><th>Medicine</th><th class="number">Qty</th><th class="number">Unit Price</th><th class="number">Discount</th><th class="number">Net Total</th><th>Sold By</th></tr></thead>
+        <thead><tr><th>Sale Date</th><th>Medicine / Product</th><th class="number">Qty</th><th class="number">Unit Price</th><th class="number">Discount</th><th class="number">Net Total</th><th>Sold By</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7">No medicine sales recorded for this report.</td></tr>'}</tbody>
       </table>
       <div class="summary">

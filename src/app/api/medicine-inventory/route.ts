@@ -3,24 +3,30 @@ import prisma from "@/lib/prisma"
 import { logCurrentUserActivity } from "@/lib/activity-log"
 
 function parseMedicinePayload(body: Record<string, unknown>) {
+  const recordType = String(body.recordType ?? "medicine").trim()
+  const productName = String(body.productName ?? "").trim()
   const medicineName = String(body.medicineName ?? "").trim()
   const category = String(body.category ?? "").trim()
   const quantity = String(body.quantity ?? "").trim()
+  const productUnitType = String(body.productUnitType ?? "pieces").trim()
   const pieces = Number.parseInt(String(body.pieces ?? "0"), 10) || 0
+  const productExpirationDate = body.productExpirationDate ? new Date(String(body.productExpirationDate)) : null
   const expiryDate = body.expiryDate ? new Date(String(body.expiryDate)) : null
   const retailPrice = Number(body.retailPrice ?? body.unitPrice ?? body.price ?? 0) || 0
-  const price = Number(body.price ?? 0) || 0
   const status = String(body.status ?? "In Stock").trim()
   const medicineImage = body.medicineImage ? String(body.medicineImage).trim() : null
 
   return {
+    recordType,
+    productName,
     medicineName,
     category,
     quantity,
+    productUnitType,
     pieces,
+    productExpirationDate,
     expiryDate,
     retailPrice,
-    price,
     status,
     medicineImage,
   }
@@ -31,9 +37,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const payload = parseMedicinePayload(body)
 
+    if (payload.recordType === "product") {
+      if (!payload.productName) {
+        return NextResponse.json({ success: false, error: "Product name is required" }, { status: 400 })
+      }
+
+      await prisma.$executeRaw`
+        INSERT INTO "public"."products" ("product_name", "quantity", "unit_type", "expiration_date", "retail_price")
+        VALUES (${payload.productName}, ${payload.pieces}, ${payload.productUnitType}, ${payload.productExpirationDate}, ${payload.retailPrice})
+      `
+
+      await logCurrentUserActivity("Added product", payload.productName, { type: "product" })
+      return NextResponse.json({ success: true })
+    }
+
     if (!payload.medicineName || !payload.expiryDate) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
     }
+    const expiryDate = payload.expiryDate
 
     const created = await prisma.medicine_inventory.create({
       data: {
@@ -41,9 +62,8 @@ export async function POST(request: NextRequest) {
         category: payload.category,
         quantity: payload.quantity,
         pieces: payload.pieces,
-        expiry_date: payload.expiryDate,
+        expiry_date: expiryDate,
         unit_price: payload.retailPrice,
-        price: payload.price,
         supplier: "",
         status: payload.status,
         medicine_image: payload.medicineImage,
@@ -62,8 +82,35 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const id = Number(body.id)
     const payload = parseMedicinePayload(body)
+
+    if (payload.recordType === "product") {
+      const productId = Number(String(body.id ?? "").replace(/^product-/, ""))
+      if (!productId || !payload.productName || !["pieces", "box"].includes(payload.productUnitType)) {
+        return NextResponse.json({ success: false, error: "Product details are invalid" }, { status: 400 })
+      }
+
+      const expirationDate = payload.productExpirationDate
+      const updated = await prisma.$queryRaw<Array<{ product_id: bigint }>>`
+        UPDATE "public"."products"
+        SET "product_name" = ${payload.productName},
+            "quantity" = ${payload.pieces},
+            "unit_type" = ${payload.productUnitType},
+            "expiration_date" = ${expirationDate},
+            "retail_price" = ${payload.retailPrice},
+            "updated_at" = now()
+        WHERE "product_id" = ${productId}
+        RETURNING "product_id"
+      `
+      if (!updated.length) {
+        return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 })
+      }
+
+      await logCurrentUserActivity("Updated product", payload.productName, { type: "product", id: productId })
+      return NextResponse.json({ success: true })
+    }
+
+    const id = Number(body.id)
 
     if (!id || !payload.medicineName || !payload.expiryDate) {
       return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
@@ -78,7 +125,6 @@ export async function PATCH(request: NextRequest) {
         pieces: payload.pieces,
         expiry_date: payload.expiryDate,
         unit_price: payload.retailPrice,
-        price: payload.price,
         status: payload.status,
         medicine_image: payload.medicineImage,
       },
@@ -96,6 +142,25 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json()
+    if (String(body.recordType ?? "") === "product") {
+      const productId = Number(String(body.id ?? "").replace(/^product-/, ""))
+      if (!productId) {
+        return NextResponse.json({ success: false, error: "Missing product id" }, { status: 400 })
+      }
+
+      const existing = await prisma.$queryRaw<Array<{ product_name: string }>>`
+        DELETE FROM "public"."products"
+        WHERE "product_id" = ${productId}
+        RETURNING "product_name"
+      `
+      if (!existing.length) {
+        return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 })
+      }
+
+      await logCurrentUserActivity("Deleted product", existing[0].product_name, { type: "product", id: productId })
+      return NextResponse.json({ success: true })
+    }
+
     const id = Number(body.id)
 
     if (!id) {

@@ -9,6 +9,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type FilterFn,
   type ColumnFiltersState,
   type SortingState,
   type VisibilityState,
@@ -120,6 +121,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   getRowId?: (originalRow: TData, index: number) => string
   onSelectedRowsChange?: (rows: TData[]) => void
+  globalFilterFn?: FilterFn<TData>
 }
 
 export function DataTable<TData, TValue>({
@@ -127,6 +129,7 @@ export function DataTable<TData, TValue>({
   data,
   getRowId,
   onSelectedRowsChange,
+  globalFilterFn,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -182,7 +185,7 @@ export function DataTable<TData, TValue>({
     enableRowSelection: true,
     getRowId,
     onRowSelectionChange: setRowSelection,
-    globalFilterFn: "includesString",
+    globalFilterFn: globalFilterFn ?? "includesString",
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,

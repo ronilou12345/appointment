@@ -17,7 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CalendarDays, ClipboardListIcon } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, FileChartColumnIcon, FileIcon, CalendarDays, ClipboardListIcon, Pill, PersonStanding } from "lucide-react"
 
 interface AppSidebarUser {
   name: string
@@ -154,9 +154,9 @@ const data = {
     { title: "Settings", url: "/admin/settings", icon: <Settings2Icon /> },
   ],
   documents: [
-    { name: "Medicine", url: "/admin/inventory", icon: <DatabaseIcon />, badge: "New" },
+    { name: "Pharmacy", url: "/admin/inventory", icon: <Pill />, badge: "New" },
     { name: "Reports", url: "/admin/reports", icon: <FileChartColumnIcon /> },
-    { name: "Add Vitals", url: "/admin/add-bmi", icon: <ChartBarIcon />, badge: "new" },
+    { name: "Add BMI", url: "/admin/add-bmi", icon: <PersonStanding />, badge: "new" },
   ],
 }
 
