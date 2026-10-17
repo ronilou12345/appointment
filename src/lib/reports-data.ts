@@ -142,8 +142,8 @@ export async function getReportsData(): Promise<ReportsData> {
         OR: [{ created_at: { gte: monthStart } }, { appointment_date: { gte: monthStart } }],
       },
     }),
-    prisma.user.count({ where: { role: { in: ["NURSE"] } } }),
-    prisma.user.count({ where: { role: { in: ["NURSE"] }, status: "ACTIVE" } }),
+    prisma.doctor.count(),
+    prisma.doctor.count({ where: { user: { status: "ACTIVE" } } }),
     prisma.session_tbl.count(),
     prisma.session_tbl.count({
       where: { session_date: { gte: todayStart, lte: todayEnd } },
@@ -157,7 +157,6 @@ export async function getReportsData(): Promise<ReportsData> {
         _count: { select: { appointment: true, session_tbl: true } },
       },
       orderBy: { appointment: { _count: "desc" } },
-      take: 8,
     }),
     prisma.appointment.groupBy({
       by: ["doctor_id"],
@@ -233,8 +232,7 @@ export async function getReportsData(): Promise<ReportsData> {
           label: String(row.appointment_type ?? "General Consultation"),
           count: row._count.appointment_id,
         }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 6),
+        .sort((a, b) => b.count - a.count),
       byHour: hourRows.map((row) => ({
         label: String(row.hour ?? "—"),
         count: Number(row.count ?? 0),

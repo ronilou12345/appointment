@@ -367,10 +367,12 @@ export function SiteHeader({
       signup: "Sign Up",
     }
 
-    const crumbs = segments.map((segment, index) => {
+    const crumbs = segments.flatMap((segment, index) => {
+      if (segments[0] === "admin" && segment === "client") return []
+
       const href = `/${segments.slice(0, index + 1).join("/")}`
       const label = labelMap[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
-      return { label, href }
+      return [{ label, href }]
     })
 
     return [{ label: "Home", href: homeHref }, ...crumbs]

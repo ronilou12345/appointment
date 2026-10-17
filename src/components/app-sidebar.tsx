@@ -156,8 +156,7 @@ const data = {
   documents: [
     { name: "Pharmacy", url: "/admin/inventory", icon: <Pill />, badge: "New" },
     { name: "Reports", url: "/admin/reports", icon: <FileChartColumnIcon /> },
-    { name: "Add BMI", url: "/admin/add-bmi", icon: <PersonStanding />, badge: "new" },
-    { name: "Walk In", url: "/admin/client/book-appointment", icon: <DoorOpen /> },
+    { name: "Walk In", url: "/admin/book-appointment", icon: <DoorOpen /> },
   ],
 }
 

@@ -19,10 +19,12 @@ import { toast } from "sonner"
 import type { VitalRow } from "@/app/client/add-bmi/columns"
 
 const emptyForm = {
+  bloodPressure: "",
   weight: "",
   height: "",
   heartRate: "",
   bodyTemp: "",
+  oxygenSaturation: "",
   bloodSugar: "",
 }
 
@@ -60,6 +62,9 @@ export function AddVitalsDialog({
   canSelectUser = false,
   selectedUserId = "",
   onUserChange,
+  hideUserSelection = false,
+  bmiEntryMode = false,
+  appointmentId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -69,6 +74,9 @@ export function AddVitalsDialog({
   canSelectUser?: boolean
   selectedUserId?: string
   onUserChange?: (userId: string) => void
+  hideUserSelection?: boolean
+  bmiEntryMode?: boolean
+  appointmentId?: string | number
 }) {
   const [loading, setLoading] = React.useState(false)
   const [users, setUsers] = React.useState<{ id: string; name: string; email: string; avatar?: string | null }[]>([])
@@ -83,7 +91,7 @@ export function AddVitalsDialog({
   const selectedUser = users.find((user) => user.id === selectedUserId)
 
   React.useEffect(() => {
-    if (!open || !canSelectUser) return
+    if (!open || !canSelectUser || hideUserSelection) return
 
     fetch("/api/users?role=PATIENT")
       .then(async (res) => {
@@ -92,7 +100,7 @@ export function AddVitalsDialog({
         setUsers(Array.isArray(result.users) ? result.users : [])
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Unable to load client users"))
-  }, [open, canSelectUser])
+  }, [open, canSelectUser, hideUserSelection])
 
   React.useEffect(() => {
     if (!open) {
@@ -113,6 +121,8 @@ export function AddVitalsDialog({
         height: vital.height != null ? String(vital.height) : "",
         heartRate: vital.heartRate != null ? String(vital.heartRate) : "",
         bodyTemp: vital.temp != null ? String(vital.temp) : "",
+        bloodPressure: vital.bloodPressure ?? "",
+        oxygenSaturation: vital.oxygenSaturation != null ? String(vital.oxygenSaturation) : "",
         bloodSugar: vital.bloodSugar != null ? String(vital.bloodSugar) : "",
       })
       return
@@ -134,7 +144,18 @@ export function AddVitalsDialog({
     const height = parseOptionalNumber(form.height)
     const heartRate = parseOptionalNumber(form.heartRate)
     const bodyTemperature = parseOptionalNumber(form.bodyTemp)
+    const oxygenSaturation = parseOptionalNumber(form.oxygenSaturation)
     const bloodSugar = parseOptionalNumber(form.bloodSugar)
+
+    if (form.bloodPressure.trim() && !/^\d{2,3}\s*\/\s*\d{2,3}$/.test(form.bloodPressure.trim())) {
+      toast.error("Enter blood pressure in systolic/diastolic format, such as 120/80.")
+      return
+    }
+
+    if (oxygenSaturation != null && (oxygenSaturation < 0 || oxygenSaturation > 100)) {
+      toast.error("Oxygen saturation must be between 0 and 100%.")
+      return
+    }
 
     if (!weight || weight <= 0) {
       toast.error("Please enter a valid weight.")
@@ -158,11 +179,14 @@ export function AddVitalsDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: vital?.id,
+          appointment_id: appointmentId,
           user_id: canSelectUser ? selectedUserId : undefined,
           weight,
           height,
+          blood_pressure: form.bloodPressure.trim() || null,
           heart_rate: heartRate,
           body_temperature: bodyTemperature,
+          oxygen_saturation: oxygenSaturation,
           blood_sugar: bloodSugar,
         }),
       })
@@ -197,19 +221,23 @@ export function AddVitalsDialog({
 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{isEditing ? "Edit Vital Signs" : "Add Vital Signs"}</DialogTitle>
+          <DialogHeader className={bmiEntryMode ? "mb-3" : undefined}>
+            <DialogTitle>
+              {bmiEntryMode ? "Add BMI" : isEditing ? "Edit Vital Signs" : "Add Vital Signs"}
+            </DialogTitle>
             <DialogDescription>
-              {isEditing
-                ? "Update this vitals record."
-                : canSelectUser
-                  ? "Select a client user and record their vital signs."
-                  : "Record weight, height, heart rate, temperature, and blood sugar."}
+              {bmiEntryMode
+                ? "Vital Signs & BMI Record"
+                : isEditing
+                  ? "Update this vitals record."
+                  : canSelectUser
+                    ? "Select a client user and record their vital signs."
+                    : "Record weight, height, heart rate, temperature, and blood sugar."}
             </DialogDescription>
           </DialogHeader>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            {canSelectUser ? (
+          <form className={bmiEntryMode ? "space-y-3" : "space-y-4"} onSubmit={handleSubmit}>
+            {canSelectUser && !hideUserSelection ? (
               <Field>
                 <FieldLabel htmlFor="vital-user">Client user</FieldLabel>
                 <Popover open={userPickerOpen} onOpenChange={setUserPickerOpen}>
@@ -279,6 +307,96 @@ export function AddVitalsDialog({
                 </Popover>
               </Field>
             ) : null}
+            {bmiEntryMode ? (
+              <div className="grid min-w-0 gap-3">
+                <Field className="min-w-0">
+                  <FieldLabel className="block break-words" htmlFor="vital-blood-pressure">Blood Pressure (BP)</FieldLabel>
+                  <Input
+                    id="vital-blood-pressure"
+                    value={form.bloodPressure}
+                    onChange={(event) => handleChange("bloodPressure", event.target.value)}
+                    placeholder="e.g. 120/80 mmHg"
+                    className="h-10"
+                  />
+                </Field>
+                <FieldGroup className="grid min-w-0 grid-cols-2 gap-3">
+                  <Field className="min-w-0">
+                    <FieldLabel className="block break-words" htmlFor="vital-temp">Temperature (°C)</FieldLabel>
+                    <Input
+                      id="vital-temp"
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.1"
+                      value={form.bodyTemp}
+                      onChange={(event) => handleChange("bodyTemp", event.target.value)}
+                      placeholder="e.g. 36.5"
+                      className="h-10"
+                    />
+                  </Field>
+                  <Field className="min-w-0">
+                    <FieldLabel className="block break-words" htmlFor="vital-oxygen-saturation">O₂ Saturation (%)</FieldLabel>
+                    <Input
+                      id="vital-oxygen-saturation"
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={form.oxygenSaturation}
+                      onChange={(event) => handleChange("oxygenSaturation", event.target.value)}
+                      placeholder="e.g. 98"
+                      className="h-10"
+                    />
+                  </Field>
+                </FieldGroup>
+                <Field className="min-w-0">
+                  <FieldLabel className="block break-words" htmlFor="vital-heart-rate">Pulse Rate (PR) (bpm)</FieldLabel>
+                  <Input
+                    id="vital-heart-rate"
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    value={form.heartRate}
+                    onChange={(event) => handleChange("heartRate", event.target.value)}
+                    placeholder="e.g. 74"
+                    className="h-10"
+                  />
+                </Field>
+                <FieldGroup className="grid min-w-0 grid-cols-2 gap-3">
+                  <Field className="min-w-0">
+                    <FieldLabel className="block break-words" htmlFor="vital-weight">Weight (kg)</FieldLabel>
+                    <Input
+                      id="vital-weight"
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.1"
+                      placeholder="e.g. 60"
+                      required
+                      value={form.weight}
+                      onChange={(event) => handleChange("weight", event.target.value)}
+                      className="h-10"
+                    />
+                  </Field>
+                  <Field className="min-w-0">
+                    <FieldLabel className="block break-words" htmlFor="vital-height">Height (cm)</FieldLabel>
+                    <Input
+                      id="vital-height"
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.1"
+                      placeholder="e.g. 160"
+                      required
+                      value={form.height}
+                      onChange={(event) => handleChange("height", event.target.value)}
+                      className="h-10"
+                    />
+                  </Field>
+                </FieldGroup>
+              </div>
+            ) : (
             <FieldGroup className="grid-cols-1 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="vital-weight">Weight (kg)</FieldLabel>
@@ -347,19 +465,20 @@ export function AddVitalsDialog({
                 />
               </Field>
             </FieldGroup>
+            )}
 
-            <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">BMI</p>
-              <p className="mt-1 text-lg font-semibold">{bmi ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">Calculated from weight and height.</p>
+            <div className="rounded-lg border border-border bg-muted/40 p-3">
+              <p className="text-sm font-medium">Calculated Body Mass Index</p>
+              <p className="mt-3 text-2xl font-semibold">{bmi ?? "—"} <span className="text-sm font-normal text-muted-foreground">kg/m²</span></p>
+              <p className="mt-1 text-sm text-muted-foreground">Enter weight and height to calculate BMI.</p>
             </div>
 
-            <DialogFooter className="mt-0">
+            <DialogFooter className={bmiEntryMode ? "mt-3" : undefined}>
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={loading}>
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? (isEditing ? "Updating..." : "Saving...") : isEditing ? "Save changes" : "Save"}
+                {loading ? (isEditing ? "Updating..." : "Saving...") : isEditing ? "Save changes" : bmiEntryMode ? "Save BMI Record" : "Save"}
               </Button>
             </DialogFooter>
           </form>

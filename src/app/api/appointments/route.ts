@@ -5,6 +5,7 @@ import { normalizePhilippineMobile } from "@/lib/phone-utils"
 import { sendAppointmentEmail, sendAppointmentRescheduledEmail, sendAppointmentStatusEmail, sendCancellationRequestEmail } from "@/lib/appointment-email"
 import { sendAppointmentSms } from "@/lib/appointment-sms"
 import { logActivity } from "@/lib/activity-log"
+import { normalizeUserRole } from "@/lib/user-role"
 
 // Date and time columns come back as UTC-anchored Date objects, so the calendar
 // parts have to be read off the ISO string rather than local getters.
@@ -277,6 +278,12 @@ type AppointmentPayload = {
   durationOfSymptoms?: string | null
   painLevel?: number | null
   additionalNotes?: string | null
+  walkInPatient?: {
+    name: string
+    birthday?: string
+    civilStatus?: string
+    email?: string
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -291,13 +298,37 @@ export async function POST(request: NextRequest) {
     const payload = body as AppointmentPayload
     const doctorId = Number(payload.doctorId)
     const sessionId = Number(payload.sessionId)
+    const walkInPatient = payload.walkInPatient
+      ? {
+          name: String(payload.walkInPatient.name ?? "").trim().slice(0, 200),
+          birthday: payload.walkInPatient.birthday ? String(payload.walkInPatient.birthday).trim().slice(0, 10) : null,
+          civilStatus: payload.walkInPatient.civilStatus ? String(payload.walkInPatient.civilStatus).trim().slice(0, 40) : null,
+          email: payload.walkInPatient.email ? String(payload.walkInPatient.email).trim().slice(0, 254) : null,
+        }
+      : null
+
+    if (walkInPatient && normalizeUserRole(user.role) !== "ADMIN") {
+      return NextResponse.json({ success: false, error: "Only admins can create walk-in appointments" }, { status: 403 })
+    }
+
+    if (walkInPatient && !walkInPatient.name) {
+      return NextResponse.json({ success: false, error: "Patient name is required for walk-in appointments" }, { status: 400 })
+    }
+
+    if (walkInPatient?.birthday && !/^\d{4}-\d{2}-\d{2}$/.test(walkInPatient.birthday)) {
+      return NextResponse.json({ success: false, error: "Please enter a valid patient birthday" }, { status: 400 })
+    }
+
+    if (walkInPatient?.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(walkInPatient.email)) {
+      return NextResponse.json({ success: false, error: "Please enter a valid patient email" }, { status: 400 })
+    }
 
     if (!doctorId || !sessionId || !payload.relationship?.trim()) {
       return NextResponse.json({ success: false, error: "Missing required appointment fields" }, { status: 400 })
     }
 
     const appointmentType = payload.appointmentType ? String(payload.appointmentType).trim().slice(0, 50) : "General Consultation"
-    const relationship = payload.relationship.trim().slice(0, 100)
+    const relationship = walkInPatient ? "Walk-in" : payload.relationship.trim().slice(0, 100)
     const reasonForVisit = payload.reasonForVisit?.trim().slice(0, 500) ?? ""
     const rawContactNumber = payload.contactNumber ? String(payload.contactNumber).trim().slice(0, 20) : null
     const contactNumber = rawContactNumber ? normalizePhilippineMobile(rawContactNumber) : null
@@ -400,7 +431,7 @@ export async function POST(request: NextRequest) {
       )
 
       appointmentDetails = {
-        patientName: user.name ?? user.email ?? "Patient",
+        patientName: walkInPatient?.name ?? user.name ?? user.email ?? "Patient",
         doctorName: doctor?.[0]?.name ?? "Doctor",
         date: selectedAppointmentDate,
         time: selectedAppointmentTimeValue,
@@ -408,8 +439,8 @@ export async function POST(request: NextRequest) {
         reasonForVisit,
       }
 
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "appointment" ("user_id", "doctor_id", "session_id", "appointment_type", "reason_for_visit", "relationship", "age", "gender", "contact_number", "symptoms", "duration_of_symptoms", "pain_level", "additional_notes", "appointment_date", "appointment_time") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+      const insertedAppointments = await tx.$queryRawUnsafe<{ appointment_id: number }[]>(
+        `INSERT INTO "appointment" ("user_id", "doctor_id", "session_id", "appointment_type", "reason_for_visit", "relationship", "age", "gender", "contact_number", "symptoms", "duration_of_symptoms", "pain_level", "additional_notes", "appointment_date", "appointment_time") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING "appointment_id"`,
         user.id,
         doctorId,
         sessionId,
@@ -427,6 +458,19 @@ export async function POST(request: NextRequest) {
         selectedAppointmentTimeValue ? `${selectedAppointmentTimeValue}:00` : null,
       )
 
+      if (walkInPatient) {
+        await tx.$executeRawUnsafe(
+          `INSERT INTO public.walk_in ("appointment_id", "patient_name", "birthday", "civil_status", "email", "doctor_name", "appointment_date") VALUES ($1, $2, $3::date, $4, $5, $6, $7::date)`,
+          insertedAppointments[0].appointment_id,
+          walkInPatient.name,
+          walkInPatient.birthday,
+          walkInPatient.civilStatus,
+          walkInPatient.email,
+          appointmentDetails.doctorName ?? "Doctor",
+          selectedAppointmentDate,
+        )
+      }
+
       const createdAppointmentRows = await tx.$queryRawUnsafe<{ contact_number: string | null }[]>(
         `SELECT contact_number FROM "appointment" WHERE user_id = $1 AND doctor_id = $2 AND session_id = $3 ORDER BY appointment_id DESC LIMIT 1`,
         user.id,
@@ -442,7 +486,7 @@ export async function POST(request: NextRequest) {
 
     const [smsResult, emailResult] = await Promise.all([
       sendAppointmentSms(savedContactNumber, appointmentDetails, "Pending"),
-      sendAppointmentEmail(user.email ?? null, appointmentDetails),
+      sendAppointmentEmail(walkInPatient?.email ?? user.email ?? null, appointmentDetails),
     ])
 
     if (!smsResult.success) {

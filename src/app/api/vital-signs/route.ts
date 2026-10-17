@@ -6,11 +6,14 @@ import { ensureVitalSignsColumns, toVitalNumber } from "@/lib/vital-signs"
 import { resolveProfileAvatar } from "@/lib/profile-image"
 
 type Payload = {
+  appointment_id?: number | string | null
   user_id?: string | null
   weight?: number | null
   height?: number | null
+  blood_pressure?: string | null
   heart_rate?: number | null
   body_temperature?: number | null
+  oxygen_saturation?: number | null
   blood_sugar?: number | null
 }
 
@@ -39,8 +42,10 @@ function mapVitalRow(row: any) {
     user_avatar: userId ? resolveProfileAvatar(String(userId), row.profile_image) : "",
     weight: toVitalNumber(row.weight),
     height: toVitalNumber(row.height),
+    blood_pressure: row.blood_pressure ?? null,
     heart_rate: toVitalNumber(row.heart_rate),
     body_temperature: toVitalNumber(row.body_temperature),
+    oxygen_saturation: toVitalNumber(row.oxygen_saturation),
     blood_sugar: toVitalNumber(row.blood_sugar),
     created_at: row.created_at ?? null,
   }
@@ -58,44 +63,38 @@ export async function POST(req: NextRequest) {
     if (!targetUserId) {
       return NextResponse.json({ success: false, error: "Select an active client user." }, { status: 400 })
     }
-    await ensureVitalSignsColumns()
 
-    let res: any[] = []
-    try {
-      res = await prisma.$queryRawUnsafe<any[]>(
-        `INSERT INTO "vital_signs" (user_id, weight, height, heart_rate, body_temperature, blood_sugar, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-         RETURNING vital_id AS id, weight, height, heart_rate, body_temperature, blood_sugar, created_at`,
-        targetUserId,
-        body.weight ?? null,
-        body.height ?? null,
-        body.heart_rate ?? null,
-        body.body_temperature ?? null,
-        body.blood_sugar ?? null,
-      )
-    } catch {
-      const appointments = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT appointment_id FROM "appointment" WHERE user_id = $1 ORDER BY appointment_id DESC LIMIT 1`,
-        targetUserId,
-      )
-      const appointmentId = Number(appointments[0]?.appointment_id)
-      if (!appointmentId) {
-        throw new Error("Unable to save vitals. Book an appointment first, then try again.")
+    const appointmentId = body.appointment_id == null ? null : Number(body.appointment_id)
+    if (appointmentId !== null) {
+      if (!Number.isInteger(appointmentId) || appointmentId <= 0) {
+        return NextResponse.json({ success: false, error: "Invalid appointment id." }, { status: 400 })
       }
 
-      res = await prisma.$queryRawUnsafe<any[]>(
-        `INSERT INTO "vital_signs" (appointment_id, user_id, weight, height, heart_rate, body_temperature, blood_sugar, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-         RETURNING vital_id AS id, weight, height, heart_rate, body_temperature, blood_sugar, created_at`,
-        appointmentId,
-        targetUserId,
-        body.weight ?? null,
-        body.height ?? null,
-        body.heart_rate ?? null,
-        body.body_temperature ?? null,
-        body.blood_sugar ?? null,
-      )
+      const appointment = await prisma.appointment.findFirst({
+        where: { appointment_id: appointmentId, user_id: targetUserId },
+        select: { appointment_id: true },
+      })
+      if (!appointment) {
+        return NextResponse.json({ success: false, error: "Appointment does not belong to this patient." }, { status: 400 })
+      }
     }
+
+    await ensureVitalSignsColumns()
+
+    const res = await prisma.$queryRawUnsafe<any[]>(
+      `INSERT INTO "vital_signs" (appointment_id, user_id, weight, height, blood_pressure, heart_rate, body_temperature, oxygen_saturation, blood_sugar, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+       RETURNING vital_id AS id, appointment_id, user_id, weight, height, blood_pressure, heart_rate, body_temperature, oxygen_saturation, blood_sugar, created_at`,
+      appointmentId,
+      targetUserId,
+      body.weight ?? null,
+      body.height ?? null,
+      body.blood_pressure ?? null,
+      body.heart_rate ?? null,
+      body.body_temperature ?? null,
+      body.oxygen_saturation ?? null,
+      body.blood_sugar ?? null,
+    )
 
     await logCurrentUserActivity("Added BMI / vital signs")
 
@@ -125,8 +124,10 @@ export async function GET(req: NextRequest) {
             u.profile_image,
             v.weight,
             v.height,
+            v.blood_pressure,
             v.heart_rate,
             v.body_temperature,
+            v.oxygen_saturation,
             v.blood_sugar,
             v.created_at
           FROM "vital_signs" v
@@ -152,8 +153,10 @@ export async function GET(req: NextRequest) {
           u.profile_image,
           v.weight,
           v.height,
+          v.blood_pressure,
           v.heart_rate,
           v.body_temperature,
+          v.oxygen_saturation,
           v.blood_sugar,
           v.created_at
         FROM "vital_signs" v
@@ -210,17 +213,21 @@ export async function PUT(req: NextRequest) {
       `UPDATE "vital_signs"
        SET weight = $2,
            height = $3,
-           heart_rate = $4,
-           body_temperature = $5,
-           blood_sugar = $6,
+           blood_pressure = $4,
+           heart_rate = $5,
+           body_temperature = $6,
+           oxygen_saturation = $7,
+           blood_sugar = $8,
            updated_at = NOW()
        WHERE vital_id = $1
-       RETURNING vital_id AS id, weight, height, heart_rate, body_temperature, blood_sugar, created_at`,
+         RETURNING vital_id AS id, weight, height, blood_pressure, heart_rate, body_temperature, oxygen_saturation, blood_sugar, created_at`,
       vitalId,
       body.weight ?? null,
       body.height ?? null,
+        body.blood_pressure ?? null,
       body.heart_rate ?? null,
       body.body_temperature ?? null,
+        body.oxygen_saturation ?? null,
       body.blood_sugar ?? null,
     )
 

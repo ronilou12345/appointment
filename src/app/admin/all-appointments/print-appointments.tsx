@@ -274,6 +274,9 @@ function medicalRecordPage(appointment: AppointmentRow) {
 function medicalCertificatePage(appointment: AppointmentRow) {
   const diagnosis = appointment.diagnosis || "—"
   const remarks = appointment.prescription || "—"
+  const doctorSignature = appointment.doctorSignature?.startsWith("data:image/png;base64,")
+    ? `<img src="${escapeHtml(appointment.doctorSignature)}" alt="Doctor signature" class="certificate-signature-image" style="transform:translateY(28px);margin-bottom:-28px" />`
+    : `<div class="certificate-signature-line">_________________________</div>`
   return `
     <section class="certificate-page">
       <header class="letterhead">
@@ -297,7 +300,7 @@ function medicalCertificatePage(appointment: AppointmentRow) {
       <div class="certificate-section"><b>Diagnosis:</b><p>1. ${escapeHtml(diagnosis)}</p></div>
       <div class="certificate-section"><b>Remarks:</b><p>${escapeHtml(remarks)}</p></div>
       <p class="certificate-disclaimer">The certificate is issued upon the request of the above patient for whatever purpose it may serve, except for medico-legal reasons.</p>
-      <div class="certificate-signature">${escapeHtml(appointment.doctorName || "Physician")}<br/>Physician's Signature<br/>PRC No. __________<br/>PTR __________</div>
+      <div class="certificate-signature">${doctorSignature}${escapeHtml(appointment.doctorName || "Physician")}<br/>Physician's Signature<br/>PRC No. __________<br/>PTR __________</div>
     </section>
   `
 }
@@ -340,6 +343,8 @@ function buildCertificateDocument(title: string, appointment: AppointmentRow) {
       .certificate-section p { margin: 18px 0 0; line-height: 1.5; }
       .certificate-disclaimer { margin: 42px 20px 0; text-align: center; font-size: 13px; line-height: 1.5; }
       .certificate-signature { position: absolute; right: 0; bottom: 0; width: 220px; text-align: center; font-size: 12px; line-height: 1.45; }
+      .certificate-signature-image { display: block; width: 180px; height: 48px; margin: 0 auto; object-fit: contain; filter: brightness(0); }
+      .certificate-signature-line { height: 48px; line-height: 48px; }
       @media print { .certificate-page { min-height: 260mm; } }
     </style>
   </head>

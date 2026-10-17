@@ -2,10 +2,12 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MoreHorizontal } from "lucide-react"
+import { Eye, FileText, MoreHorizontal, Printer, SquarePlus } from "lucide-react"
 import { useState } from "react"
+import { AddVitalsDialog } from "@/components/add-vitals-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +33,7 @@ export type AppointmentRow = {
   patientAddress?: string
   doctorName: string
   doctorBoardCertification?: string
+  doctorSignature?: string
   date: string
   time: string
   status: string
@@ -96,6 +99,8 @@ const formatDateValue = (value: string | null | undefined) => {
 
 function AdminAppointmentActions({ appointment }: { appointment: AppointmentRow }) {
   const [certificateOpen, setCertificateOpen] = useState(false)
+  const [bmiOpen, setBmiOpen] = useState(false)
+  const router = useRouter()
 
   return (
     <>
@@ -106,16 +111,43 @@ function AdminAppointmentActions({ appointment }: { appointment: AppointmentRow 
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuItem asChild>
-            <Link href={`/admin/all-appointments/${appointment.id}`}>View details</Link>
+            <Link href={`/admin/all-appointments/${appointment.id}`}>
+              <Eye className="mr-2 size-4" />
+              View Details
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => printSingleAppointment(appointment)}>Print</DropdownMenuItem>
+          {appointment.status.trim().toLowerCase() === "confirmed" ? (
+            <DropdownMenuItem onClick={() => setBmiOpen(true)}>
+              <SquarePlus className="mr-2 size-4" />
+              Add BMI
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem onClick={() => printSingleAppointment(appointment)}>
+            <Printer className="mr-2 size-4" />
+            Print
+          </DropdownMenuItem>
           {appointment.status.trim().toLowerCase() === "completed" ? (
-            <DropdownMenuItem onClick={() => setCertificateOpen(true)}>Print Medical Certificate</DropdownMenuItem>
+            <DropdownMenuItem className="whitespace-nowrap" onClick={() => setCertificateOpen(true)}>
+              <FileText className="mr-2 size-4" />
+              Print Medical Certificate
+            </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AddVitalsDialog
+        open={bmiOpen}
+        showTrigger={false}
+        canSelectUser
+        hideUserSelection
+        bmiEntryMode
+        appointmentId={appointment.id}
+        selectedUserId={appointment.patientId}
+        onOpenChange={setBmiOpen}
+        onSaved={() => router.refresh()}
+      />
 
       <Dialog open={certificateOpen} onOpenChange={setCertificateOpen}>
         <DialogContent className="max-w-4xl overflow-hidden rounded-3xl">
@@ -148,7 +180,16 @@ function AdminAppointmentActions({ appointment }: { appointment: AppointmentRow 
                 <div><b>Remarks:</b><p className="mt-3">{appointment.prescription || "—"}</p></div>
               </div>
               <p className="mx-8 mt-10 text-center">The certificate is issued upon the request of the above patient for whatever purpose it may serve, except for medico-legal reasons.</p>
-              <div className="ml-auto mt-8 w-56 text-center text-xs leading-5">_________________________<br />{appointment.doctorName || "Physician"}<br />Physician's Signature<br />PRC No. __________<br />PTR __________</div>
+              <div className="ml-auto mt-8 w-56 text-center text-xs leading-5">
+                <div className="flex h-12 items-end justify-center">
+                  {appointment.doctorSignature?.startsWith("data:image/png;base64,") ? (
+                    <img src={appointment.doctorSignature} alt="Doctor signature" className="h-12 w-full max-w-[180px] translate-y-6 object-contain [filter:brightness(0)]" />
+                  ) : (
+                    <span>_________________________</span>
+                  )}
+                </div>
+                {appointment.doctorName || "Physician"}<br />Physician's Signature<br />PRC No. __________<br />PTR __________
+              </div>
             </div>
           </div>
           <DialogFooter>

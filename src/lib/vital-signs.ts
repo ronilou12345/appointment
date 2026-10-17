@@ -7,6 +7,8 @@ export async function ensureVitalSignsColumns() {
 
   await prisma.$executeRawUnsafe(`ALTER TABLE "vital_signs" ADD COLUMN IF NOT EXISTS user_id TEXT`)
   await prisma.$executeRawUnsafe(`ALTER TABLE "vital_signs" ADD COLUMN IF NOT EXISTS height NUMERIC(5, 2)`)
+  await prisma.$executeRawUnsafe(`ALTER TABLE "vital_signs" ADD COLUMN IF NOT EXISTS blood_pressure VARCHAR(20)`)
+  await prisma.$executeRawUnsafe(`ALTER TABLE "vital_signs" ADD COLUMN IF NOT EXISTS oxygen_saturation NUMERIC(5, 2)`)
 
   try {
     await prisma.$executeRawUnsafe(`ALTER TABLE "vital_signs" ALTER COLUMN appointment_id DROP NOT NULL`)

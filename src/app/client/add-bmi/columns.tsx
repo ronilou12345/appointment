@@ -22,8 +22,10 @@ export type VitalRow = {
   weight: number | null
   height: number | null
   bmi: number | null
+  bloodPressure?: string | null
   heartRate: number | null
   temp: number | null
+  oxygenSaturation?: number | null
   bloodSugar: number | null
 }
 
@@ -74,6 +76,11 @@ export function getVitalColumns({
       cell: ({ row }) => <span className="text-sm font-medium">{formatValue(row.original.bmi, 1)}</span>,
     },
     {
+      accessorKey: "bloodPressure",
+      header: "Blood Pressure",
+      cell: ({ row }) => <span className="text-sm">{row.original.bloodPressure || "—"}</span>,
+    },
+    {
       accessorKey: "heartRate",
       header: "Heart Rate",
       cell: ({ row }) => <span className="text-sm">{formatValue(row.original.heartRate, 0)}</span>,
@@ -82,6 +89,11 @@ export function getVitalColumns({
       accessorKey: "temp",
       header: "Body Temp",
       cell: ({ row }) => <span className="text-sm">{formatValue(row.original.temp, 1)}</span>,
+    },
+    {
+      accessorKey: "oxygenSaturation",
+      header: "SpO₂ (%)",
+      cell: ({ row }) => <span className="text-sm">{formatValue(row.original.oxygenSaturation ?? null, 0)}</span>,
     },
     {
       accessorKey: "bloodSugar",

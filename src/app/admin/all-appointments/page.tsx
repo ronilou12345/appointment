@@ -36,6 +36,7 @@ async function getAppointments(): Promise<AppointmentRow[]> {
       doctor: {
         select: {
           board_certification: true,
+          signature: true,
           first_name: true,
           middle_name: true,
           last_name: true,
@@ -98,6 +99,7 @@ async function getAppointments(): Promise<AppointmentRow[]> {
       patientAddress: appointment.user?.address ?? "",
       doctorName,
       doctorBoardCertification: appointment.doctor?.board_certification || "—",
+      doctorSignature: appointment.doctor?.signature ?? "",
       date,
       time,
       status: appointment.appointment_status ?? "Pending",

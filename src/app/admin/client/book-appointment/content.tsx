@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -62,7 +62,43 @@ const steps: StepperItem[] = [
   },
 ]
 
-export function BookAppointmentContent() {
+function findNextWalkInSession(sessions: SessionOption[], doctorId: string) {
+  const now = new Date()
+  const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-")
+  const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60
+  const toMinutes = (time: string) => {
+    const [hours, minutes] = time.split(":").map(Number)
+    return hours * 60 + minutes
+  }
+
+  const todaySessions = sessions
+    .filter((session) =>
+      session.doctorId === doctorId &&
+      session.date === today &&
+      (session.status ?? "Active").trim().toLowerCase() === "active" &&
+      Number(session.slots ?? 0) > 0,
+    )
+    .sort((first, second) => toMinutes(first.startTime) - toMinutes(second.startTime))
+
+  for (const session of todaySessions) {
+    const startMinutes = toMinutes(session.startTime)
+    const endMinutes = toMinutes(session.endTime)
+    const slotIndex = Math.max(0, Math.ceil((currentMinutes - startMinutes) / 30))
+    const appointmentMinutes = startMinutes + slotIndex * 30
+    if (appointmentMinutes >= endMinutes || appointmentMinutes <= currentMinutes) continue
+
+    const hours = Math.floor(appointmentMinutes / 60)
+    const minutes = appointmentMinutes % 60
+    return {
+      session,
+      time: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+    }
+  }
+
+  return null
+}
+
+export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean }) {
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [doctors, setDoctors] = useState<DoctorOption[]>([])
@@ -75,7 +111,12 @@ export function BookAppointmentContent() {
   const [sessionError, setSessionError] = useState("")
   const [dateConflictMessage, setDateConflictMessage] = useState("")
   const [checkingDateConflict, setCheckingDateConflict] = useState(false)
+  const [walkInAvailabilityMessage, setWalkInAvailabilityMessage] = useState("")
   const [bookedTimes, setBookedTimes] = useState<string[]>([])
+  const handledInitialDoctorRef = useRef("")
+  const detailsStepIndex = walkIn ? 1 : 2
+  const confirmationStepIndex = walkIn ? 2 : 3
+  const visibleSteps = walkIn ? [steps[0], steps[2], steps[3]] : steps
   const [formData, setFormData] = useState({
     doctorId: "",
     sessionId: "",
@@ -87,7 +128,10 @@ export function BookAppointmentContent() {
     patientName: "",
     age: "",
     gender: "",
+    birthday: "",
+    civilStatus: "",
     contactNumber: "",
+    patientEmail: "",
     symptoms: "",
     durationOfSymptoms: "",
     painLevel: "",
@@ -168,6 +212,22 @@ export function BookAppointmentContent() {
     const selectedDoctor = doctors.find((doctor) => String(doctor.id) === String(doctorId))
     if (!selectedDoctor) return
 
+    if (walkIn) {
+      if (loadingSessions || handledInitialDoctorRef.current === doctorId) return
+      handledInitialDoctorRef.current = doctorId
+      const walkInSlot = findNextWalkInSession(sessions, doctorId)
+      setWalkInAvailabilityMessage(walkInSlot ? "" : "No available sessions today for this doctor. Choose another doctor.")
+      setFormData((prev) => ({
+        ...prev,
+        doctorId,
+        date: walkInSlot?.session.date ?? "",
+        time: walkInSlot?.time ?? "",
+        sessionId: walkInSlot?.session.id ?? "",
+      }))
+      setCurrentStep(1)
+      return
+    }
+
     setFormData((prev) => ({
       ...prev,
       doctorId: String(selectedDoctor.id),
@@ -176,7 +236,7 @@ export function BookAppointmentContent() {
       sessionId: "",
     }))
     setCurrentStep(1)
-  }, [searchParams, doctors])
+  }, [searchParams, doctors, loadingSessions, sessions, walkIn])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -398,6 +458,21 @@ export function BookAppointmentContent() {
 
   const todayIso = formatLocalDateValue(new Date())
 
+  const selectDoctor = (doctorId: string) => {
+    const walkInSlot = walkIn ? findNextWalkInSession(sessions, doctorId) : null
+    setWalkInAvailabilityMessage(
+      walkIn && !walkInSlot ? "No available sessions today for this doctor. Choose another doctor." : "",
+    )
+    setFormData((prev) => ({
+      ...prev,
+      doctorId,
+      date: walkInSlot?.session.date ?? "",
+      time: walkInSlot?.time ?? "",
+      sessionId: walkInSlot?.session.id ?? "",
+    }))
+    setCurrentStep(1)
+  }
+
   const doctorIsAvailableToday = (doctorId: number) => {
     const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
     return doctorSessions.some((session) => sessionHasTimeRemaining(session, todayIso))
@@ -492,7 +567,7 @@ export function BookAppointmentContent() {
   const hasActiveDateConflict = Boolean(dateConflictMessage && formData.doctorId && formData.date)
 
   const handleNext = () => {
-    if (currentStep === 1 && hasActiveDateConflict) {
+    if (!walkIn && currentStep === 1 && hasActiveDateConflict) {
       toast.error("Appointment conflict\nYou already have an appointment on this date that overlaps with this time. Please choose another slot.", {
         id: "booking-step-error",
       })
@@ -505,7 +580,7 @@ export function BookAppointmentContent() {
       return
     }
 
-    if (currentStep < steps.length - 1) {
+    if (currentStep < visibleSteps.length - 1) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -519,18 +594,25 @@ export function BookAppointmentContent() {
   const canAdvance = (stepIndex: number): { success: true } | { success: false; message: string } => {
     if (stepIndex === 0) {
       if (!formData.doctorId) return { success: false, message: "Please select a doctor before continuing." }
+      if (walkIn && !formData.sessionId) return { success: false, message: "Choose a doctor with an available session today." }
       return { success: true }
     }
 
-    if (stepIndex === 1) {
+    if (!walkIn && stepIndex === 1) {
       if (!formData.date) return { success: false, message: "Please choose a date before continuing." }
       if (!formData.time) return { success: false, message: "Please choose a time before continuing." }
       return { success: true }
     }
 
-    if (stepIndex === 2) {
+    if (stepIndex === detailsStepIndex) {
+      if (walkIn && !formData.appointmentType) {
+        return { success: false, message: "Please select an appointment type." }
+      }
+      if (walkIn && !formData.patientName.trim()) {
+        return { success: false, message: "Please enter the patient's name." }
+      }
       // Basic required fields in Add Details
-      if (!formData.patientRelationship) return { success: false, message: "Please select who the patient is." }
+      if (!walkIn && !formData.patientRelationship) return { success: false, message: "Please select who the patient is." }
       if (formData.patientRelationship === "Other" && !formData.patientRelationshipOther)
         return { success: false, message: "Please enter the patient's relationship." }
       if (namedPatientRelationships.has(formData.patientRelationship) && !formData.patientName.trim())
@@ -584,8 +666,9 @@ export function BookAppointmentContent() {
       appointmentDate: formData.date || undefined,
       appointmentTime: formData.time || undefined,
       appointmentType: formData.appointmentType || "General Consultation",
-      relationship:
-        formData.patientRelationship === "Other"
+      relationship: walkIn
+        ? "Walk-in"
+        : formData.patientRelationship === "Other"
           ? formData.patientRelationshipOther || "Other"
           : namedPatientRelationships.has(formData.patientRelationship) && formData.patientName.trim()
             ? `${formData.patientRelationship} — ${formData.patientName.trim()}`
@@ -593,6 +676,14 @@ export function BookAppointmentContent() {
       age: formData.age ? Number(formData.age) : undefined,
       gender: formData.gender || undefined,
       contactNumber: cleanedContactNumber || undefined,
+      walkInPatient: walkIn
+        ? {
+            name: formData.patientName.trim(),
+            birthday: formData.birthday || undefined,
+            civilStatus: formData.civilStatus || undefined,
+            email: formData.patientEmail.trim() || undefined,
+          }
+        : undefined,
       symptoms: formData.symptoms || undefined,
       durationOfSymptoms: formData.durationOfSymptoms || undefined,
       painLevel: formData.painLevel ? Number(formData.painLevel) : undefined,
@@ -624,7 +715,10 @@ export function BookAppointmentContent() {
         patientName: "",
         age: "",
         gender: "",
+        birthday: "",
+        civilStatus: "",
         contactNumber: "",
+        patientEmail: "",
         symptoms: "",
         durationOfSymptoms: "",
         painLevel: "",
@@ -639,7 +733,7 @@ export function BookAppointmentContent() {
   return (
     <div className="space-y-8">
       {/* Stepper */}
-      <Stepper items={steps} currentStep={currentStep} onStepClick={handleStepClick} />
+      <Stepper items={visibleSteps} currentStep={currentStep} onStepClick={handleStepClick} />
 
       {/* Step Content */}
       <Card className="p-8">
@@ -695,16 +789,7 @@ export function BookAppointmentContent() {
                     return (
                       <div
                         key={doctor.id}
-                        onClick={() => {
-                          setFormData((prev) => ({
-                            ...prev,
-                            doctorId: doctor.id.toString(),
-                            date: "",
-                            time: "",
-                            sessionId: "",
-                          }))
-                          setCurrentStep(1)
-                        }}
+                        onClick={() => selectDoctor(doctor.id.toString())}
                         className={`group relative cursor-pointer overflow-hidden rounded-2xl border p-4 shadow-sm transition-all duration-200 ${
                           formData.doctorId === doctor.id.toString()
                             ? "border-primary shadow-md ring-2 ring-primary/10"
@@ -832,7 +917,7 @@ export function BookAppointmentContent() {
         )}
 
         {/* Step 2: Date & Time (custom calendar + timeslots) */}
-        {currentStep === 1 && (
+        {!walkIn && currentStep === 1 && (
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-semibold mb-2">Choose Date & Time</h2>
@@ -1031,14 +1116,22 @@ export function BookAppointmentContent() {
         )}
 
         {/* Step 3: Add Details */}
-        {currentStep === 2 && (
+        {currentStep === detailsStepIndex && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold mb-2">Add Visit Details</h2>
+              <h2 className="text-2xl font-semibold mb-2">
+                {walkIn ? "Walk-In Patient Details" : "Add Visit Details"}
+              </h2>
               <p className="text-muted-foreground">
-                Tell us about your visit to help the doctor prepare.
+                {walkIn
+                  ? "Enter the patient's information and reason for today's walk-in visit."
+                  : "Tell us about your visit to help the doctor prepare."}
               </p>
             </div>
+
+            {walkIn && walkInAvailabilityMessage ? (
+              <p role="status" className="text-sm text-destructive">{walkInAvailabilityMessage}</p>
+            ) : null}
 
             <div className="space-y-4">
                 <div>
@@ -1046,6 +1139,7 @@ export function BookAppointmentContent() {
                   <select
                     id="appointmentType"
                     name="appointmentType"
+                    required={walkIn}
                     value={formData.appointmentType}
                     onChange={handleInputChange}
                     className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -1058,6 +1152,107 @@ export function BookAppointmentContent() {
                     ))}
                   </select>
                 </div>
+              {walkIn ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="patientName">Patient name</Label>
+                    <input
+                      id="patientName"
+                      name="patientName"
+                      required
+                      placeholder="Enter patient's full name"
+                      value={formData.patientName}
+                      onChange={handleInputChange}
+                      className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="age">Age</Label>
+                      <input
+                        id="age"
+                        name="age"
+                        type="number"
+                        min="1"
+                        placeholder="e.g. 32"
+                        value={formData.age}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="gender">Gender</Label>
+                      <select
+                        id="gender"
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="birthday">Birthday</Label>
+                      <input
+                        id="birthday"
+                        name="birthday"
+                        type="date"
+                        value={formData.birthday}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="civilStatus">Civil status</Label>
+                      <select
+                        id="civilStatus"
+                        name="civilStatus"
+                        value={formData.civilStatus}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        <option value="">Select civil status</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Widowed">Widowed</option>
+                        <option value="Divorced">Divorced</option>
+                        <option value="Separated">Separated</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="contactNumber">Contact number (Philippine format)</Label>
+                      <input
+                        id="contactNumber"
+                        name="contactNumber"
+                        type="tel"
+                        placeholder="e.g. 0917 123 4567"
+                        value={formData.contactNumber}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="patientEmail">Email (optional)</Label>
+                      <input
+                        id="patientEmail"
+                        name="patientEmail"
+                        type="email"
+                        placeholder="patient@example.com"
+                        value={formData.patientEmail}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
               <div>
                 <Label htmlFor="patientRelationship">Who is the Patient?</Label>
                 <select
@@ -1153,6 +1348,8 @@ export function BookAppointmentContent() {
                   </p>
                 </div>
               </div>
+                </>
+              )}
 
               <div>
                 <Label htmlFor="symptoms">Symptoms (Optional)</Label>
@@ -1222,7 +1419,7 @@ export function BookAppointmentContent() {
         )}
 
         {/* Step 4: Confirmation */}
-        {currentStep === 3 && (
+        {currentStep === confirmationStepIndex && (
           <div className="space-y-5">
             {(() => {
               const selectedDoctor = doctors.find((d) => d.id.toString() === formData.doctorId)
@@ -1234,8 +1431,9 @@ export function BookAppointmentContent() {
                 .map((part) => part[0])
                 .join("")
                 .toUpperCase() || "DR"
-              const patientLabel =
-                formData.patientRelationship === "Other" && formData.patientRelationshipOther
+              const patientLabel = walkIn
+                ? formData.patientName.trim() || "Not selected"
+                : formData.patientRelationship === "Other" && formData.patientRelationshipOther
                   ? `Other — ${formData.patientRelationshipOther}`
                   : namedPatientRelationships.has(formData.patientRelationship) && formData.patientName.trim()
                     ? `${formData.patientRelationship} — ${formData.patientName.trim()}`
@@ -1306,10 +1504,10 @@ export function BookAppointmentContent() {
                       <p className="text-xs font-semibold uppercase text-muted-foreground">Patient</p>
                       <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
                         <div>
-                          <p className="text-sm text-muted-foreground">Who is the patient?</p>
+                          <p className="text-sm text-muted-foreground">{walkIn ? "Patient name" : "Who is the patient?"}</p>
                           <p className="mt-1 break-words font-semibold">{patientLabel}</p>
                         </div>
-                        {namedPatientRelationships.has(formData.patientRelationship) ? (
+                        {!walkIn && namedPatientRelationships.has(formData.patientRelationship) ? (
                           <div>
                             <p className="text-sm text-muted-foreground">Patient name</p>
                             <p className="mt-1 font-semibold">{formData.patientName.trim() || "Not provided"}</p>
@@ -1327,6 +1525,22 @@ export function BookAppointmentContent() {
                           <p className="text-sm text-muted-foreground">Gender</p>
                           <p className="mt-1 font-semibold">{formData.gender || "Not provided"}</p>
                         </div>
+                        {walkIn ? (
+                          <>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Birthday</p>
+                              <p className="mt-1 font-semibold">{formData.birthday || "Not provided"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Civil status</p>
+                              <p className="mt-1 font-semibold">{formData.civilStatus || "Not provided"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Email</p>
+                              <p className="mt-1 break-words font-semibold">{formData.patientEmail || "Not provided"}</p>
+                            </div>
+                          </>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1389,13 +1603,14 @@ export function BookAppointmentContent() {
         </Button>
 
         <div className="flex gap-2">
-          {currentStep < steps.length - 1 ? (
+          {currentStep < visibleSteps.length - 1 ? (
             <Button
               size="lg"
               onClick={handleNext}
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
-                (currentStep === 1 && (!formData.date || !formData.time || hasActiveDateConflict))
+                (!walkIn && currentStep === 1 && (!formData.date || !formData.time || hasActiveDateConflict)) ||
+                (walkIn && currentStep === detailsStepIndex && !formData.sessionId)
               }
               className="bg-orange-500 hover:bg-orange-600"
             >

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { AddVitalsDialog } from "@/components/add-vitals-dialog"
 import { DataTable } from "@/components/data-table"
@@ -24,8 +24,9 @@ function computeBmi(weight: number | null, height: number | null) {
 }
 
 export default function AddBmiPage({ allowUserSelection = false }: { allowUserSelection?: boolean }) {
+  const searchParams = useSearchParams()
   const [rows, setRows] = useState<VitalRow[]>([])
-  const [selectedUserId, setSelectedUserId] = useState("")
+  const [selectedUserId, setSelectedUserId] = useState(() => searchParams.get("userId") ?? "")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editVital, setEditVital] = useState<VitalRow | null>(null)
   const [deleteVital, setDeleteVital] = useState<VitalRow | null>(null)
@@ -48,8 +49,10 @@ export default function AddBmiPage({ allowUserSelection = false }: { allowUserSe
           weight: r.weight ?? null,
           height: r.height ?? null,
           bmi: computeBmi(r.weight ?? null, r.height ?? null),
+          bloodPressure: r.blood_pressure ?? null,
           heartRate: r.heart_rate ?? null,
           temp: r.body_temperature ?? null,
+          oxygenSaturation: r.oxygen_saturation ?? null,
           bloodSugar: r.blood_sugar ?? null,
         }))
         setRows(mapped.filter((row: VitalRow) => row.id))
