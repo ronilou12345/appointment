@@ -25,7 +25,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { Textarea } from "@/components/ui/textarea"
-import { Check, CheckCircle2, Facebook, Mail, MoreHorizontal, Printer, X } from "lucide-react"
+import { Check, CheckCircle2, Eye, Facebook, Mail, MoreHorizontal, Printer, X } from "lucide-react"
 import { toast } from "sonner"
 import { formatAppointmentTime } from "@/app/client/appointments/status"
 import { printSingleAppointment } from "@/app/admin/all-appointments/print-appointments"
@@ -75,6 +75,7 @@ export type DoctorAppointmentRow = {
   patientId: string
   patientName: string
   patientEmail?: string
+  patientAddress?: string
   patientAvatar?: string | null
   patientAge: string
   patientGender: string
@@ -201,7 +202,13 @@ function isActiveSession(session: SessionOption) {
   return status !== "inactive" && status !== "cancelled"
 }
 
-function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppointmentRow }) {
+export function DoctorAppointmentActionsCell({
+  appointment,
+  walkInMode = false,
+}: {
+  appointment: DoctorAppointmentRow
+  walkInMode?: boolean
+}) {
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -558,9 +565,10 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
 
   const printPrescription = () => {
     const prescription = escapeHtml(prescriptionText.trim())
+    const clinicHeader = `<header class="clinic-header"><img src="${escapeHtml(`${window.location.origin}${CLINIC_DETAILS.logo}`)}" alt="${escapeHtml(CLINIC_DETAILS.name)} logo"/><div class="clinic-info"><strong>${escapeHtml(CLINIC_DETAILS.name)}</strong><span>${escapeHtml(CLINIC_DETAILS.tagline)}</span><span>${escapeHtml(CLINIC_DETAILS.address)}</span><span>${escapeHtml(CLINIC_DETAILS.email)} · ${escapeHtml(CLINIC_DETAILS.facebookName)}</span></div><div class="clinic-title">PRESCRIPTION</div></header>`
     const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Prescription</title><style>
-      @page{size:A4 portrait;margin:14mm}*{box-sizing:border-box}body{margin:0;font:14px Arial,sans-serif;color:#171717}.rx-page{min-height:260mm;border:1px solid #ddd;padding:22px 28px;position:relative}.patient{display:grid;grid-template-columns:1fr 100px 100px;gap:20px}.line{border-bottom:1px solid #777;min-height:25px}.rx-mark{font-family:Georgia,serif;font-size:88px;font-weight:bold;line-height:1;margin-top:32px}.prescription{min-height:145mm;white-space:pre-wrap;line-height:1.6;padding:12px 8px}.footer{position:absolute;right:28px;bottom:24px;width:270px;line-height:2}.footer-line{border-bottom:1px solid #777;display:inline-block;min-width:160px}.rx-page b{font-weight:600}
-    </style></head><body><main class="rx-page"><div class="patient"><div class="line">Patient's Name: <b>${escapeHtml(appointment.patientName || "")}</b></div><div class="line">Age: <b>${escapeHtml(appointment.patientAge || "")}</b></div><div class="line">Sex: <b>${escapeHtml(appointment.patientGender || "")}</b></div></div><div class="line" style="margin-top:14px">Date: <b>${escapeHtml(appointment.date || todayIso())}</b></div><div class="rx-mark">Rx</div><div class="prescription">${prescription}</div><div class="footer">Lic. No.: <span class="footer-line"></span><br/>PTR No.: <span class="footer-line"></span></div></main></body></html>`
+      @page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}body{margin:0;font:14px Arial,sans-serif;color:#171717}.rx-page{min-height:277mm;border:1px solid #ddd;padding:18px 24px;position:relative}.clinic-header{display:grid;grid-template-columns:64px minmax(0,1fr) 150px;gap:12px 14px;align-items:start;background:#eaf5f2;color:#153b3a;padding:12px 14px;border-bottom:4px solid #0f766e}.clinic-header img{width:64px;height:64px;object-fit:contain}.clinic-info{display:grid;gap:3px;font-size:9px}.clinic-info strong{font-size:19px;line-height:1.1}.clinic-info span:first-of-type{color:#376866}.clinic-title{text-align:right;font-size:20px;font-weight:900;line-height:1.1}.patient{display:grid;grid-template-columns:1fr 100px 100px;gap:20px;margin-top:20px}.address-date{display:grid;grid-template-columns:1fr 190px;gap:18px;margin-top:12px}.line{border-bottom:1px solid #777;min-height:25px}.rx-mark{font-family:Georgia,serif;font-size:88px;font-weight:bold;line-height:1;margin-top:32px}.prescription{min-height:145mm;white-space:pre-wrap;line-height:1.6;padding:12px 8px}.footer{position:absolute;right:28px;bottom:24px;width:270px;line-height:2}.footer-line{border-bottom:1px solid #777;display:inline-block;min-width:160px}.rx-page b{font-weight:600}
+    </style></head><body><main class="rx-page">${clinicHeader}<div class="patient"><div class="line">Patient's Name: <b>${escapeHtml(appointment.patientName || "")}</b></div><div class="line">Age: <b>${escapeHtml(appointment.patientAge || "")}</b></div><div class="line">Sex: <b>${escapeHtml(appointment.patientGender || "")}</b></div></div><div class="address-date"><div class="line">Address: <b>${escapeHtml(appointment.patientAddress || "—")}</b></div><div class="line">Date: <b>${escapeHtml(appointment.date || todayIso())}</b></div></div><div class="rx-mark">Rx</div><div class="prescription">${prescription}</div><div class="footer">Lic. No.: <span class="footer-line"></span><br/>PTR No.: <span class="footer-line"></span></div></main></body></html>`
     const preview = window.open("", "_blank", "width=900,height=760")
     if (!preview) {
       toast.error("Allow pop-ups to open the prescription print preview.")
@@ -600,7 +608,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
       @page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}body{margin:0;font:11px Arial,sans-serif;color:#171717}.lab-wrap{border:1px solid #d7d7d7}.lab-top{display:flex;justify-content:space-between;align-items:center;background:#101a2d;color:#fff;min-height:92px;padding:14px 22px}.brand{font-size:31px;font-weight:900;color:#d51d28;letter-spacing:-2px}.brand small{display:block;font-size:8px;letter-spacing:0;color:#fff}.title{text-align:right;font-size:25px;font-weight:900;line-height:1.05;text-transform:uppercase}.content{padding:24px 28px}.patient{display:grid;grid-template-columns:1fr 100px 100px;gap:18px}.address{display:grid;grid-template-columns:1fr 190px;gap:18px;margin:9px 0}.line{border-bottom:1px solid #777;min-height:21px}.section{margin-top:10px;page-break-inside:avoid}.section-title{font-size:13px;margin-bottom:6px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 18px}.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:4px 18px}.radio-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px}.heart{display:flex;gap:64px}.item{display:flex;gap:5px;line-height:1.1;min-height:19px}.box{width:15px;height:15px;border:1px solid #777;display:inline-flex;align-items:center;justify-content:center;flex:0 0 15px;font-size:13px;font-weight:bold;line-height:1;color:#000}.fast{display:flex;gap:35px;margin:3px 0 8px 93px}.write{display:inline-block;min-width:190px;border-bottom:1px solid #777}.contrast-options{display:inline-flex;gap:8px;white-space:nowrap}.signature{display:grid;grid-template-columns:1fr 190px;margin-top:18px;text-align:center}.signature-image{display:block;max-width:170px;max-height:48px;margin:0 auto;object-fit:contain;filter:brightness(0)}.signature-line{height:48px;line-height:48px}.return{border:1px solid #333;font-size:16px;font-weight:bold;margin-top:18px;padding:9px 12px}@media print{.lab-wrap{border:0}}
     </style></head><body><div class="lab-wrap"><div class="lab-top" style="display:grid;grid-template-columns:64px minmax(0,1fr) 150px;gap:12px 14px;align-items:start;background:#eaf5f2;color:#153b3a;min-height:105px;padding:12px 18px;border-bottom:4px solid #0f766e">${printClinicHeader}<div class="title" style="text-align:right;font-size:20px;color:#153b3a">Laboratory<br/>Request Form</div></div><div class="content">
       <div class="patient"><div class="line">Patient: <b>${escapeHtml(patient)}</b></div><div class="line">Age: <b>${escapeHtml(age)}</b></div><div class="line">Sex: <b>${escapeHtml(sex)}</b></div></div><div class="address"><div class="line">Address: <b>—</b></div><div class="line">Date: <b>${escapeHtml(date)}</b></div></div>
-      <div class="section"><div class="section-title">LABS:</div><div class="fast">${printBox("fasting", "Fasting 10 hrs")}${printBox("non-fasting", "Non-Fasting")}</div><div class="grid4">${["Sodium (NA)","HbA1c","FBS","Urinalysis","Potassium (K)","Total Bili","CBC","Fecalysis","BUN","Direct Bili","ALT","Albumin","Creatinine","Ind Bili","AST","Phosphorus","Microalbumin/Creatinine Ratio","Calcium","ALK Phos","Fasting Lipid Profile","75 gm OGTT","Urine"].map((item) => printBox(item, item)).join("")}</div><div class="item" style="margin-top:8px">${printBox("24-hour-urine", `24-hour urine collection for <span class="write">${field("24-hour-urine")}</span>`)}</div></div>
+      <div class="section"><div class="section-title">LABS:</div><div class="fast">${printBox("fasting", "Fasting 10 hrs")}${printBox("non-fasting", "Non-Fasting")}</div><div class="grid4">${["Sodium (NA)","HbA1c","FBS","Urinalysis","Potassium (K)","Total Bili","CBC","Fecalysis","BUN","Direct Bili","ALT","Albumin","Creatinine","Ind Bili","AST","Phosphorus","Microalbumin/Creatinine Ratio","Calcium","ALK Phos","Fasting Lipid Profile","75 gm OGTT","Uric"].map((item) => printBox(item, item)).join("")}</div><div class="item" style="margin-top:8px">${printBox("24-hour-urine", `24-hour urine collection for <span class="write">${field("24-hour-urine")}</span>`)}</div></div>
       <div class="section"><div class="section-title">RADIOLOGY</div><div class="radio-grid">${printBox("chest-xray", "CHEST X-RAY PA/Lat")}<div>${printBox("xray", `X-RAY <span class="write">${field("xray")}</span>`)}</div><div>${printBox("ultrasound", `ULTRASOUND OF <span class="write">${field("ultrasound")}</span>`)}</div><span></span><div>${printBox("ct-scan", `CT SCAN <span class="write">${field("ct-scan")}</span> <span class="contrast-options"><span>with contrast</span><span>without contrast</span></span>`)}</div><span></span><div>${printBox("mri", `MRI <span class="write">${field("mri")}</span> <span class="contrast-options"><span>with contrast</span><span>without contrast</span></span>`)}</div></div></div><div class="section">OTHER LABS <span class="write" style="width:78%">${field("other-labs")}</span><br/><br/>DIAGNOSIS <span class="write" style="width:78%">${field("diagnosis")}</span></div><div class="signature"><div></div><div>${signatureHtml}<br/><b>${escapeHtml(appointment.doctorName || "—")}</b><br/>LICENSE NO.: <span class="write">${field("license-number")}</span></div></div><div class="return">RETURN APPOINTMENT: ${field("return-appointment")}</div></div></div></body></html>`
 
     const preview = window.open("", "_blank", "width=960,height=760")
@@ -636,15 +644,25 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem disabled={!canConfirm || loadingAction === "Confirm"} onSelect={() => handleAction("Confirm") }>
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Confirm
-          </DropdownMenuItem>
+          {walkInMode ? (
+            <DropdownMenuItem onSelect={() => {
+              setMenuOpen(false)
+              router.push(`/doctor/walk-in/${appointment.id}`)
+            }}>
+              <Eye className="mr-2 h-4 w-4" />
+              View details
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem disabled={!canConfirm || loadingAction === "Confirm"} onSelect={() => handleAction("Confirm") }>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Confirm
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem disabled={!canComplete || loadingAction === "Complete"} onSelect={() => handleAction("Complete") }>
             <Check className="mr-2 h-4 w-4" />
-            Complete
+            {walkInMode ? "Completed" : "Complete"}
           </DropdownMenuItem>
-          {canMarkFailedToVisit ? (
+          {!walkInMode && canMarkFailedToVisit ? (
             <DropdownMenuItem disabled={loadingAction === "FailedToVisit"} onSelect={() => handleAction("FailedToVisit")}>
               <X className="mr-2 h-4 w-4" />
               Failed to Visit
@@ -671,10 +689,12 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
               </DropdownMenuItem>
             </>
           ) : null}
-          <DropdownMenuItem variant="destructive" disabled={!canCancel} onSelect={() => handleAction("Cancel") }>
-            <X className="mr-2 h-4 w-4" />
-            {isAwaitingCancellation ? "Approve cancel" : "Cancel"}
-          </DropdownMenuItem>
+          {!walkInMode ? (
+            <DropdownMenuItem variant="destructive" disabled={!canCancel} onSelect={() => handleAction("Cancel") }>
+              <X className="mr-2 h-4 w-4" />
+              {isAwaitingCancellation ? "Approve cancel" : "Cancel"}
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -750,7 +770,7 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
                   <div className="mb-1 font-medium">LABS:</div>
                   <div className="mb-2 ml-20 flex gap-8">{renderLabCheckbox("fasting", "Fasting 10 hrs")}{renderLabCheckbox("non-fasting", "Non-Fasting")}</div>
                   <div className="grid grid-cols-4 gap-x-4 gap-y-1">
-                    {["Sodium (NA)", "HbA1c", "FBS", "Urinalysis", "Potassium (K)", "Total Bili", "CBC", "Fecalysis", "BUN", "Direct Bili", "ALT", "Albumin", "Creatinine", "Ind Bili", "AST", "Phosphorus", "Microalbumin/Creatinine Ratio", "Calcium", "ALK Phos", "Fasting Lipid Profile", "75 gm OGTT", "Urine"].map((item) => renderLabCheckbox(item, item))}
+                    {["Sodium (NA)", "HbA1c", "FBS", "Urinalysis", "Potassium (K)", "Total Bili", "CBC", "Fecalysis", "BUN", "Direct Bili", "ALT", "Albumin", "Creatinine", "Ind Bili", "AST", "Phosphorus", "Microalbumin/Creatinine Ratio", "Calcium", "ALK Phos", "Fasting Lipid Profile", "75 gm OGTT", "Uric"].map((item) => renderLabCheckbox(item, item))}
                   </div>
                   <div className="mt-2 flex items-center gap-2">{renderLabCheckbox("24-hour-urine", "24-hour urine collection for")}{renderLabTextField("24-hour-urine", "min-w-48")}</div>
                 </div>
@@ -792,12 +812,25 @@ function DoctorAppointmentActionsCell({ appointment }: { appointment: DoctorAppo
               <DialogDescription>Enter or update the prescription details below. The content will be printed beneath the Rx mark.</DialogDescription>
             </DialogHeader>
             <div className="max-h-[75vh] overflow-y-auto rounded-2xl border border-slate-300 bg-white p-5 text-slate-900">
+              <div className="mb-5 grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3 border-b-4 border-teal-700 bg-[#eaf5f2] px-4 py-3 text-[#153b3a] sm:grid-cols-[64px_minmax(0,1fr)_150px] sm:gap-4 sm:px-5">
+                <Image src={CLINIC_DETAILS.logo} alt={`${CLINIC_DETAILS.name} logo`} width={64} height={64} className="size-14 object-contain sm:size-16" />
+                <div className="min-w-0">
+                  <h2 className="text-base font-extrabold leading-tight sm:text-lg">{CLINIC_DETAILS.name}</h2>
+                  <p className="text-[10px] font-medium text-teal-800">{CLINIC_DETAILS.tagline}</p>
+                  <p className="mt-1 text-[10px]">{CLINIC_DETAILS.address}</p>
+                  <p className="mt-1 break-all text-[10px]">{CLINIC_DETAILS.email} · {CLINIC_DETAILS.facebookName}</p>
+                </div>
+                <p className="col-span-2 text-right text-lg font-black uppercase leading-tight sm:col-span-1 sm:pt-1 sm:text-xl">Prescription</p>
+              </div>
               <div className="grid grid-cols-[1fr_90px_90px] gap-4 text-[11px]">
                 <div className="border-b border-slate-500 pb-1">Patient's Name: <strong>{appointment.patientName || "—"}</strong></div>
                 <div className="border-b border-slate-500 pb-1">Age: <strong>{appointment.patientAge || "—"}</strong></div>
                 <div className="border-b border-slate-500 pb-1">Sex: <strong>{appointment.patientGender || "—"}</strong></div>
               </div>
-              <div className="mt-3 border-b border-slate-500 pb-1 text-[11px]">Date: <strong>{appointment.date || todayIso()}</strong></div>
+              <div className="mt-3 grid grid-cols-[1fr_190px] gap-4 text-[11px]">
+                <div className="border-b border-slate-500 pb-1">Address: <strong>{appointment.patientAddress || "—"}</strong></div>
+                <div className="border-b border-slate-500 pb-1">Date: <strong>{appointment.date || todayIso()}</strong></div>
+              </div>
               <div className="mt-6 font-serif text-8xl font-bold leading-none">Rx</div>
               <textarea
                 value={prescriptionText}

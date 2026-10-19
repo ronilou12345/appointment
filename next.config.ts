@@ -16,7 +16,7 @@ const baseVersion = 19;
 const baseCommitCount = 80;
 const commitCount = Number(getGitValue("rev-list", "--count", "HEAD")) || baseCommitCount;
 const betaVersion = Math.max(baseVersion, baseVersion + commitCount - baseCommitCount);
-const updatedAt = getGitValue("log", "-1", "--format=%cI") || new Date().toISOString();
+const updatedAt = new Date().toISOString();
 
 const nextConfig: NextConfig = {
   env: {

@@ -122,6 +122,7 @@ interface DataTableProps<TData, TValue> {
   getRowId?: (originalRow: TData, index: number) => string
   onSelectedRowsChange?: (rows: TData[]) => void
   globalFilterFn?: FilterFn<TData>
+  showRowControls?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -130,6 +131,7 @@ export function DataTable<TData, TValue>({
   getRowId,
   onSelectedRowsChange,
   globalFilterFn,
+  showRowControls = true,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -162,14 +164,13 @@ export function DataTable<TData, TValue>({
       })) as ColumnDef<TData, TValue>[]
     })()
 
-    return [
-      ...getRowControlColumns<TData, TValue>(),
-      ...baseColumns.map((column) => ({
+    const dataColumns = baseColumns.map((column) => ({
         ...column,
         enableSorting: shouldEnableSorting(column),
-      })),
-    ]
-  }, [columns, data])
+      }))
+
+    return showRowControls ? [...getRowControlColumns<TData, TValue>(), ...dataColumns] : dataColumns
+  }, [columns, data, showRowControls])
 
   const table = useReactTable({
     data,

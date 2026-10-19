@@ -24,14 +24,15 @@ export async function POST(request: Request) {
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS public.soap_notes (
-        id BIGSERIAL PRIMARY KEY,
+        soap_id BIGSERIAL PRIMARY KEY,
         appointment_id INTEGER NOT NULL,
         chief_complaints TEXT NOT NULL,
         physical_examination TEXT,
         diagnosis TEXT NOT NULL,
         prescription TEXT,
         next_follow_up TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
       )
     `)
 
@@ -82,7 +83,11 @@ export async function POST(request: Request) {
      }
  
      const rows = await prisma.$queryRawUnsafe<any[]>(
-       `SELECT * FROM public.soap_notes WHERE appointment_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      `SELECT soap_id AS id, appointment_id, chief_complaints, physical_examination, diagnosis, prescription, next_follow_up, created_at
+       FROM public.soap_notes
+       WHERE appointment_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
        Number(appointmentId)
      )
  
@@ -104,7 +109,7 @@ export async function POST(request: Request) {
        if (!appointmentId) {
          return NextResponse.json({ success: false, error: "id or appointmentId is required" }, { status: 400 })
        }
-       const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT id FROM public.soap_notes WHERE appointment_id = $1 ORDER BY created_at DESC LIMIT 1`, Number(appointmentId))
+      const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT soap_id AS id FROM public.soap_notes WHERE appointment_id = $1 ORDER BY created_at DESC LIMIT 1`, Number(appointmentId))
        targetId = rows[0]?.id
        if (!targetId) {
          return NextResponse.json({ success: false, error: "No existing SOAP note found for appointment" }, { status: 404 })
@@ -114,7 +119,7 @@ export async function POST(request: Request) {
      const nextFollowUpValue = normalizeNextFollowUp(nextFollowUp)
  
      await prisma.$executeRawUnsafe(
-       `UPDATE public.soap_notes SET chief_complaints = $1, physical_examination = $2, diagnosis = $3, prescription = $4, next_follow_up = $5 WHERE id = $6`,
+      `UPDATE public.soap_notes SET chief_complaints = $1, physical_examination = $2, diagnosis = $3, prescription = $4, next_follow_up = $5, updated_at = NOW() WHERE soap_id = $6`,
        String(chiefComplaints),
        physicalExamination ? String(physicalExamination) : null,
        String(diagnosis),

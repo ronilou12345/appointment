@@ -76,8 +76,15 @@ const doctorNavMain = [
     icon: <ListIcon />,
   },
   {
+    title: "Walk In",
+    url: "/doctor/walk-in",
+    badge: "New",
+    icon: <DoorOpen />,
+  },
+  {
     title: "Calendar",
     url: "/doctor/calendar",
+    badge: "New",
     icon: <CalendarDays />,
   },
 ]

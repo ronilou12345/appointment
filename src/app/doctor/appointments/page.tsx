@@ -72,6 +72,7 @@ async function getDoctorAppointments(userId: string): Promise<DoctorAppointmentR
           select: {
             name: true,
             email: true,
+            address: true,
             profile_image: true,
           },
         },
@@ -121,6 +122,7 @@ async function getDoctorAppointments(userId: string): Promise<DoctorAppointmentR
         patientId: appointment.user_id,
         patientName,
         patientEmail: appointment.user?.email ?? "",
+        patientAddress: appointment.user?.address ?? "",
         patientAvatar: appointment.user?.profile_image ?? null,
         patientAge: appointment.age != null ? `${String(appointment.age)} years old` : "—",
         patientGender: appointment.gender ?? "—",

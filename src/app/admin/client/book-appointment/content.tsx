@@ -13,94 +13,95 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { normalizePhilippineMobile } from "@/lib/phone-utils"
 
 type DoctorOption = {
-  id: number
-  name: string
-  credential: string
-  email?: string
-  avatar?: string
-  specialty: string
-  specialties?: string[]
-  boardCertificates?: string[]
-  experience: string
-  experienceYears?: number
-}
-
-type SessionOption = {
-  id: string
-  doctorId: string
-  date: string
-  startTime: string
-  endTime: string
-  slots: number
-  status?: string
-  appointmentType?: string
-  appointmentTypes?: string[]
-}
-
-const namedPatientRelationships = new Set(["My Child", "My Father", "My Mother", "My Spouse"])
-
-const steps: StepperItem[] = [
-  {
-    title: "Select Doctor",
-    description: "Choose your preferred doctor",
-    icon: <User className="w-4 h-4" />,
-  },
-  {
-    title: "Date & Time",
-    description: "Pick appointment date and time",
-    icon: <CalendarIcon className="w-4 h-4" />,
-  },
-  {
-    title: "Add Details",
-    description: "Provide visit information",
-    icon: <FileText className="w-4 h-4" />,
-  },
-  {
-    title: "Confirmation",
-    description: "Review and confirm",
-    icon: <CheckCircle className="w-4 h-4" />,
-  },
-]
-
-function findNextWalkInSession(sessions: SessionOption[], doctorId: string) {
-  const now = new Date()
-  const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-")
-  const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60
-  const toMinutes = (time: string) => {
-    const [hours, minutes] = time.split(":").map(Number)
-    return hours * 60 + minutes
+    id: number
+    name: string
+    credential: string
+    email?: string
+    avatar?: string
+    specialty: string
+    specialties?: string[]
+    boardCertificates?: string[]
+    experience: string
+    experienceYears?: number
   }
 
-  const todaySessions = sessions
-    .filter((session) =>
-      session.doctorId === doctorId &&
-      session.date === today &&
-      (session.status ?? "Active").trim().toLowerCase() === "active" &&
-      Number(session.slots ?? 0) > 0,
-    )
-    .sort((first, second) => toMinutes(first.startTime) - toMinutes(second.startTime))
+  type SessionOption = {
+    id: string
+    doctorId: string
+    date: string
+    startTime: string
+    endTime: string
+    slots: number
+    status?: string
+    appointmentType?: string
+    appointmentTypes?: string[]
+  }
 
-  for (const session of todaySessions) {
-    const startMinutes = toMinutes(session.startTime)
-    const endMinutes = toMinutes(session.endTime)
-    const slotIndex = Math.max(0, Math.ceil((currentMinutes - startMinutes) / 30))
-    const appointmentMinutes = startMinutes + slotIndex * 30
-    if (appointmentMinutes >= endMinutes || appointmentMinutes <= currentMinutes) continue
+  const namedPatientRelationships = new Set(["My Child", "My Father", "My Mother", "My Spouse"])
 
-    const hours = Math.floor(appointmentMinutes / 60)
-    const minutes = appointmentMinutes % 60
-    return {
-      session,
-      time: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+  function RequiredMark() {
+    return <span className="text-red-600" aria-hidden="true">*</span>
+  }
+
+  function findNextWalkInSession(sessions: SessionOption[], doctorId: string) {
+    const now = new Date()
+    const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-")
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    const toMinutes = (time: string) => {
+      const [hours, minutes] = time.split(":").map(Number)
+      return hours * 60 + minutes
     }
+
+    const todaySessions = sessions
+      .filter((session) =>
+        session.doctorId === doctorId &&
+        session.date === today &&
+        (session.status ?? "Active").trim().toLowerCase() === "active",
+      )
+      .sort((first, second) => toMinutes(first.startTime) - toMinutes(second.startTime))
+
+    for (const session of todaySessions) {
+      const startMinutes = toMinutes(session.startTime)
+      const endMinutes = toMinutes(session.endTime)
+      const appointmentMinutes = startMinutes + Math.max(0, Math.ceil((currentMinutes - startMinutes) / 30)) * 30
+      if (appointmentMinutes >= endMinutes || appointmentMinutes <= currentMinutes) continue
+
+      return {
+        session,
+        date: session.date,
+        time: `${String(Math.floor(appointmentMinutes / 60)).padStart(2, "0")}:${String(appointmentMinutes % 60).padStart(2, "0")}`,
+      }
+    }
+
+    return null
   }
 
-  return null
-}
-
+  const steps: StepperItem[] = [
+    {
+      title: "Select Doctor",
+      description: "Choose your preferred doctor",
+      icon: <User className="w-4 h-4" />,
+    },
+    {
+      title: "Date & Time",
+      description: "Pick appointment date and time",
+      icon: <CalendarIcon className="w-4 h-4" />,
+    },
+    {
+      title: "Add Details",
+      description: "Provide visit information",
+      icon: <FileText className="w-4 h-4" />,
+    },
+    {
+      title: "Confirmation",
+      description: "Review and confirm",
+      icon: <CheckCircle className="w-4 h-4" />,
+    },
+  ]
 export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean }) {
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
+  const [, setAvailabilityClock] = useState(0)
   const [doctors, setDoctors] = useState<DoctorOption[]>([])
   const [loadingDoctors, setLoadingDoctors] = useState(true)
   const [doctorError, setDoctorError] = useState("")
@@ -111,7 +112,6 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
   const [sessionError, setSessionError] = useState("")
   const [dateConflictMessage, setDateConflictMessage] = useState("")
   const [checkingDateConflict, setCheckingDateConflict] = useState(false)
-  const [walkInAvailabilityMessage, setWalkInAvailabilityMessage] = useState("")
   const [bookedTimes, setBookedTimes] = useState<string[]>([])
   const handledInitialDoctorRef = useRef("")
   const detailsStepIndex = walkIn ? 1 : 2
@@ -126,6 +126,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
     patientRelationship: "",
     patientRelationshipOther: "",
     patientName: "",
+    address: "",
     age: "",
     gender: "",
     birthday: "",
@@ -136,6 +137,12 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
     durationOfSymptoms: "",
     painLevel: "",
     notes: "",
+    bloodPressure: "",
+    temperature: "",
+    oxygenSaturation: "",
+    pulseRate: "",
+    weight: "",
+    height: "",
   })
 
   const loadSessions = async (showLoading = true) => {
@@ -144,7 +151,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
     }
 
     try {
-      const response = await fetch("/api/sessions")
+      const response = await fetch(walkIn ? "/api/sessions?walkIn=true" : "/api/sessions")
       const result = await response.json()
 
       if (!response.ok || !result.success) {
@@ -170,6 +177,11 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
     updateViewport()
     window.addEventListener("resize", updateViewport)
     return () => window.removeEventListener("resize", updateViewport)
+  }, [])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setAvailabilityClock(Date.now()), 30_000)
+    return () => window.clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -211,31 +223,20 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
 
     const selectedDoctor = doctors.find((doctor) => String(doctor.id) === String(doctorId))
     if (!selectedDoctor) return
+    if (walkIn && loadingSessions) return
 
-    if (walkIn) {
-      if (loadingSessions || handledInitialDoctorRef.current === doctorId) return
-      handledInitialDoctorRef.current = doctorId
-      const walkInSlot = findNextWalkInSession(sessions, doctorId)
-      setWalkInAvailabilityMessage(walkInSlot ? "" : "No available sessions today for this doctor. Choose another doctor.")
-      setFormData((prev) => ({
-        ...prev,
-        doctorId,
-        date: walkInSlot?.session.date ?? "",
-        time: walkInSlot?.time ?? "",
-        sessionId: walkInSlot?.session.id ?? "",
-      }))
-      setCurrentStep(1)
-      return
-    }
+    if (handledInitialDoctorRef.current === doctorId) return
+    handledInitialDoctorRef.current = doctorId
+    const walkInSlot = walkIn ? findNextWalkInSession(sessions, doctorId) : null
 
     setFormData((prev) => ({
       ...prev,
       doctorId: String(selectedDoctor.id),
-      date: "",
-      time: "",
-      sessionId: "",
+      date: walkInSlot?.date ?? "",
+      time: walkInSlot?.time ?? "",
+      sessionId: walkInSlot?.session.id ?? "",
     }))
-    setCurrentStep(1)
+    setCurrentStep(walkIn && !walkInSlot ? 0 : 1)
   }, [searchParams, doctors, loadingSessions, sessions, walkIn])
 
   useEffect(() => {
@@ -268,7 +269,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
   const isBookableDate = (isoDate: string) => {
     if (!isoDate) return false
     const earliestBookableDate = startOfDay(new Date())
-    earliestBookableDate.setDate(earliestBookableDate.getDate() + 1)
+    if (!walkIn) earliestBookableDate.setDate(earliestBookableDate.getDate() + 1)
     return new Date(`${isoDate}T00:00:00`) >= earliestBookableDate
   }
 
@@ -335,9 +336,14 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
   }
 
   const sessionHasTimeRemaining = (session: SessionOption, isoDate: string) => {
-    if (!isActiveSession(session) || Number(session.slots ?? 0) <= 0) return false
+    if (!isActiveSession(session) || (!walkIn && Number(session.slots ?? 0) <= 0)) return false
     return isSlotInFuture(isoDate, session.endTime)
   }
+
+  const sessionIsAvailableToday = (session: SessionOption) =>
+    session.date === todayIso &&
+    isActiveSession(session) &&
+    isSlotInFuture(session.date, walkIn ? session.endTime : session.startTime)
 
   const getDayIndicatorColor = (isoDate: string) => {
     if (!selectedDoctorId) return null
@@ -457,16 +463,23 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
   }
 
   const todayIso = formatLocalDateValue(new Date())
+  const weightKg = Number(formData.weight)
+  const heightCm = Number(formData.height)
+  const bmi = weightKg > 0 && heightCm > 0
+    ? Math.round((weightKg / ((heightCm / 100) ** 2)) * 10) / 10
+    : null
 
   const selectDoctor = (doctorId: string) => {
     const walkInSlot = walkIn ? findNextWalkInSession(sessions, doctorId) : null
-    setWalkInAvailabilityMessage(
-      walkIn && !walkInSlot ? "No available sessions today for this doctor. Choose another doctor." : "",
-    )
+    if (walkIn && !walkInSlot) {
+      toast.error("No available session remains today for this doctor.")
+      return
+    }
+
     setFormData((prev) => ({
       ...prev,
       doctorId,
-      date: walkInSlot?.session.date ?? "",
+      date: walkInSlot?.date ?? "",
       time: walkInSlot?.time ?? "",
       sessionId: walkInSlot?.session.id ?? "",
     }))
@@ -474,18 +487,24 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
   }
 
   const doctorIsAvailableToday = (doctorId: number) => {
-    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
-    return doctorSessions.some((session) => sessionHasTimeRemaining(session, todayIso))
+    return sessions.some((session) =>
+      String(session.doctorId) === String(doctorId) && sessionIsAvailableToday(session),
+    )
   }
 
   const getDoctorSlotCount = (doctorId: number) => {
-    const doctorSessions = sessions.filter((s) => String(s.doctorId) === String(doctorId) && s.date === todayIso)
+    const doctorSessions = sessions.filter(
+      (session) => String(session.doctorId) === String(doctorId) && sessionIsAvailableToday(session),
+    )
 
-    return doctorSessions.reduce((sum, session) => {
-      if (!sessionHasTimeRemaining(session, todayIso)) return sum
-      return sum + Number(session.slots ?? 0)
-    }, 0)
+    return doctorSessions.reduce((sum, session) => sum + Number(session.slots ?? 0), 0)
   }
+
+  const getDoctorTodaySessionTimes = (doctorId: number) =>
+    sessions
+      .filter((session) => String(session.doctorId) === String(doctorId) && sessionIsAvailableToday(session))
+      .map((session) => `${formatTimeLabel(session.startTime)} - ${formatTimeLabel(session.endTime)}`)
+      .join(", ")
 
   const getDoctorMonthSessionCount = (doctorId: number) => {
     return sessions.filter((session) => {
@@ -611,6 +630,39 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
       if (walkIn && !formData.patientName.trim()) {
         return { success: false, message: "Please enter the patient's name." }
       }
+      if (walkIn && !formData.address.trim()) {
+        return { success: false, message: "Please enter the patient's address." }
+      }
+      if (walkIn && (!Number.isInteger(Number(formData.age)) || Number(formData.age) <= 0)) {
+        return { success: false, message: "Please enter the patient's age." }
+      }
+      if (walkIn && !formData.gender) {
+        return { success: false, message: "Please select the patient's gender." }
+      }
+      if (walkIn && !formData.birthday) {
+        return { success: false, message: "Please enter the patient's birthday." }
+      }
+      if (walkIn && !formData.civilStatus) {
+        return { success: false, message: "Please select the patient's civil status." }
+      }
+      if (walkIn && !normalizePhilippineMobile(formData.contactNumber)) {
+        return { success: false, message: "Please enter a valid Philippine contact number." }
+      }
+      if (walkIn && !/^\d{2,3}\s*\/\s*\d{2,3}$/.test(formData.bloodPressure.trim())) {
+        return { success: false, message: "Please enter blood pressure as systolic/diastolic, such as 120/80." }
+      }
+      if (walkIn && (!Number(formData.temperature) || Number(formData.temperature) <= 0)) {
+        return { success: false, message: "Please enter the patient's temperature." }
+      }
+      if (walkIn && (formData.oxygenSaturation === "" || Number(formData.oxygenSaturation) < 0 || Number(formData.oxygenSaturation) > 100)) {
+        return { success: false, message: "Please enter oxygen saturation between 0 and 100%." }
+      }
+      if (walkIn && (!Number.isInteger(Number(formData.pulseRate)) || Number(formData.pulseRate) <= 0)) {
+        return { success: false, message: "Please enter the patient's pulse rate." }
+      }
+      if (walkIn && (!Number(formData.weight) || Number(formData.weight) <= 0 || !Number(formData.height) || Number(formData.height) <= 0)) {
+        return { success: false, message: "Please enter the patient's weight and height to calculate BMI." }
+      }
       // Basic required fields in Add Details
       if (!walkIn && !formData.patientRelationship) return { success: false, message: "Please select who the patient is." }
       if (formData.patientRelationship === "Other" && !formData.patientRelationshipOther)
@@ -679,9 +731,20 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
       walkInPatient: walkIn
         ? {
             name: formData.patientName.trim(),
+            address: formData.address.trim() || undefined,
             birthday: formData.birthday || undefined,
             civilStatus: formData.civilStatus || undefined,
             email: formData.patientEmail.trim() || undefined,
+          }
+        : undefined,
+      walkInVitals: walkIn
+        ? {
+            bloodPressure: formData.bloodPressure.trim() || undefined,
+            temperature: formData.temperature ? Number(formData.temperature) : undefined,
+            oxygenSaturation: formData.oxygenSaturation ? Number(formData.oxygenSaturation) : undefined,
+            pulseRate: formData.pulseRate ? Number(formData.pulseRate) : undefined,
+            weight: formData.weight ? Number(formData.weight) : undefined,
+            height: formData.height ? Number(formData.height) : undefined,
           }
         : undefined,
       symptoms: formData.symptoms || undefined,
@@ -713,6 +776,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
         patientRelationship: "",
         patientRelationshipOther: "",
         patientName: "",
+        address: "",
         age: "",
         gender: "",
         birthday: "",
@@ -723,6 +787,12 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
         durationOfSymptoms: "",
         painLevel: "",
         notes: "",
+        bloodPressure: "",
+        temperature: "",
+        oxygenSaturation: "",
+        pulseRate: "",
+        weight: "",
+        height: "",
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to book appointment"
@@ -770,11 +840,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                         sessions
                           .filter((session) => {
                             if (String(session.doctorId) !== String(doctor.id)) return false
-                            if (!isActiveSession(session)) return false
-
-                            const sessionDate = new Date(session.date)
-                            const today = new Date()
-                            return sessionDate.toDateString() === today.toDateString()
+                            return sessionIsAvailableToday(session)
                           })
                           .flatMap((session) => {
                             const single = (session as any).appointmentType
@@ -878,8 +944,13 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                                   <span>Today</span>
                                 </div>
                                 <div className="mt-1 font-semibold text-foreground">
-                                  {slotCount} {slotCount === 1 ? "slot" : "slots"}
+                                  {walkIn ? "Walk-ins accepted" : `${slotCount} ${slotCount === 1 ? "slot" : "slots"}`}
                                 </div>
+                                {walkIn && availableToday ? (
+                                  <div className="mt-1 break-words leading-relaxed text-muted-foreground">
+                                    {getDoctorTodaySessionTimes(doctor.id)}
+                                  </div>
+                                ) : null}
                               </div>
                               <div className="rounded-xl border border-border bg-muted/30 p-2.5">
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -1052,7 +1123,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                     </div>
                   ) : !isBookableDate(formData.date) ? (
                     <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                      Please book appointments at least one day in advance.
+                      {walkIn ? "Past dates are not available for walk-ins." : "Please book appointments at least one day in advance."}
                     </div>
                   ) : selectedDateSessions.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -1129,13 +1200,9 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
               </p>
             </div>
 
-            {walkIn && walkInAvailabilityMessage ? (
-              <p role="status" className="text-sm text-destructive">{walkInAvailabilityMessage}</p>
-            ) : null}
-
             <div className="space-y-4">
                 <div>
-                  <Label htmlFor="appointmentType">Appointment Type</Label>
+                  <Label htmlFor="appointmentType">Appointment Type{walkIn ? <RequiredMark /> : null}</Label>
                   <select
                     id="appointmentType"
                     name="appointmentType"
@@ -1155,7 +1222,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
               {walkIn ? (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="patientName">Patient name</Label>
+                    <Label htmlFor="patientName">Patient name<RequiredMark /></Label>
                     <input
                       id="patientName"
                       name="patientName"
@@ -1166,14 +1233,41 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                       className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="walk-in-address">Address<RequiredMark /></Label>
+                    <input
+                      id="walk-in-address"
+                      name="address"
+                      required
+                      autoComplete="street-address"
+                      placeholder="Enter patient's address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    />
+                  </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <Label htmlFor="age">Age</Label>
+                      <Label htmlFor="birthday">Birthday<RequiredMark /></Label>
+                      <input
+                        id="birthday"
+                        name="birthday"
+                        type="date"
+                        required
+                        value={formData.birthday}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="age">Age<RequiredMark /></Label>
                       <input
                         id="age"
                         name="age"
                         type="number"
                         min="1"
+                        step="1"
+                        required
                         placeholder="e.g. 32"
                         value={formData.age}
                         onChange={handleInputChange}
@@ -1181,10 +1275,11 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                       />
                     </div>
                     <div>
-                      <Label htmlFor="gender">Gender</Label>
+                      <Label htmlFor="gender">Gender<RequiredMark /></Label>
                       <select
                         id="gender"
                         name="gender"
+                        required
                         value={formData.gender}
                         onChange={handleInputChange}
                         className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -1197,21 +1292,11 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="birthday">Birthday</Label>
-                      <input
-                        id="birthday"
-                        name="birthday"
-                        type="date"
-                        value={formData.birthday}
-                        onChange={handleInputChange}
-                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="civilStatus">Civil status</Label>
+                      <Label htmlFor="civilStatus">Civil status<RequiredMark /></Label>
                       <select
                         id="civilStatus"
                         name="civilStatus"
+                        required
                         value={formData.civilStatus}
                         onChange={handleInputChange}
                         className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -1226,11 +1311,12 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                       </select>
                     </div>
                     <div>
-                      <Label htmlFor="contactNumber">Contact number (Philippine format)</Label>
+                      <Label htmlFor="contactNumber">Contact number (Philippine format)<RequiredMark /></Label>
                       <input
                         id="contactNumber"
                         name="contactNumber"
                         type="tel"
+                        required
                         placeholder="e.g. 0917 123 4567"
                         value={formData.contactNumber}
                         onChange={handleInputChange}
@@ -1414,6 +1500,111 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                   rows={3}
                 />
               </div>
+
+              {walkIn ? (
+                <section className="space-y-4 border-t border-border pt-5" aria-labelledby="walk-in-vitals-heading">
+                  <div>
+                    <h3 id="walk-in-vitals-heading" className="text-lg font-semibold">Vital Signs &amp; BMI Record</h3>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="walk-in-blood-pressure">Blood Pressure (BP)<RequiredMark /></Label>
+                      <input
+                        id="walk-in-blood-pressure"
+                        name="bloodPressure"
+                        required
+                        placeholder="e.g. 120/80 mmHg"
+                        value={formData.bloodPressure}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="walk-in-temperature">Temperature (°C)<RequiredMark /></Label>
+                      <input
+                        id="walk-in-temperature"
+                        name="temperature"
+                        type="number"
+                        min="1"
+                        step="0.1"
+                        required
+                        placeholder="e.g. 36.5"
+                        value={formData.temperature}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="walk-in-oxygen-saturation">O₂ Saturation (%)<RequiredMark /></Label>
+                      <input
+                        id="walk-in-oxygen-saturation"
+                        name="oxygenSaturation"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        required
+                        placeholder="e.g. 98"
+                        value={formData.oxygenSaturation}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="walk-in-pulse-rate">Pulse Rate (PR) (bpm)<RequiredMark /></Label>
+                      <input
+                        id="walk-in-pulse-rate"
+                        name="pulseRate"
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                        placeholder="e.g. 74"
+                        value={formData.pulseRate}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="walk-in-weight">Weight (kg)<RequiredMark /></Label>
+                      <input
+                        id="walk-in-weight"
+                        name="weight"
+                        type="number"
+                        min="1"
+                        step="0.1"
+                        required
+                        placeholder="e.g. 60"
+                        value={formData.weight}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="walk-in-height">Height (cm)<RequiredMark /></Label>
+                      <input
+                        id="walk-in-height"
+                        name="height"
+                        type="number"
+                        min="1"
+                        step="0.1"
+                        required
+                        placeholder="e.g. 160"
+                        value={formData.height}
+                        onChange={handleInputChange}
+                        className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/40 p-4">
+                    <p className="text-sm font-medium">Calculated Body Mass Index</p>
+                    <p className="mt-3 text-2xl font-semibold">
+                      {bmi ?? "—"} <span className="text-sm font-normal text-muted-foreground">kg/m²</span>
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">Enter weight and height to calculate BMI.</p>
+                  </div>
+                </section>
+              ) : null}
             </div>
           </div>
         )}
@@ -1513,6 +1704,12 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                             <p className="mt-1 font-semibold">{formData.patientName.trim() || "Not provided"}</p>
                           </div>
                         ) : null}
+                        {walkIn ? (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Address</p>
+                            <p className="mt-1 break-words font-semibold">{formData.address || "Not provided"}</p>
+                          </div>
+                        ) : null}
                         <div>
                           <p className="text-sm text-muted-foreground">Contact number</p>
                           <p className="mt-1 font-semibold">{formData.contactNumber || "Not provided"}</p>
@@ -1582,6 +1779,30 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                           </div>
                         </>
                       ) : null}
+                      {walkIn && [
+                        formData.bloodPressure,
+                        formData.temperature,
+                        formData.oxygenSaturation,
+                        formData.pulseRate,
+                        formData.weight,
+                        formData.height,
+                      ].some(Boolean) ? (
+                        <>
+                          <Separator />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Vital signs &amp; BMI</p>
+                            <div className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                              <p className="font-semibold">Blood pressure: {formData.bloodPressure || "Not provided"}</p>
+                              <p className="font-semibold">Temperature: {formData.temperature ? `${formData.temperature} °C` : "Not provided"}</p>
+                              <p className="font-semibold">O₂ saturation: {formData.oxygenSaturation ? `${formData.oxygenSaturation}%` : "Not provided"}</p>
+                              <p className="font-semibold">Pulse rate: {formData.pulseRate ? `${formData.pulseRate} bpm` : "Not provided"}</p>
+                              <p className="font-semibold">Weight: {formData.weight ? `${formData.weight} kg` : "Not provided"}</p>
+                              <p className="font-semibold">Height: {formData.height ? `${formData.height} cm` : "Not provided"}</p>
+                              <p className="font-semibold">BMI: {bmi != null ? `${bmi} kg/m²` : "Not calculated"}</p>
+                            </div>
+                          </div>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </>
@@ -1610,7 +1831,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
                 (!walkIn && currentStep === 1 && (!formData.date || !formData.time || hasActiveDateConflict)) ||
-                (walkIn && currentStep === detailsStepIndex && !formData.sessionId)
+                (currentStep === detailsStepIndex && !formData.sessionId)
               }
               className="bg-orange-500 hover:bg-orange-600"
             >

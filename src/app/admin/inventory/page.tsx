@@ -2,6 +2,7 @@ import { MedicineRow } from "./columns"
 import { MedicineSaleRow } from "./sales-columns"
 import { InventoryContent } from "./content"
 import prisma from "@/lib/prisma"
+import { ensureInventoryMilligramColumns } from "@/lib/inventory"
 
 type SaleQueryRow = {
   sale_id: number
@@ -34,19 +35,22 @@ type ProductQueryRow = {
   product_name: string
   quantity: number
   unit_type: string
+  milligram: unknown
   expiration_date: Date | string | null
   retail_price: unknown
   created_at: Date | string
 }
 
 export default async function Page() {
+  await ensureInventoryMilligramColumns()
+
   const medicines = await prisma.medicine_inventory.findMany({
     where: { NOT: { status: { equals: "Deleted", mode: "insensitive" } } },
     orderBy: { medicine_id: "desc" },
   })
 
   const products = await prisma.$queryRaw<ProductQueryRow[]>`
-    SELECT product_id, product_name, quantity, unit_type, expiration_date, retail_price, created_at
+    SELECT product_id, product_name, quantity, unit_type, milligram, expiration_date, retail_price, created_at
     FROM "public"."products"
     ORDER BY product_id DESC
   `
@@ -95,6 +99,7 @@ export default async function Page() {
         category: m.category,
         quantity: String(m.quantity ?? ""),
         pieces: m.pieces ?? 0,
+        milligram: m.milligram != null ? Number(m.milligram) : null,
         reorderLevel: 20,
         expiryDate: m.expiry_date ? m.expiry_date.toISOString().split("T")[0] : "N/A",
         retailPrice: Number(m.unit_price ?? 0),
@@ -114,6 +119,7 @@ export default async function Page() {
         category: "",
         quantity: product.unit_type,
         pieces: stock,
+        milligram: product.milligram != null ? Number(product.milligram) : null,
         reorderLevel: 20,
         expiryDate: product.expiration_date
           ? product.expiration_date instanceof Date

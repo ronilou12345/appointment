@@ -54,6 +54,7 @@ async function getDoctorIdFromRequest(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const mine = request.nextUrl.searchParams.get("mine") === "true"
+    const walkInMode = request.nextUrl.searchParams.get("walkIn") === "true"
     const doctorIdParam = request.nextUrl.searchParams.get("doctorId")
     const requestedDoctorId = parsePositiveInteger(doctorIdParam)
 
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
             COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
           FROM "session_tbl" s
           LEFT JOIN "appointment" a ON a.session_id = s.session_id
+            AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
           WHERE s.doctor_id = $1
           GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type, s.status
           ORDER BY s.session_date ASC, s.start_time ASC
@@ -99,6 +101,7 @@ export async function GET(request: NextRequest) {
           COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
         FROM "session_tbl" s
         LEFT JOIN "appointment" a ON a.session_id = s.session_id
+          AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
         GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type, s.status
         ORDER BY s.session_date ASC, s.start_time ASC
       `)
@@ -126,6 +129,7 @@ export async function GET(request: NextRequest) {
               COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
             FROM "session_tbl" s
             LEFT JOIN "appointment" a ON a.session_id = s.session_id
+              AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
             WHERE s.doctor_id = $1
             GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type
             ORDER BY s.session_date ASC, s.start_time ASC
@@ -144,6 +148,7 @@ export async function GET(request: NextRequest) {
             COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
           FROM "session_tbl" s
           LEFT JOIN "appointment" a ON a.session_id = s.session_id
+            AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
           GROUP BY s.session_id, s.doctor_id, s.session_date, s.start_time, s.end_time, s.slots, s.appointment_type
           ORDER BY s.session_date ASC, s.start_time ASC
         `)
@@ -218,7 +223,7 @@ export async function GET(request: NextRequest) {
         startTime: normalizeTimeValue(row.starttime ?? row.startTime),
         endTime: normalizeTimeValue(row.endtime ?? row.endTime),
         duration: "",
-        slots: remaining,
+        slots: walkInMode ? capacity : remaining,
         status: normalizedStatus,
         appointmentTypes: appointmentValues,
       }

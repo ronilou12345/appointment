@@ -23,6 +23,7 @@ const emptyForm = {
   productUnitType: "pieces",
   quantity: "",
   pieces: "",
+  milligram: "",
   productExpiryDate: "",
   expiryDate: "",
   retailPrice: "",
@@ -58,6 +59,7 @@ export function AddMedicineDialog({
         productUnitType: isProductEditing ? medicine.quantity || "pieces" : "pieces",
         quantity: isProductEditing ? "" : String(medicine.quantity ?? ""),
         pieces: String(medicine.pieces ?? 0),
+        milligram: medicine.milligram != null ? String(medicine.milligram) : "",
         productExpiryDate: isProductEditing && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
         expiryDate: !isProductEditing && medicine.expiryDate !== "N/A" ? medicine.expiryDate : "",
         retailPrice: Number(medicine.retailPrice ?? 0).toFixed(2),
@@ -101,6 +103,7 @@ export function AddMedicineDialog({
         category: form.category,
         quantity: isProduct ? form.productUnitType : String(form.quantity ?? "").trim(),
         pieces: Number.parseInt(form.pieces || "0", 10) || 0,
+        milligram: form.milligram.trim() ? Number(form.milligram) : null,
         productExpirationDate: form.productExpiryDate || null,
         expiryDate: form.expiryDate,
         retailPrice: Number(form.retailPrice) || 0,
@@ -187,6 +190,20 @@ export function AddMedicineDialog({
                       onChange={(e) => handleChange('productName', e.target.value)}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={fieldId("milligram")}>Mg/Ml (Optional)</Label>
+                    <Input
+                      id={fieldId("milligram")}
+                      name="milligram"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g., 500"
+                      value={form.milligram}
+                      onChange={(e) => handleChange("milligram", e.target.value)}
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -209,6 +226,20 @@ export function AddMedicineDialog({
                       required={activeFormTab === "medicine" || isEditing}
                       value={form.medicineName}
                       onChange={(e) => handleChange('medicineName', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={fieldId("milligram")}>Mg/Ml (Optional)</Label>
+                    <Input
+                      id={fieldId("milligram")}
+                      name="milligram"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g., 500"
+                      value={form.milligram}
+                      onChange={(e) => handleChange("milligram", e.target.value)}
                     />
                   </div>
                 </div>

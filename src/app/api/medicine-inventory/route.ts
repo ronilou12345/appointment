@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { ensureInventoryMilligramColumns } from "@/lib/inventory"
 import { logCurrentUserActivity } from "@/lib/activity-log"
 
 function parseMedicinePayload(body: Record<string, unknown>) {
@@ -13,6 +14,7 @@ function parseMedicinePayload(body: Record<string, unknown>) {
   const productExpirationDate = body.productExpirationDate ? new Date(String(body.productExpirationDate)) : null
   const expiryDate = body.expiryDate ? new Date(String(body.expiryDate)) : null
   const retailPrice = Number(body.retailPrice ?? body.unitPrice ?? body.price ?? 0) || 0
+  const milligramValue = body.milligram == null || String(body.milligram).trim() === "" ? null : Number(body.milligram)
   const status = String(body.status ?? "In Stock").trim()
   const medicineImage = body.medicineImage ? String(body.medicineImage).trim() : null
 
@@ -27,6 +29,7 @@ function parseMedicinePayload(body: Record<string, unknown>) {
     productExpirationDate,
     expiryDate,
     retailPrice,
+    milligram: milligramValue,
     status,
     medicineImage,
   }
@@ -37,14 +40,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const payload = parseMedicinePayload(body)
 
+    if (payload.milligram != null && (!Number.isFinite(payload.milligram) || payload.milligram < 0)) {
+      return NextResponse.json({ success: false, error: "Miligram must be a non-negative number." }, { status: 400 })
+    }
+
+    await ensureInventoryMilligramColumns()
+
     if (payload.recordType === "product") {
       if (!payload.productName) {
         return NextResponse.json({ success: false, error: "Product name is required" }, { status: 400 })
       }
 
       await prisma.$executeRaw`
-        INSERT INTO "public"."products" ("product_name", "quantity", "unit_type", "expiration_date", "retail_price")
-        VALUES (${payload.productName}, ${payload.pieces}, ${payload.productUnitType}, ${payload.productExpirationDate}, ${payload.retailPrice})
+        INSERT INTO "public"."products" ("product_name", "quantity", "unit_type", "expiration_date", "retail_price", "milligram")
+        VALUES (${payload.productName}, ${payload.pieces}, ${payload.productUnitType}, ${payload.productExpirationDate}, ${payload.retailPrice}, ${payload.milligram})
       `
 
       await logCurrentUserActivity("Added product", payload.productName, { type: "product" })
@@ -64,6 +73,7 @@ export async function POST(request: NextRequest) {
         pieces: payload.pieces,
         expiry_date: expiryDate,
         unit_price: payload.retailPrice,
+        milligram: payload.milligram,
         supplier: "",
         status: payload.status,
         medicine_image: payload.medicineImage,
@@ -84,6 +94,12 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const payload = parseMedicinePayload(body)
 
+    if (payload.milligram != null && (!Number.isFinite(payload.milligram) || payload.milligram < 0)) {
+      return NextResponse.json({ success: false, error: "Miligram must be a non-negative number." }, { status: 400 })
+    }
+
+    await ensureInventoryMilligramColumns()
+
     if (payload.recordType === "product") {
       const productId = Number(String(body.id ?? "").replace(/^product-/, ""))
       if (!productId || !payload.productName || !["pieces", "box"].includes(payload.productUnitType)) {
@@ -98,6 +114,7 @@ export async function PATCH(request: NextRequest) {
             "unit_type" = ${payload.productUnitType},
             "expiration_date" = ${expirationDate},
             "retail_price" = ${payload.retailPrice},
+            "milligram" = ${payload.milligram},
             "updated_at" = now()
         WHERE "product_id" = ${productId}
         RETURNING "product_id"
@@ -125,6 +142,7 @@ export async function PATCH(request: NextRequest) {
         pieces: payload.pieces,
         expiry_date: payload.expiryDate,
         unit_price: payload.retailPrice,
+        milligram: payload.milligram,
         status: payload.status,
         medicine_image: payload.medicineImage,
       },

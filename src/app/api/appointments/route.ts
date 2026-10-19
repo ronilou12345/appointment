@@ -6,6 +6,7 @@ import { sendAppointmentEmail, sendAppointmentRescheduledEmail, sendAppointmentS
 import { sendAppointmentSms } from "@/lib/appointment-sms"
 import { logActivity } from "@/lib/activity-log"
 import { normalizeUserRole } from "@/lib/user-role"
+import { ensureWalkInAddressColumn } from "@/lib/walk-in"
 
 // Date and time columns come back as UTC-anchored Date objects, so the calendar
 // parts have to be read off the ISO string rather than local getters.
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
        WHERE a.user_id = $1
          AND s.doctor_id = $2
          AND s.session_date = $3
+         AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
          AND ($4::int IS NULL OR a.appointment_id <> $4)
          AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
        LIMIT 1`,
@@ -94,6 +96,7 @@ export async function GET(request: NextRequest) {
         INNER JOIN "session_tbl" s ON s.session_id = a.session_id
         WHERE a.user_id = $1
           AND s.session_date = $2
+          AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
           AND ($3::int IS NULL OR a.appointment_id <> $3)
           AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
         ORDER BY to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') ASC`,
@@ -110,6 +113,7 @@ export async function GET(request: NextRequest) {
         WHERE s.doctor_id = $1
           AND s.session_date = $2
           AND a.appointment_time IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
           AND ($3::int IS NULL OR a.appointment_id <> $3)
           AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
         ORDER BY to_char(a.appointment_time, 'HH24:MI') ASC`,
@@ -125,6 +129,7 @@ export async function GET(request: NextRequest) {
         WHERE a.user_id = $1
           AND s.doctor_id = $2
           AND s.session_date = $3
+          AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
           AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
           AND ($4::int IS NULL OR a.appointment_id <> $4)
         LIMIT 1`,
@@ -141,6 +146,7 @@ export async function GET(request: NextRequest) {
         INNER JOIN "session_tbl" s ON s.session_id = a.session_id
         WHERE a.user_id = $1
           AND s.session_date = $2
+          AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
           AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
           AND ($3::int IS NULL OR a.appointment_id <> $3)
         ORDER BY to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') ASC`,
@@ -198,6 +204,7 @@ export async function GET(request: NextRequest) {
             COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
           FROM "session_tbl" s
           LEFT JOIN "appointment" a ON a.session_id = s.session_id
+            AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
           WHERE s.doctor_id = $1 AND s.session_date = $2
           GROUP BY s.session_id, s.session_date, s.start_time, s.end_time, s.slots`,
           doctorId,
@@ -263,6 +270,12 @@ function parsePositiveInteger(value: unknown): number | null {
   return null
 }
 
+function parseOptionalNumber(value: unknown): number | null {
+  if (value == null || value === "") return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 type AppointmentPayload = {
   doctorId: number
   sessionId: number
@@ -280,9 +293,18 @@ type AppointmentPayload = {
   additionalNotes?: string | null
   walkInPatient?: {
     name: string
+    address?: string
     birthday?: string
     civilStatus?: string
     email?: string
+  }
+  walkInVitals?: {
+    bloodPressure?: string
+    temperature?: number
+    oxygenSaturation?: number
+    pulseRate?: number
+    weight?: number
+    height?: number
   }
 }
 
@@ -301,9 +323,20 @@ export async function POST(request: NextRequest) {
     const walkInPatient = payload.walkInPatient
       ? {
           name: String(payload.walkInPatient.name ?? "").trim().slice(0, 200),
+          address: String(payload.walkInPatient.address ?? "").trim().slice(0, 500) || null,
           birthday: payload.walkInPatient.birthday ? String(payload.walkInPatient.birthday).trim().slice(0, 10) : null,
           civilStatus: payload.walkInPatient.civilStatus ? String(payload.walkInPatient.civilStatus).trim().slice(0, 40) : null,
           email: payload.walkInPatient.email ? String(payload.walkInPatient.email).trim().slice(0, 254) : null,
+        }
+      : null
+    const walkInVitals = payload.walkInVitals
+      ? {
+          bloodPressure: payload.walkInVitals.bloodPressure?.trim().slice(0, 20) || null,
+          temperature: parseOptionalNumber(payload.walkInVitals.temperature),
+          oxygenSaturation: parseOptionalNumber(payload.walkInVitals.oxygenSaturation),
+          pulseRate: parseOptionalNumber(payload.walkInVitals.pulseRate),
+          weight: parseOptionalNumber(payload.walkInVitals.weight),
+          height: parseOptionalNumber(payload.walkInVitals.height),
         }
       : null
 
@@ -311,8 +344,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Only admins can create walk-in appointments" }, { status: 403 })
     }
 
+    if (walkInVitals && !walkInPatient) {
+      return NextResponse.json({ success: false, error: "Walk-in vitals require a walk-in patient" }, { status: 400 })
+    }
+
     if (walkInPatient && !walkInPatient.name) {
       return NextResponse.json({ success: false, error: "Patient name is required for walk-in appointments" }, { status: 400 })
+    }
+
+    if (walkInPatient && !walkInPatient.address) {
+      return NextResponse.json({ success: false, error: "Patient address is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && (!Number.isInteger(payload.age) || Number(payload.age) <= 0)) {
+      return NextResponse.json({ success: false, error: "A valid patient age is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && !payload.gender?.trim()) {
+      return NextResponse.json({ success: false, error: "Patient gender is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && !walkInPatient.birthday) {
+      return NextResponse.json({ success: false, error: "Patient birthday is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && !walkInPatient.civilStatus) {
+      return NextResponse.json({ success: false, error: "Patient civil status is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && !payload.contactNumber?.trim()) {
+      return NextResponse.json({ success: false, error: "Patient contact number is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && (walkInVitals?.weight == null || walkInVitals.height == null)) {
+      return NextResponse.json({ success: false, error: "Weight and height are required to calculate BMI." }, { status: 400 })
+    }
+
+    if (walkInPatient && !walkInVitals?.bloodPressure) {
+      return NextResponse.json({ success: false, error: "Blood pressure is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && walkInVitals?.temperature == null) {
+      return NextResponse.json({ success: false, error: "Temperature is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && walkInVitals?.oxygenSaturation == null) {
+      return NextResponse.json({ success: false, error: "Oxygen saturation is required for walk-in appointments." }, { status: 400 })
+    }
+
+    if (walkInPatient && walkInVitals?.pulseRate == null) {
+      return NextResponse.json({ success: false, error: "Pulse rate is required for walk-in appointments." }, { status: 400 })
     }
 
     if (walkInPatient?.birthday && !/^\d{4}-\d{2}-\d{2}$/.test(walkInPatient.birthday)) {
@@ -321,6 +402,30 @@ export async function POST(request: NextRequest) {
 
     if (walkInPatient?.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(walkInPatient.email)) {
       return NextResponse.json({ success: false, error: "Please enter a valid patient email" }, { status: 400 })
+    }
+
+    if (walkInVitals?.bloodPressure && !/^\d{2,3}\s*\/\s*\d{2,3}$/.test(walkInVitals.bloodPressure)) {
+      return NextResponse.json({ success: false, error: "Enter blood pressure in systolic/diastolic format, such as 120/80." }, { status: 400 })
+    }
+
+    if (walkInVitals?.temperature != null && walkInVitals.temperature <= 0) {
+      return NextResponse.json({ success: false, error: "Temperature must be greater than zero." }, { status: 400 })
+    }
+
+    if (walkInVitals?.oxygenSaturation != null && (walkInVitals.oxygenSaturation < 0 || walkInVitals.oxygenSaturation > 100)) {
+      return NextResponse.json({ success: false, error: "Oxygen saturation must be between 0 and 100%." }, { status: 400 })
+    }
+
+    if (walkInVitals?.pulseRate != null && (!Number.isInteger(walkInVitals.pulseRate) || walkInVitals.pulseRate <= 0)) {
+      return NextResponse.json({ success: false, error: "Pulse rate must be a positive whole number." }, { status: 400 })
+    }
+
+    if (walkInVitals?.weight != null && walkInVitals.weight <= 0) {
+      return NextResponse.json({ success: false, error: "Weight must be greater than zero." }, { status: 400 })
+    }
+
+    if (walkInVitals?.height != null && walkInVitals.height <= 0) {
+      return NextResponse.json({ success: false, error: "Height must be greater than zero." }, { status: 400 })
     }
 
     if (!doctorId || !sessionId || !payload.relationship?.trim()) {
@@ -343,7 +448,6 @@ export async function POST(request: NextRequest) {
     const painLevel = typeof payload.painLevel === "number" ? payload.painLevel : null
     const appointmentDate = payload.appointmentDate ? String(payload.appointmentDate).trim().slice(0, 10) : null
     const appointmentTime = payload.appointmentTime ? String(payload.appointmentTime).trim().slice(0, 5) : null
-
     let appointmentDetails: {
       patientName?: string
       doctorName?: string
@@ -374,49 +478,59 @@ export async function POST(request: NextRequest) {
       }
 
       const capacity = parsePositiveInteger(session[0].slots)
-      if (!capacity || capacity <= 0) {
-        throw new Error("No slots available for the selected session")
-      }
+      if (!walkInPatient) {
+        if (!capacity || capacity <= 0) {
+          throw new Error("No slots available for the selected session")
+        }
 
-      const bookedCountRows = await tx.$queryRawUnsafe<any[]>(
-        `SELECT COALESCE(COUNT(appointment_id), 0)::int AS booked_count FROM "appointment" WHERE session_id = $1`,
-        sessionId,
-      )
-      const bookedCount = Number(bookedCountRows[0]?.booked_count ?? 0)
+        const bookedCountRows = await tx.$queryRawUnsafe<any[]>(
+          `SELECT COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
+           FROM "appointment" a
+           WHERE a.session_id = $1
+             AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)`,
+          sessionId,
+        )
+        const bookedCount = Number(bookedCountRows[0]?.booked_count ?? 0)
 
-      const remainingCapacity = capacity - bookedCount
-      if (remainingCapacity <= 0) {
-        throw new Error("No slots available for the selected session")
+        if (capacity - bookedCount <= 0) {
+          throw new Error("No slots available for the selected session")
+        }
       }
 
       const selectedAppointmentDate = session[0].session_date ? String(session[0].session_date).slice(0, 10) : appointmentDate
+            if (walkInPatient) {
+              await ensureWalkInAddressColumn()
+            }
       const selectedAppointmentTimeValue = appointmentTime && /^\d{1,2}:\d{2}$/.test(appointmentTime)
         ? appointmentTime
         : session[0].start_time ? String(session[0].start_time).slice(0, 5) : null
 
-      const patientConflictRows = await tx.$queryRawUnsafe<any[]>(
-        `SELECT
-          to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time
-        FROM "appointment" a
-        INNER JOIN "session_tbl" s ON s.session_id = a.session_id
-        WHERE a.user_id = $1
-          AND s.session_date = $2::date
-          AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
-        ORDER BY to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') ASC`,
-        user.id,
-        selectedAppointmentDate,
-      )
+      if (!walkInPatient) {
+        const patientConflictRows = await tx.$queryRawUnsafe<any[]>(
+          `SELECT
+            to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') AS appointment_time
+          FROM "appointment" a
+          INNER JOIN "session_tbl" s ON s.session_id = a.session_id
+          WHERE a.user_id = $1
+            AND s.session_date = $2::date
+            AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
+            AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
+          ORDER BY to_char(COALESCE(a.appointment_time, s.start_time), 'HH24:MI') ASC`,
+          user.id,
+          selectedAppointmentDate,
+        )
 
-      const candidateStartMinutes = selectedAppointmentTimeValue ? parseTimeToMinutes(selectedAppointmentTimeValue) : null
-      if (candidateStartMinutes !== null) {
-        const candidateEndMinutes = candidateStartMinutes + 60
-        for (const row of patientConflictRows) {
-          const existingStartMinutes = parseTimeToMinutes(String(row.appointment_time ?? ""))
-          if (existingStartMinutes === null) continue
+        const candidateStartMinutes = selectedAppointmentTimeValue ? parseTimeToMinutes(selectedAppointmentTimeValue) : null
+        if (candidateStartMinutes !== null) {
+          const candidateEndMinutes = candidateStartMinutes + 60
+          for (const row of patientConflictRows) {
+            const existingStartMinutes = parseTimeToMinutes(String(row.appointment_time ?? ""))
+            if (existingStartMinutes === null) continue
 
-          const existingEndMinutes = existingStartMinutes + 60
-          if (candidateStartMinutes < existingEndMinutes && existingStartMinutes < candidateEndMinutes) {
-            throw new Error("You already have an appointment on this date that overlaps with this time. Please choose a different slot.")
+            const existingEndMinutes = existingStartMinutes + 60
+            if (candidateStartMinutes < existingEndMinutes && existingStartMinutes < candidateEndMinutes) {
+              throw new Error("You already have an appointment on this date that overlaps with this time. Please choose a different slot.")
+            }
           }
         }
       }
@@ -440,7 +554,7 @@ export async function POST(request: NextRequest) {
       }
 
       const insertedAppointments = await tx.$queryRawUnsafe<{ appointment_id: number }[]>(
-        `INSERT INTO "appointment" ("user_id", "doctor_id", "session_id", "appointment_type", "reason_for_visit", "relationship", "age", "gender", "contact_number", "symptoms", "duration_of_symptoms", "pain_level", "additional_notes", "appointment_date", "appointment_time") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING "appointment_id"`,
+        `INSERT INTO "appointment" ("user_id", "doctor_id", "session_id", "appointment_type", "reason_for_visit", "relationship", "age", "gender", "contact_number", "symptoms", "duration_of_symptoms", "pain_level", "additional_notes", "appointment_date", "appointment_time", "appointment_status") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING "appointment_id"`,
         user.id,
         doctorId,
         sessionId,
@@ -456,18 +570,30 @@ export async function POST(request: NextRequest) {
         additionalNotes,
         selectedAppointmentDate,
         selectedAppointmentTimeValue ? `${selectedAppointmentTimeValue}:00` : null,
+        walkInPatient ? "Waiting" : "Pending",
       )
 
       if (walkInPatient) {
         await tx.$executeRawUnsafe(
-          `INSERT INTO public.walk_in ("appointment_id", "patient_name", "birthday", "civil_status", "email", "doctor_name", "appointment_date") VALUES ($1, $2, $3::date, $4, $5, $6, $7::date)`,
+          `INSERT INTO public.walk_in ("appointment_id", "patient_name", "address", "birthday", "civil_status", "email", "doctor_name", "appointment_date", "blood_pressure", "temperature", "oxygen_saturation", "pulse_rate", "weight", "height", "bmi")
+           VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8::date, $9, $10, $11, $12, $13, $14, $15)`,
           insertedAppointments[0].appointment_id,
           walkInPatient.name,
+          walkInPatient.address,
           walkInPatient.birthday,
           walkInPatient.civilStatus,
           walkInPatient.email,
           appointmentDetails.doctorName ?? "Doctor",
           selectedAppointmentDate,
+          walkInVitals?.bloodPressure ?? null,
+          walkInVitals?.temperature ?? null,
+          walkInVitals?.oxygenSaturation ?? null,
+          walkInVitals?.pulseRate ?? null,
+          walkInVitals?.weight ?? null,
+          walkInVitals?.height ?? null,
+          walkInVitals?.weight && walkInVitals.height
+            ? Math.round((walkInVitals.weight / ((walkInVitals.height / 100) ** 2)) * 100) / 100
+            : null,
         )
       }
 
@@ -640,6 +766,7 @@ export async function PATCH(request: NextRequest) {
            FROM "appointment"
            WHERE session_id = $1
              AND appointment_id <> $2
+             AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = "appointment".appointment_id)
              AND LOWER(COALESCE(appointment_status, '')) NOT IN ('cancelled', 'canceled')`,
           sessionId,
           appointmentId,
@@ -660,6 +787,7 @@ export async function PATCH(request: NextRequest) {
            AND s.doctor_id = $2
            AND s.session_date = $3::date
            AND a.appointment_id <> $4
+           AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
            AND LOWER(COALESCE(a.appointment_status, '')) NOT IN ('cancelled', 'canceled')
          LIMIT 1`,
         appointment.user_id,
