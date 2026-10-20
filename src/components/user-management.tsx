@@ -17,7 +17,6 @@ import {
   GripVertical,
   Columns3Icon,
   EllipsisIcon,
-  DownloadIcon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
@@ -556,14 +555,6 @@ export function UserManagement({ initialUsers }: { initialUsers: User[] }) {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-          >
-            <DownloadIcon className="size-3.5" />
-            Bulk Import
-          </Button>
           <Button
             size="sm"
             className="h-8 gap-1.5 text-xs shadow-md shadow-primary/20"

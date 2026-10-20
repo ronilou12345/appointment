@@ -279,6 +279,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedMedicine, setSelectedMedicine] = useState<MedicineRow | null>(null)
   const [cartOpen, setCartOpen] = useState(false)
+  const [cartItemToRemove, setCartItemToRemove] = useState<CartItem | null>(null)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [cartSearchQuery, setCartSearchQuery] = useState("")
@@ -801,7 +802,13 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
       </div>
 
       {/* Shopping Cart Sheet */}
-      <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+      <Sheet
+        open={cartOpen}
+        onOpenChange={(open) => {
+          if (!open && cartItemToRemove) return
+          setCartOpen(open)
+        }}
+      >
         <SheetContent side="right" className="w-full max-w-md flex flex-col">
           <SheetHeader className="border-b">
             <SheetTitle>Shopping Cart</SheetTitle>
@@ -945,7 +952,7 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
                             size="sm"
                             variant="ghost"
                             className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => setCartItemToRemove(item)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -1007,6 +1014,36 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog
+        open={cartItemToRemove !== null}
+        onOpenChange={(open) => {
+          if (!open) setCartItemToRemove(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove item from cart?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove &quot;{cartItemToRemove?.name}&quot; from the shopping cart?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCartItemToRemove(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (cartItemToRemove) removeFromCart(cartItemToRemove.id)
+                setCartItemToRemove(null)
+              }}
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AddMedicineDialog
         open={editOpen}

@@ -38,6 +38,7 @@ export type WalkInRecordRow = {
   doctorSignature: string
   age: string
   gender: string
+  civilStatus: string
   chiefComplaints: string
   diagnosis: string
   prescription: string
@@ -102,7 +103,7 @@ function WalkInRecordActions({ record }: { record: WalkInRecordRow }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuItem asChild>
-            <Link href={`/admin/all-appointments/${record.id}`}>
+            <Link href={`/admin/walk-in-records/${record.id}`}>
               <Eye className="mr-2 size-4" />
               View Details
             </Link>
@@ -203,7 +204,7 @@ const columns: ColumnDef<WalkInRecordRow>[] = [
     header: "Date & Time",
     cell: ({ row }) => `${formatDate(row.original.appointmentDate)} · ${formatTime(row.original.appointmentTime)}`,
   },
-  { accessorKey: "appointmentType", header: "Appointment Type" },
+  { accessorKey: "civilStatus", header: "Civil Status", cell: ({ row }) => row.original.civilStatus || "—" },
   { accessorKey: "address", header: "Address", cell: ({ row }) => row.original.address || "—" },
   {
     accessorKey: "status",
@@ -230,11 +231,13 @@ const columns: ColumnDef<WalkInRecordRow>[] = [
 export function WalkInRecordsClient({ records }: { records: WalkInRecordRow[] }) {
   return (
     <>
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-foreground">Walk In Records</h1>
-        <p className="mt-2 text-muted-foreground">
-          View all walk-in registrations, patient contact details, appointment information, and status.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-foreground">Walk In Records</h1>
+          <p className="mt-2 text-muted-foreground">
+            View all walk-in registrations, patient contact details, appointment information, and status.
+          </p>
+        </div>
       </div>
       <DataTable columns={columns} data={records} getRowId={(row) => row.id} showRowControls={false} />
     </>

@@ -29,7 +29,7 @@ export function Dialog({ children, open, onOpenChange, className, ...props }: Di
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6",
+        "pointer-events-auto fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6",
         className,
       )}
       {...props}
