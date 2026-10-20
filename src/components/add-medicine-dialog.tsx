@@ -103,7 +103,7 @@ export function AddMedicineDialog({
         category: form.category,
         quantity: isProduct ? form.productUnitType : String(form.quantity ?? "").trim(),
         pieces: Number.parseInt(form.pieces || "0", 10) || 0,
-        milligram: form.milligram.trim() ? Number(form.milligram) : null,
+        milligram: form.milligram.trim() || null,
         productExpirationDate: form.productExpiryDate || null,
         expiryDate: form.expiryDate,
         retailPrice: Number(form.retailPrice) || 0,
@@ -195,11 +195,8 @@ export function AddMedicineDialog({
                     <Input
                       id={fieldId("milligram")}
                       name="milligram"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      placeholder="e.g., 500"
+                      type="text"
+                      placeholder="e.g., 500 mg/ml"
                       value={form.milligram}
                       onChange={(e) => handleChange("milligram", e.target.value)}
                     />
@@ -233,11 +230,8 @@ export function AddMedicineDialog({
                     <Input
                       id={fieldId("milligram")}
                       name="milligram"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      placeholder="e.g., 500"
+                      type="text"
+                      placeholder="e.g., 500 mg/ml"
                       value={form.milligram}
                       onChange={(e) => handleChange("milligram", e.target.value)}
                     />

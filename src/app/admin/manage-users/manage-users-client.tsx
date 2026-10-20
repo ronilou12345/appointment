@@ -1113,16 +1113,21 @@ function ViewUserSheet({
   onOpenChange: (open: boolean) => void
   user: UserRow | null
 }) {
+  const isDoctor = user?.role === "DOCTOR" || user?.role === "NURSE"
   const details = [
     ["Email", user?.email],
     ["Role", user?.role],
     ["Address", user?.address],
     ["Prefix", user?.prefix],
     ["Suffix", user?.suffix],
-    ...(user?.role === "DOCTOR" ? [["Credentials", user.credentials] as const] : []),
-    ["License number", user?.licenseNumber],
-    ["Years of experience", user?.yearsOfExperience],
-    ["Board certifications", user?.boardCertifications],
+    ...(isDoctor
+      ? [
+          ["Credentials", user?.credentials] as const,
+          ["License number", user?.licenseNumber] as const,
+          ["Years of experience", user?.yearsOfExperience] as const,
+          ["Board certifications", user?.boardCertifications] as const,
+        ]
+      : []),
   ] as const
 
   return (

@@ -14,7 +14,7 @@ function parseMedicinePayload(body: Record<string, unknown>) {
   const productExpirationDate = body.productExpirationDate ? new Date(String(body.productExpirationDate)) : null
   const expiryDate = body.expiryDate ? new Date(String(body.expiryDate)) : null
   const retailPrice = Number(body.retailPrice ?? body.unitPrice ?? body.price ?? 0) || 0
-  const milligramValue = body.milligram == null || String(body.milligram).trim() === "" ? null : Number(body.milligram)
+  const milligramValue = body.milligram == null || String(body.milligram).trim() === "" ? null : String(body.milligram).trim()
   const status = String(body.status ?? "In Stock").trim()
   const medicineImage = body.medicineImage ? String(body.medicineImage).trim() : null
 
@@ -39,10 +39,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const payload = parseMedicinePayload(body)
-
-    if (payload.milligram != null && (!Number.isFinite(payload.milligram) || payload.milligram < 0)) {
-      return NextResponse.json({ success: false, error: "Miligram must be a non-negative number." }, { status: 400 })
-    }
 
     await ensureInventoryMilligramColumns()
 
@@ -93,10 +89,6 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
     const payload = parseMedicinePayload(body)
-
-    if (payload.milligram != null && (!Number.isFinite(payload.milligram) || payload.milligram < 0)) {
-      return NextResponse.json({ success: false, error: "Miligram must be a non-negative number." }, { status: 400 })
-    }
 
     await ensureInventoryMilligramColumns()
 

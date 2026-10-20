@@ -193,6 +193,7 @@ async function getDoctorNextAppointments(userId: string) {
     select: {
       appointment_id: true,
       appointment_status: true,
+      appointment_type: true,
       user: { select: { name: true, profile_image: true } },
       session_tbl: { select: { session_date: true, start_time: true, appointment_type: true } },
     },
@@ -212,7 +213,7 @@ async function getDoctorNextAppointments(userId: string) {
       date,
       name: appt.user?.name ?? "Unknown Patient",
       status: appt.appointment_status ?? "Pending",
-      appointmentType: appt.session_tbl?.appointment_type ?? "General Consultation",
+      appointmentType: appt.appointment_type || appt.session_tbl?.appointment_type || "General Consultation",
       avatar: appt.user?.profile_image ?? null,
     }
   })

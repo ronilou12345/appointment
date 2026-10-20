@@ -10,7 +10,7 @@ export type AppointmentSmsDetails = {
   cancelReason?: string | null
 }
 
-export type AppointmentSmsStatus = "Pending" | "Confirmed" | "Completed" | "Cancelled"
+export type AppointmentSmsStatus = "Pending" | "WalkInWaiting" | "Confirmed" | "Completed" | "Cancelled"
 
 function envValue(name: string) {
   return process.env[name]?.trim().replace(/^["']|["']$/g, "") || ""
@@ -54,6 +54,19 @@ Note: Please arrive on time or as early as possible. Strictly 5 minutes late, we
     return `Hello, ${patientName}!
 
 Your appointment with ${doctorName} on ${appointmentDate} has been marked COMPLETED. Thank you for visiting C2M Family Clinic.
+
+— C2M Family Clinic`
+  }
+
+  if (status === "WalkInWaiting") {
+    return `Hello, ${patientName}!
+
+Your walk-in registration at C2M Family Clinic has been received.
+
+Doctor: ${doctorName}
+Date: ${appointmentDate}
+
+Please wait at the clinic. The doctor or clinic staff will call you when it is your turn.
 
 — C2M Family Clinic`
   }

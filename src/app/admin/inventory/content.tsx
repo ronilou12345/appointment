@@ -329,9 +329,11 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
     expired: typeFilteredRows.filter((medicine) => getExpiryStatus(medicine.expiryDate) === "expired").length,
   }
 
-  const searchResults = cartSearchQuery.trim()
+  const normalizedCartSearchQuery = cartSearchQuery.trim().toLocaleLowerCase()
+  const searchResults = normalizedCartSearchQuery
     ? rows.filter((medicine) =>
-        medicine.name.toLowerCase().includes(cartSearchQuery.trim().toLowerCase())
+        medicine.name.toLocaleLowerCase().includes(normalizedCartSearchQuery) ||
+        medicine.category.toLocaleLowerCase().includes(normalizedCartSearchQuery)
       )
     : []
 
@@ -891,9 +893,13 @@ export function InventoryContent({ rows, sales }: { rows: MedicineRow[]; sales: 
             ) : (
               <div className="space-y-4">
                 {cartItems
-                  .filter((item) =>
-                    item.name.toLowerCase().includes(cartSearchQuery.toLowerCase())
-                  )
+                  .filter((item) => {
+                    const medicine = rows.find((row) => row.id === item.id)
+                    return (
+                      item.name.toLocaleLowerCase().includes(normalizedCartSearchQuery) ||
+                      (medicine?.category.toLocaleLowerCase().includes(normalizedCartSearchQuery) ?? false)
+                    )
+                  })
                   .map((item) => {
                     const medicine = rows.find((row) => row.id === item.id)
                     const stockInfo = medicine ? getStockInfo(medicine) : { stock: 0, outOfStock: true, lowStock: false }

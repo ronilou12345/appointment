@@ -57,6 +57,12 @@ const adminNavMain = [
     url: "/admin/manage-users",
     icon: <LayoutDashboardIcon />,
   },
+  {
+    title: "Walk In",
+    url: "/admin/book-appointment",
+    badge: "New",
+    icon: <DoorOpen />,
+  },
 ]
 
 const doctorNavMain = [
@@ -163,7 +169,7 @@ const data = {
   documents: [
     { name: "Pharmacy", url: "/admin/inventory", icon: <Pill />, badge: "New" },
     { name: "Reports", url: "/admin/reports", icon: <FileChartColumnIcon /> },
-    { name: "Walk In", url: "/admin/book-appointment", icon: <DoorOpen /> },
+    { name: "Walk In Records", url: "/admin/walk-in-records", icon: <ClipboardListIcon />, badge: "New" },
   ],
 }
 

@@ -611,8 +611,8 @@ export async function POST(request: NextRequest) {
     })
 
     const [smsResult, emailResult] = await Promise.all([
-      sendAppointmentSms(savedContactNumber, appointmentDetails, "Pending"),
-      sendAppointmentEmail(walkInPatient?.email ?? user.email ?? null, appointmentDetails),
+      sendAppointmentSms(savedContactNumber, appointmentDetails, walkInPatient ? "WalkInWaiting" : "Pending"),
+      sendAppointmentEmail(walkInPatient ? walkInPatient.email : user.email ?? null, appointmentDetails),
     ])
 
     if (!smsResult.success) {

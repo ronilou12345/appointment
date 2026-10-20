@@ -46,7 +46,6 @@ type DoctorOption = {
   function findNextWalkInSession(sessions: SessionOption[], doctorId: string) {
     const now = new Date()
     const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-")
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
     const toMinutes = (time: string) => {
       const [hours, minutes] = time.split(":").map(Number)
       return hours * 60 + minutes
@@ -60,20 +59,14 @@ type DoctorOption = {
       )
       .sort((first, second) => toMinutes(first.startTime) - toMinutes(second.startTime))
 
-    for (const session of todaySessions) {
-      const startMinutes = toMinutes(session.startTime)
-      const endMinutes = toMinutes(session.endTime)
-      const appointmentMinutes = startMinutes + Math.max(0, Math.ceil((currentMinutes - startMinutes) / 30)) * 30
-      if (appointmentMinutes >= endMinutes || appointmentMinutes <= currentMinutes) continue
+    const session = todaySessions[0]
+    if (!session) return null
 
-      return {
-        session,
-        date: session.date,
-        time: `${String(Math.floor(appointmentMinutes / 60)).padStart(2, "0")}:${String(appointmentMinutes % 60).padStart(2, "0")}`,
-      }
+    return {
+      session,
+      date: session.date,
+      time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
     }
-
-    return null
   }
 
   const steps: StepperItem[] = [
@@ -343,7 +336,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
   const sessionIsAvailableToday = (session: SessionOption) =>
     session.date === todayIso &&
     isActiveSession(session) &&
-    isSlotInFuture(session.date, walkIn ? session.endTime : session.startTime)
+    (walkIn || isSlotInFuture(session.date, session.startTime))
 
   const getDayIndicatorColor = (isoDate: string) => {
     if (!selectedDoctorId) return null
@@ -556,7 +549,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
         .filter((session) =>
           String(session.doctorId) === String(selectedDoctorId) &&
           session.date === formData.date &&
-          sessionHasTimeRemaining(session, session.date),
+          (walkIn ? isActiveSession(session) : sessionHasTimeRemaining(session, session.date)),
         )
         .flatMap((s) => {
           const single = (s as any).appointmentType
@@ -764,7 +757,22 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
         throw new Error(result.error || "Unable to book appointment")
       }
 
-      toast.success("Appointment booked! Confirmation details have been sent to you via email and SMS.")
+      if (walkIn) {
+        const notificationFailures = [
+          result.smsSent ? "" : "SMS notification",
+          formData.patientEmail.trim() && !result.emailSent ? "email notification" : "",
+        ].filter(Boolean)
+
+        if (notificationFailures.length > 0) {
+          toast.warning(
+            `Walk-in registered, but ${notificationFailures.join(" and ")} could not be sent. Please tell the patient to wait at the clinic to be called.`,
+          )
+        } else {
+          toast.success("Walk-in registered. The patient has been notified by SMS and should wait to be called.")
+        }
+      } else {
+        toast.success("Appointment booked! Confirmation details have been sent to you via email and SMS.")
+      }
       await loadSessions(false)
       setCurrentStep(0)
       setFormData({

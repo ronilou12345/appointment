@@ -168,9 +168,7 @@ export async function sendAppointmentEmail(to: string | null, details: Appointme
     intro: `Your appointment request at ${CLINIC_NAME} has been received and is currently pending doctor confirmation.`,
     status: "Pending doctor confirmation",
     closing: [
-      "Please wait for confirmation. You will receive another message once your appointment has been confirmed.",
-      "If you need to cancel or reschedule, kindly let us know in advance.",
-      "Please note: Once your appointment has been confirmed, you are no longer allowed to cancel or reschedule it.",
+      "You will receive another text once your appointment has been confirmed.",
     ],
   })
 }

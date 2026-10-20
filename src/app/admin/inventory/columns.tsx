@@ -19,7 +19,7 @@ export type MedicineRow = {
   category: string
   quantity: string
   pieces?: number
-  milligram?: number | null
+  milligram?: string | null
   reorderLevel: number
   expiryDate: string
   retailPrice?: number
@@ -90,7 +90,7 @@ export const columns: ColumnDef<MedicineRow>[] = [
   {
     accessorKey: "milligram",
     header: "Mg/Ml",
-    cell: ({ row }) => row.original.milligram != null ? `${row.original.milligram} Mg/Ml` : "—",
+    cell: ({ row }) => row.original.milligram || "—",
   },
   {
     accessorKey: "pieces",

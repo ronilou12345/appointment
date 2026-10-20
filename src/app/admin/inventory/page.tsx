@@ -99,7 +99,7 @@ export default async function Page() {
         category: m.category,
         quantity: String(m.quantity ?? ""),
         pieces: m.pieces ?? 0,
-        milligram: m.milligram != null ? Number(m.milligram) : null,
+        milligram: m.milligram,
         reorderLevel: 20,
         expiryDate: m.expiry_date ? m.expiry_date.toISOString().split("T")[0] : "N/A",
         retailPrice: Number(m.unit_price ?? 0),
@@ -119,7 +119,7 @@ export default async function Page() {
         category: "",
         quantity: product.unit_type,
         pieces: stock,
-        milligram: product.milligram != null ? Number(product.milligram) : null,
+        milligram: product.milligram != null ? String(product.milligram) : null,
         reorderLevel: 20,
         expiryDate: product.expiration_date
           ? product.expiration_date instanceof Date

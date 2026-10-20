@@ -4,7 +4,15 @@ import { type AppointmentRow } from "./columns"
 import { formatAppointmentTime } from "@/app/client/appointments/status"
 
 async function getAppointments(): Promise<AppointmentRow[]> {
+  const walkInAppointments = await prisma.$queryRaw<Array<{ appointment_id: number }>>`
+    SELECT wi.appointment_id
+    FROM public.walk_in wi
+  `
+
   const appointments = await prisma.appointment.findMany({
+    where: {
+      appointment_id: { notIn: walkInAppointments.map(({ appointment_id }) => appointment_id) },
+    },
     orderBy: { appointment_id: "desc" },
     select: {
       appointment_id: true,

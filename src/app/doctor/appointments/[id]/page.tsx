@@ -97,7 +97,11 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   const patientNotes = appointment.reason_for_visit ?? "No patient notes recorded."
   const doctorNotes = appointment.additional_notes ?? "No doctor notes recorded."
   const followUp = appointment.symptoms ?? "No follow-up plan recorded."
-  const specialty = appointment.session_appointment_type || appointment.reason_for_visit || "General Consultation"
+  const specialty =
+    appointment.appointment_type ||
+    appointment.session_appointment_type ||
+    appointment.reason_for_visit ||
+    "General Consultation"
   const date = appointment.appointment_date_text ?? "—"
   const timeText = appointment.appointment_time_text ?? ""
   const time = timeText ? formatAppointmentTime(String(timeText)) : "—"

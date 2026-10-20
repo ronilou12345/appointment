@@ -48,8 +48,18 @@ async function getDoctorAppointments(userId: string): Promise<DoctorAppointmentR
       .filter(Boolean)
       .join(" ")
 
+    const walkInAppointments = await prisma.$queryRaw<Array<{ appointment_id: number }>>`
+      SELECT wi.appointment_id
+      FROM public.walk_in wi
+      INNER JOIN public.appointment a ON a.appointment_id = wi.appointment_id
+      WHERE a.doctor_id = ${doctor.doctor_id}
+    `
+
     const appointments = await prisma.appointment.findMany({
-      where: { doctor_id: doctor.doctor_id },
+      where: {
+        doctor_id: doctor.doctor_id,
+        appointment_id: { notIn: walkInAppointments.map(({ appointment_id }) => appointment_id) },
+      },
       orderBy: { appointment_id: "desc" },
       select: {
         appointment_id: true,
@@ -113,7 +123,11 @@ async function getDoctorAppointments(userId: string): Promise<DoctorAppointmentR
       const date = normalizeDateValue(dateValue)
       const timeValue = appointment.appointment_time ?? appointment.session_tbl?.start_time
       const time = normalizeTimeValue(timeValue)
-      const specialty = appointment.session_tbl?.appointment_type || appointment.reason_for_visit || "General Consultation"
+      const specialty =
+        appointment.appointment_type ||
+        appointment.session_tbl?.appointment_type ||
+        appointment.reason_for_visit ||
+        "General Consultation"
       const soap = appointment.soap_notes[0]
       const vitals = appointment.vital_signs[0]
 
