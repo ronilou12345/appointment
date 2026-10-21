@@ -32,7 +32,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useState } from "react"
 
 interface AppointmentCardData {
   id?: string
@@ -118,7 +117,7 @@ function classifyVitalStatus(kind: "heartRate" | "bodyTemperature" | "weight" | 
 
 export function PatientDashboard({ user, nextPending, appointments = [], latestVitals, healthTrend = [] }: PatientDashboardProps) {
   const router = useRouter()
-  const [addressDialogOpen, setAddressDialogOpen] = useState(user.needsAddress ?? false)
+  const addressDialogOpen = user.needsAddress ?? false
   const formatTime = (time24?: string) => {
     if (!time24) return ""
     const parts = time24.split(":")
@@ -177,7 +176,7 @@ export function PatientDashboard({ user, nextPending, appointments = [], latestV
         <div className="absolute -bottom-16 -left-16 size-80 rounded-full bg-primary-foreground/10 blur-3xl" />
       </section>
 
-      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+      <Dialog open={addressDialogOpen} onOpenChange={() => {}}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add your address</DialogTitle>
@@ -186,7 +185,6 @@ export function PatientDashboard({ user, nextPending, appointments = [], latestV
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddressDialogOpen(false)}>Later</Button>
             <Button onClick={() => router.push("/client/settings")}>Go to Settings</Button>
           </DialogFooter>
         </DialogContent>
