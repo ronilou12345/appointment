@@ -4,14 +4,20 @@ import { type AppointmentRow } from "./columns"
 import { formatAppointmentTime } from "@/app/client/appointments/status"
 
 async function getAppointments(): Promise<AppointmentRow[]> {
-  const walkInAppointments = await prisma.$queryRaw<Array<{ appointment_id: number }>>`
-    SELECT wi.appointment_id
-    FROM public.walk_in wi
+  const regularAppointments = await prisma.$queryRaw<Array<{ appointment_id: number }>>`
+    SELECT a.appointment_id
+    FROM public.appointment a
+    WHERE LOWER(COALESCE(a.relationship, '')) NOT IN ('walk-in', 'walk in')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.walk_in wi
+        WHERE wi.appointment_id = a.appointment_id
+      )
   `
 
   const appointments = await prisma.appointment.findMany({
     where: {
-      appointment_id: { notIn: walkInAppointments.map(({ appointment_id }) => appointment_id) },
+      appointment_id: { in: regularAppointments.map(({ appointment_id }) => appointment_id) },
     },
     orderBy: { appointment_id: "desc" },
     select: {

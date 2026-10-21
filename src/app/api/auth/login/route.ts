@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7,
     })
-
     await logActivity({
       userId: result.userId,
       action: "Signed in",

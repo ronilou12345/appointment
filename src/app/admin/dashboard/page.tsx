@@ -7,7 +7,21 @@ import type { AppointmentRow } from "@/app/admin/all-appointments/columns"
 import UsersTable from "./users-table"
 
 export default async function AdminDashboardPage() {
+  const regularAppointmentIds = await prisma.$queryRaw<Array<{ appointment_id: number }>>`
+    SELECT a.appointment_id
+    FROM public.appointment a
+    WHERE LOWER(COALESCE(a.relationship, '')) NOT IN ('walk-in', 'walk in')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.walk_in wi
+        WHERE wi.appointment_id = a.appointment_id
+      )
+  `
+
   const dashboardAppointments = await prisma.appointment.findMany({
+    where: {
+      appointment_id: { in: regularAppointmentIds.map(({ appointment_id }) => appointment_id) },
+    },
     orderBy: { appointment_id: "desc" },
     select: {
       appointment_id: true,

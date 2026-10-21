@@ -10,6 +10,7 @@ import {
 import { getDashboardPath } from "@/lib/user-role"
 import { isRemoteProfileImage, saveRemoteProfileImage } from "@/lib/profile-image"
 import { logActivity } from "@/lib/activity-log"
+import { ensureGoogleCreatedColumn } from "@/lib/google-account"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await ensureGoogleCreatedColumn()
     const profile = await exchangeCodeForProfile({
       code,
       redirectUri: resolveRedirectUri(origin),
@@ -88,19 +90,26 @@ export async function GET(request: NextRequest) {
         })
       }
     } else {
-      await prisma.user.create({
-        data: {
-          id: userId,
-          email: profile.email,
-          name: profile.name || profile.email,
-          role: "PATIENT",
-          status: "ACTIVE",
-          designations: null,
-          // Google-only accounts get an unusable password so email sign-in stays closed.
-          password: randomBytes(32).toString("hex"),
-          profile_image: storedPhoto,
-          updatedAt: new Date(),
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.user.create({
+          data: {
+            id: userId,
+            email: profile.email,
+            name: profile.name || profile.email,
+            role: "PATIENT",
+            status: "ACTIVE",
+            designations: null,
+            // Google-only accounts get an unusable password so email sign-in stays closed.
+            password: randomBytes(32).toString("hex"),
+            profile_image: storedPhoto,
+            updatedAt: new Date(),
+          },
+        })
+        await tx.$executeRaw`
+          UPDATE public."user"
+          SET google_created = TRUE
+          WHERE id = ${userId}
+        `
       })
     }
 

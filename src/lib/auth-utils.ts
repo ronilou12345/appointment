@@ -20,6 +20,8 @@ export async function getSession() {
         profile_image: true,
       },
     })
+    if (!user) return null
+
     return user
   } catch (error) {
     return null

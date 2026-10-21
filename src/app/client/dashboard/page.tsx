@@ -3,6 +3,7 @@ import { getUserByRole } from "@/lib/user-role"
 import { getSession } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"
 import { ensureVitalSignsColumns, toVitalNumber } from "@/lib/vital-signs"
+import { isGoogleCreatedAccount } from "@/lib/google-account"
 
 async function getNextPendingAppointment(userId: string) {
   const today = new Date()
@@ -162,6 +163,7 @@ export default async function ClientDashboardPage() {
         name: session.name,
         email: session.email,
         avatar: session.profile_image ?? "",
+        needsAddress: !session.address?.trim() && await isGoogleCreatedAccount(session.id),
       }
     : fallbackUser
 
