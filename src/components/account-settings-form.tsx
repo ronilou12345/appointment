@@ -108,6 +108,16 @@ export function AccountSettingsForm({ user, doctorBackground, redirectPath, titl
     setComposedName(parts.join(" "))
   }, [firstName, middleName, lastName])
 
+  useEffect(() => {
+    if (window.location.hash !== "#address") return
+
+    const addressInput = document.getElementById("address")
+    if (!(addressInput instanceof HTMLInputElement)) return
+
+    addressInput.scrollIntoView({ behavior: "smooth", block: "center" })
+    addressInput.focus({ preventScroll: true })
+  }, [])
+
   const initials = getInitials(user.name || "")
   const canSetNewPassword = currentPasswordMatch === true
 

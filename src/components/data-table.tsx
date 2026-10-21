@@ -123,6 +123,7 @@ interface DataTableProps<TData, TValue> {
   onSelectedRowsChange?: (rows: TData[]) => void
   globalFilterFn?: FilterFn<TData>
   showRowControls?: boolean
+  dateFilterColumnIds?: string[]
 }
 
 export function DataTable<TData, TValue>({
@@ -132,6 +133,7 @@ export function DataTable<TData, TValue>({
   onSelectedRowsChange,
   globalFilterFn,
   showRowControls = true,
+  dateFilterColumnIds = [],
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -226,9 +228,10 @@ export function DataTable<TData, TValue>({
               <div key={column.id} className="grid gap-1.5">
                 <label className="text-xs font-medium capitalize text-muted-foreground">{column.id}</label>
                 <Input
+                  type="text"
                   value={String(column.getFilterValue() ?? "")}
                   onChange={(event) => column.setFilterValue(event.target.value)}
-                  placeholder={`Filter ${column.id}...`}
+                  placeholder={dateFilterColumnIds.includes(column.id) ? "Type a date (YYYY-MM-DD)" : `Filter ${column.id}...`}
                   className="h-8"
                 />
               </div>

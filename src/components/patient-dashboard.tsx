@@ -24,14 +24,6 @@ import {
 } from "recharts"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 
 interface AppointmentCardData {
   id?: string
@@ -46,7 +38,6 @@ interface PatientDashboardProps {
   user: {
     name: string
     email: string
-    needsAddress?: boolean
   }
   nextPending?: {
     id?: string
@@ -117,7 +108,6 @@ function classifyVitalStatus(kind: "heartRate" | "bodyTemperature" | "weight" | 
 
 export function PatientDashboard({ user, nextPending, appointments = [], latestVitals, healthTrend = [] }: PatientDashboardProps) {
   const router = useRouter()
-  const addressDialogOpen = user.needsAddress ?? false
   const formatTime = (time24?: string) => {
     if (!time24) return ""
     const parts = time24.split(":")
@@ -175,20 +165,6 @@ export function PatientDashboard({ user, nextPending, appointments = [], latestV
         <div className="absolute -right-8 -top-8 size-64 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-16 -left-16 size-80 rounded-full bg-primary-foreground/10 blur-3xl" />
       </section>
-
-      <Dialog open={addressDialogOpen} onOpenChange={() => {}}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add your address</DialogTitle>
-            <DialogDescription>
-              Your account was created with Google and does not have an address yet. Please add your address in Settings to complete your patient profile.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => router.push("/client/settings")}>Go to Settings</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Vitals Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

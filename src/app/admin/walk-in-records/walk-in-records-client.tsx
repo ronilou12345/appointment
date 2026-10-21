@@ -239,7 +239,13 @@ export function WalkInRecordsClient({ records }: { records: WalkInRecordRow[] })
           </p>
         </div>
       </div>
-      <DataTable columns={columns} data={records} getRowId={(row) => row.id} showRowControls={false} />
+      <DataTable
+        columns={columns}
+        data={records}
+        getRowId={(row) => row.id}
+        showRowControls={false}
+        dateFilterColumnIds={["appointmentDateTime"]}
+      />
     </>
   )
 }

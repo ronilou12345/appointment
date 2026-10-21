@@ -7,6 +7,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getUserByRole, normalizeUserRole } from "@/lib/user-role"
 import { getSession } from "@/lib/auth-utils"
 import { resolveProfileAvatar } from "@/lib/profile-image"
+import { isGoogleCreatedAccount } from "@/lib/google-account"
+import { ClientAddressRequirement } from "@/components/client-address-requirement"
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -16,6 +18,9 @@ export default async function ClientLayout({ children }: { children: React.React
   }
 
   const role = normalizeUserRole(session.role)
+  const needsAddress = role === "CLIENT"
+    && !session.address?.trim()
+    && await isGoogleCreatedAccount(session.id)
   const user = {
     name: session.name,
     email: session.email,
@@ -36,7 +41,9 @@ export default async function ClientLayout({ children }: { children: React.React
         <AppSidebar user={user} variant="inset" />
         <SidebarInset>
           <SiteHeader user={user} />
-          {children}
+          <ClientAddressRequirement required={needsAddress}>
+            {children}
+          </ClientAddressRequirement>
         </SidebarInset>
       </AppSearchProvider>
     </SidebarProvider>
