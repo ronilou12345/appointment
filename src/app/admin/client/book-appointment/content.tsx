@@ -641,7 +641,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
       if (walkIn && !normalizePhilippineMobile(formData.contactNumber)) {
         return { success: false, message: "Please enter a valid Philippine contact number." }
       }
-      if (walkIn && !/^\d{2,3}\s*\/\s*\d{2,3}$/.test(formData.bloodPressure.trim())) {
+      if (walkIn && formData.bloodPressure.trim() && !/^\d{2,3}\s*\/\s*\d{2,3}$/.test(formData.bloodPressure.trim())) {
         return { success: false, message: "Please enter blood pressure as systolic/diastolic, such as 120/80." }
       }
       if (walkIn && (!Number(formData.temperature) || Number(formData.temperature) <= 0)) {
@@ -1516,11 +1516,10 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                   </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
-                      <Label htmlFor="walk-in-blood-pressure">Blood Pressure (BP)<RequiredMark /></Label>
+                      <Label htmlFor="walk-in-blood-pressure">Blood Pressure (BP)</Label>
                       <input
                         id="walk-in-blood-pressure"
                         name="bloodPressure"
-                        required
                         placeholder="e.g. 120/80 mmHg"
                         value={formData.bloodPressure}
                         onChange={handleInputChange}

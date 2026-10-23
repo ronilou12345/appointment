@@ -113,3 +113,4 @@ export const columns: ColumnDef<SpecialtyRow>[] = [
     },
   },
 ]
+
