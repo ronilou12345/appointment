@@ -193,7 +193,7 @@ export default function SOAPSheet({ appointmentId }: SOAPSheetProps) {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-foreground">Plan (Prescription)</label>
+            <label className="mb-2 block text-sm font-medium text-foreground">Plan</label>
             <Textarea
               value={plan}
               onChange={(event) => setPlan(event.target.value)}

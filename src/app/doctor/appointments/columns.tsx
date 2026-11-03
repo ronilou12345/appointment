@@ -559,7 +559,7 @@ export function DoctorAppointmentActionsCell({
 
   const openPrescriptionDialog = () => {
     setMenuOpen(false)
-    setPrescriptionText(appointment.prescription && appointment.prescription !== "No prescription recorded." ? appointment.prescription : "")
+    setPrescriptionText("")
     setPrescriptionDialogOpen(true)
   }
 

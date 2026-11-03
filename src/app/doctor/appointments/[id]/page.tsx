@@ -189,7 +189,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
                   <p className="mt-2 text-lg font-semibold">{doctorName}</p>
                 </div>
                 <div className="rounded-3xl border border-border bg-muted/50 p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescriptions</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Plan</p>
                   <p className="mt-2 text-lg font-semibold">{prescriptionText}</p>
                 </div>
               </div>
@@ -202,7 +202,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
           <div>
             <h2 className="text-2xl font-semibold">Patient Visit Information</h2>
             <p className="mt-2 text-sm text-muted-foreground">Access a comprehensive record of the patient's visit,
-             including clinical findings, SOAP notes, diagnosis, treatment, prescriptions, and additional medical notes.</p>
+             including clinical findings, SOAP notes, diagnosis, treatment, plan, and additional medical notes.</p>
           </div>
           <SOAPSheet appointmentId={appointment.appointment_id} />
         </div>
@@ -254,7 +254,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
                 <p className="mt-2 text-base font-semibold">{diagnosis}</p>
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Plan</p>
                 <p className="mt-2 text-base font-semibold">{prescriptionText}</p>
               </div>
             </div>
