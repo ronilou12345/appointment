@@ -239,7 +239,7 @@ export default async function AdminAppointmentDetailPage({ params }: Props) {
                 <p className="mt-3 text-sm leading-7 text-foreground">{doctorNotes?.diagnosis || "—"}</p>
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Prescription</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Plan</p>
                 <p className="mt-3 text-sm leading-7 text-foreground">{doctorNotes?.prescription || "—"}</p>
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
