@@ -193,43 +193,13 @@ export async function GET(request: NextRequest) {
         patientConflictMessage = "You already have an appointment on this date that overlaps with this time. Please choose another slot."
       }
 
-      if (bookedTimes.length === 0) {
-        const sessionRows = await prisma.$queryRawUnsafe<any[]>(
-          `SELECT
-            s.session_id,
-            s.session_date,
-            to_char(s.start_time, 'HH24:MI') AS start_time,
-            to_char(s.end_time, 'HH24:MI') AS end_time,
-            s.slots,
-            COALESCE(COUNT(a.appointment_id), 0)::int AS booked_count
-          FROM "session_tbl" s
-          LEFT JOIN "appointment" a ON a.session_id = s.session_id
-            AND NOT EXISTS (SELECT 1 FROM public.walk_in wi WHERE wi.appointment_id = a.appointment_id)
-          WHERE s.doctor_id = $1 AND s.session_date = $2
-          GROUP BY s.session_id, s.session_date, s.start_time, s.end_time, s.slots`,
-          doctorId,
-          selectedDate,
-        )
-
-        const bookedSlotSet = new Set<string>()
-
-        for (const row of sessionRows) {
-          const capacity = Number(row.slots ?? 0)
-          const bookedCount = Number(row.booked_count ?? 0)
-          if (!capacity || bookedCount <= 0) continue
-
-          const slotKeys = buildTimeSlots(String(row.start_time ?? ""), String(row.end_time ?? ""))
-          const slotsToMark = Math.min(slotKeys.length, bookedCount)
-
-          slotKeys.slice(0, slotsToMark).forEach((slot) => bookedSlotSet.add(slot))
-        }
-
-        bookedTimes = Array.from(bookedSlotSet).sort((a, b) => {
-          const aMinutes = parseTimeToMinutes(a) ?? 0
-          const bMinutes = parseTimeToMinutes(b) ?? 0
-          return aMinutes - bMinutes
-        })
-      }
+      // Only actual patient-selected appointment times should be marked as booked.
+      // Do not infer booked slots from a doctor's session start/end values.
+      bookedTimes = bookedTimes.sort((a, b) => {
+        const aMinutes = parseTimeToMinutes(a) ?? 0
+        const bMinutes = parseTimeToMinutes(b) ?? 0
+        return aMinutes - bMinutes
+      })
     } catch {
       bookedTimes = []
       patientConflictTimes = []
@@ -859,9 +829,16 @@ export async function PATCH(request: NextRequest) {
         cancelReason: reasonCancel || null,
       }
 
-      const emailResult = isDoctorActor
-        ? await sendAppointmentRescheduledEmail(appointment.user?.email ?? null, rescheduleDetails)
-        : { success: false, reason: "skipped" }
+      const [smsResult, emailResult] = isDoctorActor
+        ? await Promise.all([
+            sendAppointmentSms(appointment.contact_number, rescheduleDetails, "Rescheduled"),
+            sendAppointmentRescheduledEmail(appointment.user?.email ?? null, rescheduleDetails),
+          ])
+        : [{ success: false, reason: "skipped" }, { success: false, reason: "skipped" }]
+
+      if (isDoctorActor && !smsResult.success) {
+        console.warn("Appointment rescheduled, SMS skipped or failed:", smsResult)
+      }
 
       if (isDoctorActor && !emailResult.success) {
         console.warn("Appointment rescheduled, email skipped or failed:", emailResult)
@@ -881,6 +858,7 @@ export async function PATCH(request: NextRequest) {
         date: sessionDate,
         time: appointmentTime,
         emailSent: emailResult.success,
+        smsSent: smsResult.success,
       })
     }
 

@@ -124,6 +124,7 @@ interface DataTableProps<TData, TValue> {
   globalFilterFn?: FilterFn<TData>
   showRowControls?: boolean
   dateFilterColumnIds?: string[]
+  autoResetPageIndex?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -134,6 +135,7 @@ export function DataTable<TData, TValue>({
   globalFilterFn,
   showRowControls = true,
   dateFilterColumnIds = [],
+  autoResetPageIndex = true,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -194,11 +196,22 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
+    autoResetPageIndex,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
+
+  React.useEffect(() => {
+    const pageCount = table.getPageCount()
+    if (pagination.pageIndex >= pageCount) {
+      setPagination((current) => ({
+        ...current,
+        pageIndex: Math.max(0, pageCount - 1),
+      }))
+    }
+  }, [pagination.pageIndex, table])
 
   React.useEffect(() => {
     onSelectedRowsChange?.(table.getFilteredSelectedRowModel().rows.map((row) => row.original))

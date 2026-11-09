@@ -2,39 +2,16 @@
 
 import type { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/data-table"
+import type { WalkInRecordEditorData } from "@/components/walk-in-record-dialogs"
 import { DoctorAppointmentActionsCell, type DoctorAppointmentRow } from "../appointments/columns"
 
-export type DoctorWalkInRow = {
-  id: string
+export type DoctorWalkInRow = WalkInRecordEditorData & {
   doctorId: string
   sessionId: string
-  patientName: string
-  address: string
-  appointmentDate: string
-  appointmentTime: string
-  appointmentType: string
   doctorName: string
   doctorSignature: string
   doctorLicenseNumber: string
   status: string
-  age: string
-  gender: string
-  birthday: string
-  civilStatus: string
-  contactNumber: string
-  reasonForVisit: string
-  symptoms: string
-  durationOfSymptoms: string
-  painLevel: string
-  additionalNotes: string
-  email: string
-  bloodPressure: string
-  temperature: string
-  oxygenSaturation: string
-  pulseRate: string
-  weight: string
-  height: string
-  bmi: string
 }
 
 function formatDate(value: string) {
@@ -92,7 +69,7 @@ function WalkInActionsCell({ walkIn }: { walkIn: DoctorWalkInRow }) {
     nextFollowUp: "—",
   }
 
-  return <DoctorAppointmentActionsCell appointment={appointment} walkInMode />
+  return <DoctorAppointmentActionsCell appointment={appointment} walkInMode walkInRecord={walkIn} />
 }
 
 const columns: ColumnDef<DoctorWalkInRow>[] = [
@@ -134,7 +111,13 @@ export function DoctorWalkInClient({ walkIns }: { walkIns: DoctorWalkInRow[] }) 
         <h1 className="text-3xl font-semibold text-foreground">Walk In</h1>
         <p className="mt-2 text-muted-foreground">View walk-in patients and their appointment and vital-sign details.</p>
       </div>
-      <DataTable columns={columns} data={walkIns} getRowId={(row) => row.id} showRowControls={false} />
+      <DataTable
+        columns={columns}
+        data={walkIns}
+        getRowId={(row) => row.id}
+        showRowControls={false}
+        autoResetPageIndex={false}
+      />
     </>
   )
 }

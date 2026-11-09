@@ -25,11 +25,12 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { Textarea } from "@/components/ui/textarea"
-import { Check, CheckCircle2, Eye, Facebook, Mail, MoreHorizontal, Printer, X } from "lucide-react"
+import { Check, CheckCircle2, Eye, Facebook, Mail, MoreHorizontal, PenLine, Printer, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { formatAppointmentTime } from "@/app/client/appointments/status"
 import { printSingleAppointment } from "@/app/admin/all-appointments/print-appointments"
 import type { AppointmentRow } from "@/app/admin/all-appointments/columns"
+import { WalkInRecordDialogs, type WalkInRecordEditorData } from "@/components/walk-in-record-dialogs"
 import {
   Dialog,
   DialogContent,
@@ -177,7 +178,7 @@ function parseTimeToMinutes(value: string) {
   return Number(match[1]) * 60 + Number(match[2])
 }
 
-function buildTimeSlots(startTime: string, endTime: string, stepMinutes = 20) {
+function buildTimeSlots(startTime: string, endTime: string, stepMinutes = 30) {
   const start = parseTimeToMinutes(startTime)
   const end = parseTimeToMinutes(endTime)
   if (start === null || end === null || end <= start) return []
@@ -205,12 +206,16 @@ function isActiveSession(session: SessionOption) {
 export function DoctorAppointmentActionsCell({
   appointment,
   walkInMode = false,
+  walkInRecord,
 }: {
   appointment: DoctorAppointmentRow
   walkInMode?: boolean
+  walkInRecord?: WalkInRecordEditorData
 }) {
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [walkInEditOpen, setWalkInEditOpen] = useState(false)
+  const [walkInDeleteOpen, setWalkInDeleteOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [labDialogOpen, setLabDialogOpen] = useState(false)
   const [prescriptionDialogOpen, setPrescriptionDialogOpen] = useState(false)
@@ -365,8 +370,17 @@ export function DoctorAppointmentActionsCell({
         }
       }
     }
+
+    for (const bookedTime of bookedTimes) {
+      const selectedSession = selectedDateSessions.find((session) => session.id === appointment.sessionId) ?? selectedDateSessions[0]
+      if (!selectedSession) continue
+      if (!slots.has(bookedTime)) {
+        slots.set(bookedTime, selectedSession)
+      }
+    }
+
     return Array.from(slots.entries()).sort(([left], [right]) => (parseTimeToMinutes(left) ?? 0) - (parseTimeToMinutes(right) ?? 0))
-  }, [selectedDateSessions])
+  }, [appointment.sessionId, bookedTimes, selectedDateSessions])
 
   const selectedCalendarDate = selectedDate ? parseIsoDate(selectedDate) : null
   const bookedTimeSet = useMemo(() => new Set(bookedTimes), [bookedTimes])
@@ -658,6 +672,24 @@ export function DoctorAppointmentActionsCell({
               Confirm
             </DropdownMenuItem>
           )}
+          {walkInMode && walkInRecord ? (
+            <>
+              <DropdownMenuItem onSelect={() => {
+                setMenuOpen(false)
+                setWalkInEditOpen(true)
+              }}>
+                <PenLine className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => {
+                setMenuOpen(false)
+                setWalkInDeleteOpen(true)
+              }}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </>
+          ) : null}
           <DropdownMenuItem disabled={!canComplete || loadingAction === "Complete"} onSelect={() => handleAction("Complete") }>
             <Check className="mr-2 h-4 w-4" />
             {walkInMode ? "Completed" : "Complete"}
@@ -697,6 +729,16 @@ export function DoctorAppointmentActionsCell({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {walkInRecord ? (
+        <WalkInRecordDialogs
+          record={walkInRecord}
+          editOpen={walkInEditOpen}
+          onEditOpenChange={setWalkInEditOpen}
+          deleteOpen={walkInDeleteOpen}
+          onDeleteOpenChange={setWalkInDeleteOpen}
+        />
+      ) : null}
 
       <Dialog open={labDialogOpen} onOpenChange={setLabDialogOpen}>
         <DialogContent className="max-w-4xl overflow-hidden rounded-3xl">
@@ -959,7 +1001,7 @@ export function DoctorAppointmentActionsCell({
                                 slotSession.id === appointment.sessionId &&
                                 selectedDate === appointment.date &&
                                 slot === (appointment.timeValue || "")
-                              const isBooked = bookedTimeSet.has(slot) && !isCurrent
+                              const isBooked = bookedTimeSet.has(slot) || isCurrent
                               const isPast = !isSlotInFuture(selectedDate, slot)
                               const disabled = isBooked || isPast
                               return (
@@ -986,15 +1028,13 @@ export function DoctorAppointmentActionsCell({
                                 >
                                   <span>{formatAppointmentTime(slot)}</span>
                                   <span className="text-xs font-medium">
-                                    {isCurrent
-                                      ? "Current"
-                                      : isBooked
-                                        ? "Booked"
-                                        : isPast
-                                          ? "Time passed"
-                                          : isSelected
-                                            ? "Selected"
-                                            : ""}
+                                    {isBooked
+                                      ? "Booked"
+                                      : isPast
+                                        ? "Time passed"
+                                        : isSelected
+                                          ? "Selected"
+                                          : ""}
                                   </span>
                                 </button>
                               )

@@ -4,6 +4,7 @@ import { useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import { DataTable } from "@/components/data-table"
+import { WalkInRecordDialogs, type WalkInRecordEditorData } from "@/components/walk-in-record-dialogs"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -21,24 +22,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Eye, FileText, MoreHorizontal, Printer } from "lucide-react"
+import { Eye, FileText, MoreHorizontal, PenLine, Printer, Trash2 } from "lucide-react"
 
-export type WalkInRecordRow = {
-  id: string
-  patientName: string
-  address: string
-  email: string
-  contactNumber: string
+export type WalkInRecordRow = WalkInRecordEditorData & {
   doctorName: string
-  appointmentDate: string
-  appointmentTime: string
-  appointmentType: string
-  reasonForVisit: string
   doctorBoardCertification: string
   doctorSignature: string
-  age: string
-  gender: string
-  civilStatus: string
   chiefComplaints: string
   diagnosis: string
   prescription: string
@@ -90,6 +79,8 @@ function toAppointmentRow(record: WalkInRecordRow): AppointmentRow {
 
 function WalkInRecordActions({ record }: { record: WalkInRecordRow }) {
   const [certificateOpen, setCertificateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const appointment = toAppointmentRow(record)
 
   return (
@@ -108,6 +99,14 @@ function WalkInRecordActions({ record }: { record: WalkInRecordRow }) {
               View Details
             </Link>
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+            <PenLine className="mr-2 size-4" />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 size-4" />
+            Delete
+          </DropdownMenuItem>
           <DropdownMenuItem className="whitespace-nowrap" onClick={() => printSingleAppointment(appointment)}>
             <Printer className="mr-2 size-4" />
             Print
@@ -120,6 +119,14 @@ function WalkInRecordActions({ record }: { record: WalkInRecordRow }) {
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <WalkInRecordDialogs
+        record={record}
+        editOpen={editOpen}
+        onEditOpenChange={setEditOpen}
+        deleteOpen={deleteOpen}
+        onDeleteOpenChange={setDeleteOpen}
+      />
 
       <Dialog open={certificateOpen} onOpenChange={setCertificateOpen}>
         <DialogContent className="max-w-4xl overflow-hidden rounded-3xl">
@@ -245,6 +252,7 @@ export function WalkInRecordsClient({ records }: { records: WalkInRecordRow[] })
         getRowId={(row) => row.id}
         showRowControls={false}
         dateFilterColumnIds={["appointmentDateTime"]}
+        autoResetPageIndex={false}
       />
     </>
   )

@@ -10,7 +10,7 @@ export type AppointmentSmsDetails = {
   cancelReason?: string | null
 }
 
-export type AppointmentSmsStatus = "Pending" | "WalkInWaiting" | "Confirmed" | "Completed" | "Cancelled"
+export type AppointmentSmsStatus = "Pending" | "WalkInWaiting" | "Confirmed" | "Completed" | "Cancelled" | "Rescheduled"
 
 function envValue(name: string) {
   return process.env[name]?.trim().replace(/^["']|["']$/g, "") || ""
@@ -78,6 +78,21 @@ Please wait at the clinic. The doctor or clinic staff will call you when it is y
 Your appointment with ${doctorName} on ${appointmentDate} at ${appointmentTime} has been CANCELLED.${reason ? `\nReason: ${reason}` : ""}
 
 Please book again if you still need a visit.
+
+— C2M Family Clinic`
+  }
+
+  if (status === "Rescheduled") {
+    const reason = details.cancelReason?.trim()
+    return `Hello, ${patientName}!
+
+Your appointment with ${doctorName} has been RESCHEDULED.
+
+New schedule:
+Date: ${appointmentDate}
+Time: ${appointmentTime}
+
+${reason ? `Reason: ${reason}\n` : ""}Please let us know if the new time does not work for you.
 
 — C2M Family Clinic`
   }
