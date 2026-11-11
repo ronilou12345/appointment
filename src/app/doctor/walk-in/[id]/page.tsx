@@ -5,6 +5,14 @@ import { getSession } from "@/lib/auth-utils"
 import { normalizeUserRole } from "@/lib/user-role"
 import { ensureWalkInAddressColumn } from "@/lib/walk-in"
 import SOAPSheet from "@/components/soap-sheet"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -34,6 +42,16 @@ type WalkInDetails = {
   reasonForVisit: string
   symptoms: string
   additionalNotes: string
+}
+
+type WalkInSoapNote = {
+  id: string
+  chief_complaints: string
+  physical_examination: string | null
+  diagnosis: string
+  prescription: string | null
+  next_follow_up: string | null
+  createdAt: string
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -94,15 +112,20 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
   const patient = rows[0]
   if (!patient) notFound()
 
-  const soapRows = await prisma.$queryRawUnsafe<any[]>(
-    `SELECT soap_id AS id, chief_complaints, physical_examination, diagnosis, prescription, next_follow_up
+  const soapNotes = await prisma.$queryRawUnsafe<WalkInSoapNote[]>(
+    `SELECT
+       soap_id::text AS id,
+       chief_complaints,
+       physical_examination,
+       diagnosis,
+       prescription,
+       next_follow_up,
+       to_char(created_at, 'YYYY-MM-DD HH12:MI AM') AS "createdAt"
      FROM public.soap_notes
      WHERE appointment_id = $1
-     ORDER BY created_at DESC
-     LIMIT 1`,
+     ORDER BY created_at DESC, soap_id DESC`,
     appointmentId,
   )
-  const soapNote = soapRows[0]
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -114,7 +137,6 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
             <p className="mt-2 text-sm text-muted-foreground">{patient.email || "No email provided"}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <SOAPSheet appointmentId={appointmentId} />
             <Link href="/doctor/walk-in" className="text-sm text-muted-foreground hover:underline">
               Back to walk-ins
             </Link>
@@ -170,17 +192,43 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
         </div>
 
         <section className="mt-8 space-y-5 rounded-2xl border border-border bg-background p-5">
-          <div>
-            <h2 className="text-2xl font-semibold">SOAP summary</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Clinical notes recorded for this visit</p>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold">SOAP summary</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Clinical notes and follow-ups recorded for this visit</p>
+            </div>
+            <SOAPSheet appointmentId={appointmentId} />
           </div>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <DetailField label="Chief complaints" value={soapNote?.chief_complaints ?? ""} />
-            <DetailField label="Physical examination" value={soapNote?.physical_examination ?? ""} />
-            <DetailField label="Diagnosis" value={soapNote?.diagnosis ?? ""} />
-            <DetailField label="Prescription / plan" value={soapNote?.prescription ?? ""} />
-            <DetailField label="Next follow-up" value={soapNote?.next_follow_up ?? ""} />
-          </div>
+          {soapNotes.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Recorded</TableHead>
+                  <TableHead>Chief complaints</TableHead>
+                  <TableHead>Physical examination</TableHead>
+                  <TableHead>Diagnosis</TableHead>
+                  <TableHead>Prescription / plan</TableHead>
+                  <TableHead>Next follow-up</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {soapNotes.map((note) => (
+                  <TableRow key={note.id}>
+                    <TableCell>{note.createdAt || "—"}</TableCell>
+                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.chief_complaints || "—"}</TableCell>
+                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.physical_examination || "—"}</TableCell>
+                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.diagnosis || "—"}</TableCell>
+                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.prescription || "—"}</TableCell>
+                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.next_follow_up || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No SOAP notes have been added for this visit yet.
+            </p>
+          )}
         </section>
       </div>
     </div>

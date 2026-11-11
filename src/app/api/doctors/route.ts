@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { resolveProfileAvatar } from "@/lib/profile-image"
+import { normalizeUserRole } from "@/lib/user-role"
 
 const parseDesignations = (value?: string | null) => {
   if (!value) return []
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             email: true,
+            role: true,
             designations: true,
             profile_image: true,
             status: true,
@@ -80,7 +82,10 @@ export async function GET(request: NextRequest) {
     })
 
     const formattedDoctors = doctors
-      .filter((doctor) => !activeOnly || isActiveStatus(doctor.user?.status))
+      .filter((doctor) =>
+        normalizeUserRole(doctor.user?.role) === "DOCTOR" &&
+        (!activeOnly || isActiveStatus(doctor.user?.status)),
+      )
       .map((doctor) => {
       const designations = parseDesignations(doctor.user?.designations ?? null)
       const specialties = getDoctorSpecialties(designations)

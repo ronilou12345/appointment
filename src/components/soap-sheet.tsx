@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +22,7 @@ type SOAPSheetProps = {
 }
 
 export default function SOAPSheet({ appointmentId }: SOAPSheetProps) {
+  const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [prefill, setPrefill] = React.useState(false)
   const [subjective, setSubjective] = React.useState("")
@@ -85,6 +87,7 @@ export default function SOAPSheet({ appointmentId }: SOAPSheetProps) {
       toast.success(editingId ? "SOAP note updated" : "SOAP note saved successfully")
       resetForm()
       setOpen(false)
+      router.refresh()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to save SOAP note")
     } finally {
