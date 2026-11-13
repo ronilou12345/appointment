@@ -82,6 +82,11 @@ export default async function AppointmentDetailPage({ params }: Props) {
   const doctorAvatar = resolveProfileAvatar(appointment.doctor_user_id, appointment.doctor_profile_image)
   const statusLabel = formatAppointmentStatus(String(appointment.status || "Pending"))
   const cancellationReason = String(appointment.reason_cancel || "").trim()
+  const relationship = String(appointment.relationship || "").trim()
+  const isOwnAppointment = relationship.toLowerCase() === "myself"
+  const actualPatient = relationship.includes("—")
+    ? relationship.split("—").slice(1).join("—").trim()
+    : relationship
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -127,10 +132,14 @@ export default async function AppointmentDetailPage({ params }: Props) {
                 <p className="text-sm text-muted-foreground">Status</p>
                 <p className="font-medium">{statusLabel}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Relationship</p>
-                <p className="font-medium">{String(appointment.relationship || "N/A")}</p>
-              </div>
+              {relationship ? (
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {isOwnAppointment ? "Relationship" : "Actual patient"}
+                  </p>
+                  <p className="font-medium">{isOwnAppointment ? relationship : actualPatient || "N/A"}</p>
+                </div>
+              ) : null}
             </div>
 
             <div className="divide-y divide-border rounded-3xl bg-background text-sm text-foreground shadow-sm">

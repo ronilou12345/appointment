@@ -5,14 +5,8 @@ import { getSession } from "@/lib/auth-utils"
 import { normalizeUserRole } from "@/lib/user-role"
 import { ensureWalkInAddressColumn } from "@/lib/walk-in"
 import SOAPSheet from "@/components/soap-sheet"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { MedicalHistoryTable, type MedicalHistoryEntry } from "./medical-history-table"
+import { SoapSummaryTable, type WalkInSoapNote } from "./soap-summary-table"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -42,16 +36,6 @@ type WalkInDetails = {
   reasonForVisit: string
   symptoms: string
   additionalNotes: string
-}
-
-type WalkInSoapNote = {
-  id: string
-  chief_complaints: string
-  physical_examination: string | null
-  diagnosis: string
-  prescription: string | null
-  next_follow_up: string | null
-  createdAt: string
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -111,6 +95,14 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
 
   const patient = rows[0]
   if (!patient) notFound()
+
+  const medicalHistoryRows: MedicalHistoryEntry[] = [
+    { label: "Past illnesses", value: patient.additionalNotes || "No documented past illnesses." },
+    { label: "Current medications", value: "No current medications documented." },
+    { label: "Allergies", value: "No known allergies documented." },
+    { label: "Family history", value: "No family history documented." },
+    { label: "Surgical history", value: "No surgical history documented." },
+  ]
 
   const soapNotes = await prisma.$queryRawUnsafe<WalkInSoapNote[]>(
     `SELECT
@@ -192,38 +184,23 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
         </div>
 
         <section className="mt-8 space-y-5 rounded-2xl border border-border bg-background p-5">
+          <div>
+            <h2 className="text-2xl font-semibold">Medical history</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Patient history recorded during consultation</p>
+          </div>
+          <MedicalHistoryTable entries={medicalHistoryRows} />
+        </section>
+
+        <section className="mt-8 space-y-5 rounded-2xl border border-border bg-background p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold">SOAP summary</h2>
               <p className="mt-1 text-sm text-muted-foreground">Clinical notes and follow-ups recorded for this visit</p>
             </div>
-            <SOAPSheet appointmentId={appointmentId} />
+            <SOAPSheet appointmentId={appointmentId} mode="add" />
           </div>
           {soapNotes.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Recorded</TableHead>
-                  <TableHead>Chief complaints</TableHead>
-                  <TableHead>Physical examination</TableHead>
-                  <TableHead>Diagnosis</TableHead>
-                  <TableHead>Prescription / plan</TableHead>
-                  <TableHead>Next follow-up</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {soapNotes.map((note) => (
-                  <TableRow key={note.id}>
-                    <TableCell>{note.createdAt || "—"}</TableCell>
-                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.chief_complaints || "—"}</TableCell>
-                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.physical_examination || "—"}</TableCell>
-                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.diagnosis || "—"}</TableCell>
-                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.prescription || "—"}</TableCell>
-                    <TableCell className="min-w-48 whitespace-pre-wrap">{note.next_follow_up || "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SoapSummaryTable notes={soapNotes} appointmentId={appointmentId} />
           ) : (
             <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               No SOAP notes have been added for this visit yet.

@@ -11,17 +11,34 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreHorizontal, PenLine } from "lucide-react"
+
+type SOAPNote = {
+  id: string | number
+  chief_complaints: string
+  physical_examination: string | null
+  diagnosis: string
+  prescription: string | null
+  next_follow_up: string | null
+}
 
 type SOAPSheetProps = {
   appointmentId?: number | string
+  mode?: "full" | "add" | "row-edit"
+  note?: SOAPNote
 }
 
-export default function SOAPSheet({ appointmentId }: SOAPSheetProps) {
+export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSheetProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [prefill, setPrefill] = React.useState(false)
@@ -32,6 +49,17 @@ export default function SOAPSheet({ appointmentId }: SOAPSheetProps) {
   const [nextFollowUp, setNextFollowUp] = React.useState("")
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingId, setEditingId] = React.useState<number | null>(null)
+
+  const openNoteForEditing = (n: SOAPNote) => {
+    setSubjective(n.chief_complaints || "")
+    setObjective(n.physical_examination || "")
+    setAssessment(n.diagnosis || "")
+    setPlan(n.prescription || "")
+    setNextFollowUp(n.next_follow_up || "")
+    setEditingId(Number(n.id))
+    setPrefill(true)
+    setOpen(true)
+  }
 
   const resetForm = () => {
     setSubjective("")
@@ -106,53 +134,68 @@ export default function SOAPSheet({ appointmentId }: SOAPSheetProps) {
       }
     }}>
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          className="hidden sm:inline-flex"
-          onClick={async () => {
-            if (!appointmentId) {
-              toast.error("No appointment selected")
-              return
-            }
-            try {
-              const res = await fetch(`/api/soap-notes?appointmentId=${encodeURIComponent(String(appointmentId))}`)
-              const data = await res.json()
-              if (!res.ok || !data.success) {
-                toast.error(data?.error || "Unable to load SOAP note")
+        {mode === "full" ? (
+          <Button
+            variant="outline"
+            className="hidden sm:inline-flex"
+            onClick={async () => {
+              if (!appointmentId) {
+                toast.error("No appointment selected")
                 return
               }
-              if (!data.note) {
-                toast.error("No existing SOAP note to edit")
-                return
+              try {
+                const res = await fetch(`/api/soap-notes?appointmentId=${encodeURIComponent(String(appointmentId))}`)
+                const data = await res.json()
+                if (!res.ok || !data.success) {
+                  toast.error(data?.error || "Unable to load SOAP note")
+                  return
+                }
+                if (!data.note) {
+                  toast.error("No existing SOAP note to edit")
+                  return
+                }
+                openNoteForEditing(data.note)
+              } catch {
+                toast.error("Unable to load SOAP note")
               }
-              const n = data.note
-              setSubjective(n.chief_complaints || "")
-              setObjective(n.physical_examination || "")
-              setAssessment(n.diagnosis || "")
-              setPlan(n.prescription || "")
-              setNextFollowUp(n.next_follow_up || "")
-              setEditingId(n.id ?? null)
-              setPrefill(true)
+            }}
+          >
+            Edit SOAP
+          </Button>
+        ) : null}
+        {mode === "row-edit" ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Open SOAP note actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={!note}
+                onSelect={() => {
+                  if (note) openNoteForEditing(note)
+                }}
+              >
+                <PenLine className="mr-2 h-4 w-4" />
+                Edit SOAP
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        {mode !== "row-edit" ? (
+          <Button
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              resetForm()
+              setPrefill(false)
               setOpen(true)
-            } catch (e) {
-              toast.error("Unable to load SOAP note")
-            }
-          }}
-        >
-          Edit SOAP
-        </Button>
-        <Button
-          variant="secondary"
-          className="w-full sm:w-auto"
-          onClick={() => {
-            // Add: clear the form and open
-            resetForm()
-            setPrefill(false)
-            setOpen(true)
-          }}
-        >
-          Add SOAP
-        </Button>
+            }}
+          >
+            Add SOAP
+          </Button>
+        ) : null}
       </div>
       <SheetContent side="right" className="max-w-lg">
         <SheetHeader>
@@ -206,7 +249,7 @@ export default function SOAPSheet({ appointmentId }: SOAPSheetProps) {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-foreground">Next Follow-up</label>
+            <label className="mb-2 block text-sm font-medium text-foreground">Prescription</label>
             <Textarea
               value={nextFollowUp}
               onChange={(event) => setNextFollowUp(event.target.value)}

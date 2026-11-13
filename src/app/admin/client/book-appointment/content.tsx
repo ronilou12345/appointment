@@ -91,7 +91,13 @@ type DoctorOption = {
       icon: <CheckCircle className="w-4 h-4" />,
     },
   ]
-export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean }) {
+export function BookAppointmentContent({
+  walkIn = false,
+  currentUserName = "",
+}: {
+  walkIn?: boolean
+  currentUserName?: string
+}) {
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [, setAvailabilityClock] = useState(0)
@@ -103,9 +109,10 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
   const [sessions, setSessions] = useState<SessionOption[]>([])
   const [loadingSessions, setLoadingSessions] = useState(true)
   const [sessionError, setSessionError] = useState("")
-  const [dateConflictMessage, setDateConflictMessage] = useState("")
   const [checkingDateConflict, setCheckingDateConflict] = useState(false)
   const [bookedTimes, setBookedTimes] = useState<string[]>([])
+  const [patientAppointmentCount, setPatientAppointmentCount] = useState(0)
+  const [dailyAppointmentLimit, setDailyAppointmentLimit] = useState(3)
   const handledInitialDoctorRef = useRef("")
   const detailsStepIndex = walkIn ? 1 : 2
   const confirmationStepIndex = walkIn ? 2 : 3
@@ -118,6 +125,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
     appointmentType: "",
     patientRelationship: "",
     patientRelationshipOther: "",
+    bookedByName: currentUserName,
     patientName: "",
     address: "",
     age: "",
@@ -414,8 +422,8 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
 
   const checkDateConflict = async (doctorId: string, selectedDate: string) => {
     if (!doctorId || !selectedDate) {
-      setDateConflictMessage("")
       setBookedTimes([])
+      setPatientAppointmentCount(0)
       return
     }
 
@@ -433,10 +441,11 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
       const combinedBookedTimes = Array.from(new Set([...bookedSlots, ...patientConflicts]))
 
       setBookedTimes(combinedBookedTimes)
-      setDateConflictMessage(result.sameDoctorConflict && result.patientConflictMessage ? result.patientConflictMessage : "")
+      setPatientAppointmentCount(Number(result.patientAppointmentCount) || 0)
+      setDailyAppointmentLimit(Number(result.dailyAppointmentLimit) || 3)
     } catch {
       setBookedTimes([])
-      setDateConflictMessage("")
+      setPatientAppointmentCount(0)
     } finally {
       setCheckingDateConflict(false)
     }
@@ -576,16 +585,10 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
     : [...availableTodayDoctors, ...otherDoctors.slice(0, Math.max(doctorCardLimit - availableTodayDoctors.length, 0))]
   const hasMoreDoctors = prioritizedDoctors.length > visibleDoctors.length
 
-  const hasActiveDateConflict = Boolean(dateConflictMessage && formData.doctorId && formData.date)
+  const dailyLimitReached =
+    patientAppointmentCount >= dailyAppointmentLimit && Boolean(formData.doctorId && formData.date)
 
   const handleNext = () => {
-    if (!walkIn && currentStep === 1 && hasActiveDateConflict) {
-      toast.error("Appointment conflict\nYou already have an appointment on this date that overlaps with this time. Please choose another slot.", {
-        id: "booking-step-error",
-      })
-      return
-    }
-
     const ok = canAdvance(currentStep)
     if (!ok.success) {
       toast.error(ok.message, { id: "booking-step-error" })
@@ -611,6 +614,9 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
     }
 
     if (!walkIn && stepIndex === 1) {
+      if (dailyLimitReached) {
+        return { success: false, message: `You can book up to ${dailyAppointmentLimit} appointments per day. Please choose another date.` }
+      }
       if (!formData.date) return { success: false, message: "Please choose a date before continuing." }
       if (!formData.time) return { success: false, message: "Please choose a time before continuing." }
       return { success: true }
@@ -657,11 +663,11 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
         return { success: false, message: "Please enter the patient's weight and height to calculate BMI." }
       }
       // Basic required fields in Add Details
-      if (!walkIn && !formData.patientRelationship) return { success: false, message: "Please select who the patient is." }
-      if (formData.patientRelationship === "Other" && !formData.patientRelationshipOther)
-        return { success: false, message: "Please enter the patient's relationship." }
-      if (namedPatientRelationships.has(formData.patientRelationship) && !formData.patientName.trim())
-        return { success: false, message: "Please enter the patient's name." }
+      if (!walkIn && !formData.patientRelationship) return { success: false, message: "Please select who this appointment is for." }
+      if (formData.patientRelationship === "Someone else" && !formData.bookedByName.trim())
+        return { success: false, message: "Please enter your name as the booking person." }
+      if (formData.patientRelationship === "Someone else" && !formData.patientName.trim())
+        return { success: false, message: "Please enter the patient's full name." }
       return { success: true }
     }
 
@@ -704,6 +710,10 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
       toast.error("You already have an appointment that overlaps with this time. Please choose another slot.")
       return
     }
+    if (!walkIn && dailyLimitReached) {
+      toast.error(`You can book up to ${dailyAppointmentLimit} appointments per day. Please choose another date.`)
+      return
+    }
 
     const payload = {
       doctorId: Number(formData.doctorId),
@@ -713,10 +723,10 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
       appointmentType: formData.appointmentType || "General Consultation",
       relationship: walkIn
         ? "Walk-in"
-        : formData.patientRelationship === "Other"
-          ? formData.patientRelationshipOther || "Other"
-          : namedPatientRelationships.has(formData.patientRelationship) && formData.patientName.trim()
-            ? `${formData.patientRelationship} — ${formData.patientName.trim()}`
+        : formData.patientRelationship === "Myself"
+          ? "Myself"
+          : formData.patientRelationship === "Someone else"
+            ? `Someone else — ${formData.patientName.trim() || "Not provided"}`
             : formData.patientRelationship,
       age: formData.age ? Number(formData.age) : undefined,
       gender: formData.gender || undefined,
@@ -783,6 +793,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
         appointmentType: "",
         patientRelationship: "",
         patientRelationshipOther: "",
+        bookedByName: currentUserName,
         patientName: "",
         address: "",
         age: "",
@@ -804,7 +815,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to book appointment"
-      toast.error(message.includes("already have an appointment") ? "Appointment conflict\nYou already have an appointment for this date" : message)
+      toast.error(message)
     }
   }
 
@@ -1106,10 +1117,17 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                     </div>
                   </div>
 
-                  {dateConflictMessage ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 shadow-sm">
-                      <div className="font-medium">Appointment conflict</div>
-                      <div className="mt-1">{dateConflictMessage}</div>
+                  {patientAppointmentCount > 0 ? (
+                    <div className={`rounded-lg border p-3 text-sm shadow-sm ${dailyLimitReached ? "border-red-200 bg-red-50 text-red-600" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                      <div className="font-medium">
+                        {dailyLimitReached ? "Daily booking limit reached" : "Appointments already booked"}
+                      </div>
+                      <div className="mt-1">
+                        You have {patientAppointmentCount} of {dailyAppointmentLimit} appointments on this date.
+                        {dailyLimitReached
+                          ? " Choose another date."
+                          : " You can book another at a different, non-overlapping time."}
+                      </div>
                     </div>
                   ) : null}
 
@@ -1148,7 +1166,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                         const remaining = selectedDateTimeSlotAvailability[slot] ?? 0
                         const isPast = !isSlotInFuture(formData.date, slot)
                         const alreadyBooked = bookedTimes.includes(slot)
-                        const available = remaining > 0 && isBookableDate(formData.date) && !isPast && !alreadyBooked
+                        const available = remaining > 0 && isBookableDate(formData.date) && !isPast && !alreadyBooked && !dailyLimitReached
                         const disabled = !available || selected
                         const baseClass = selected
                           ? 'bg-primary text-white border-primary opacity-90'
@@ -1178,7 +1196,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                                 <div className="text-xs font-medium opacity-90">Selected</div>
                               ) : !available ? (
                                 <div className="text-xs font-medium text-red-600">
-                                  {alreadyBooked ? "Booked" : isPast ? "Time passed" : "No slot available"}
+                                  {dailyLimitReached ? "Daily limit reached" : alreadyBooked ? "Booked" : isPast ? "Time passed" : "No slot available"}
                                 </div>
                               ) : null}
                             </div>
@@ -1348,49 +1366,75 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
               ) : (
                 <>
               <div>
-                <Label htmlFor="patientRelationship">Who is the Patient?</Label>
-                <select
-                  id="patientRelationship"
-                  name="patientRelationship"
-                  value={formData.patientRelationship}
-                  onChange={handleInputChange}
-                  className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <option value="">Select relationship</option>
-                  <option value="Myself">Myself</option>
-                  <option value="My Child">My Child</option>
-                  <option value="My Father">My Father</option>
-                  <option value="My Mother">My Mother</option>
-                  <option value="My Spouse">My Spouse</option>
-                  <option value="Other">Other</option>
-                </select>
+                <Label htmlFor="patientRelationship">Who is this appointment for?</Label>
+                <div className="mt-3 space-y-2">
+                  {[
+                    { value: "Myself", label: "Myself (the one booking)" },
+                    { value: "Someone else", label: "Someone else (e.g., Family Member)" },
+                  ].map((option) => {
+                    const isSelected = formData.patientRelationship === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            patientRelationship: option.value,
+                          }))
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-base font-medium transition-all ${
+                          isSelected
+                            ? "border-primary bg-primary/10 text-foreground shadow-sm"
+                            : "border-border bg-transparent text-foreground hover:border-muted-foreground/50"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                            isSelected ? "border-primary bg-primary" : "border-muted-foreground/70 bg-transparent"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {isSelected ? <span className="h-2.5 w-2.5 rounded-full bg-white" /> : null}
+                        </span>
+                        <span className="leading-tight">{option.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
-              {formData.patientRelationship === "Other" && (
-                <div>
-                  <Label htmlFor="patientRelationshipOther">Relationship</Label>
-                  <input
-                    id="patientRelationshipOther"
-                    name="patientRelationshipOther"
-                    placeholder="Enter relationship"
-                    value={formData.patientRelationshipOther || ""}
-                    onChange={handleInputChange}
-                    className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  />
-                </div>
-              )}
+              {formData.patientRelationship === "Someone else" && (
+                <div className="space-y-3 pt-2">
+                  <div className="rounded-xl border border-border bg-muted/30 p-3">
+                    <Label htmlFor="bookedByName">Booked By (Your Name)</Label>
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-input bg-background px-2.5 py-2">
+                      <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                      <input
+                        id="bookedByName"
+                        name="bookedByName"
+                        placeholder="Your Name"
+                        value={formData.bookedByName}
+                        onChange={handleInputChange}
+                        className="w-full border-0 bg-transparent text-base font-medium text-foreground outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                  </div>
 
-              {namedPatientRelationships.has(formData.patientRelationship) && (
-                <div>
-                  <Label htmlFor="patientName">Patient name</Label>
-                  <input
-                    id="patientName"
-                    name="patientName"
-                    placeholder={`Enter ${formData.patientRelationship.toLowerCase()}'s name`}
-                    value={formData.patientName}
-                    onChange={handleInputChange}
-                    className="mt-2 h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  />
+                  <div className="rounded-xl border border-border bg-muted/30 p-3">
+                    <Label htmlFor="patientName">Patient&apos;s Full Name (Actual Patient)</Label>
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-input bg-background px-2.5 py-2">
+                      <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                      <input
+                        id="patientName"
+                        name="patientName"
+                        placeholder="Enter actual patient name"
+                        value={formData.patientName}
+                        onChange={handleInputChange}
+                        className="w-full border-0 bg-transparent text-base font-medium text-foreground outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1631,10 +1675,10 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                 .toUpperCase() || "DR"
               const patientLabel = walkIn
                 ? formData.patientName.trim() || "Not selected"
-                : formData.patientRelationship === "Other" && formData.patientRelationshipOther
-                  ? `Other — ${formData.patientRelationshipOther}`
-                  : namedPatientRelationships.has(formData.patientRelationship) && formData.patientName.trim()
-                    ? `${formData.patientRelationship} — ${formData.patientName.trim()}`
+                : formData.patientRelationship === "Myself"
+                  ? "Myself (the one booking)"
+                  : formData.patientRelationship === "Someone else"
+                    ? `Someone else — ${formData.patientName.trim() || "Not provided"}`
                     : formData.patientRelationship || "Not selected"
 
               return (
@@ -1702,12 +1746,18 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
                       <p className="text-xs font-semibold uppercase text-muted-foreground">Patient</p>
                       <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
                         <div>
-                          <p className="text-sm text-muted-foreground">{walkIn ? "Patient name" : "Who is the patient?"}</p>
+                          <p className="text-sm text-muted-foreground">{walkIn ? "Patient name" : "Who is this appointment for?"}</p>
                           <p className="mt-1 break-words font-semibold">{patientLabel}</p>
                         </div>
-                        {!walkIn && namedPatientRelationships.has(formData.patientRelationship) ? (
+                        {!walkIn && formData.patientRelationship === "Someone else" ? (
                           <div>
-                            <p className="text-sm text-muted-foreground">Patient name</p>
+                            <p className="text-sm text-muted-foreground">Booked by</p>
+                            <p className="mt-1 font-semibold">{formData.bookedByName.trim() || "Not provided"}</p>
+                          </div>
+                        ) : null}
+                        {!walkIn && formData.patientRelationship === "Someone else" ? (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Patient&apos;s full name</p>
                             <p className="mt-1 font-semibold">{formData.patientName.trim() || "Not provided"}</p>
                           </div>
                         ) : null}
@@ -1837,7 +1887,7 @@ export function BookAppointmentContent({ walkIn = false }: { walkIn?: boolean })
               onClick={handleNext}
               disabled={
                 (currentStep === 0 && !formData.doctorId) ||
-                (!walkIn && currentStep === 1 && (!formData.date || !formData.time || hasActiveDateConflict)) ||
+                (!walkIn && currentStep === 1 && (!formData.date || !formData.time || dailyLimitReached)) ||
                 (currentStep === detailsStepIndex && !formData.sessionId)
               }
               className="bg-orange-500 hover:bg-orange-600"

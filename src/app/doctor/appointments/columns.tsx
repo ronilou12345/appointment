@@ -248,6 +248,14 @@ export function DoctorAppointmentActionsCell({
   const canConfirm = !isAwaitingCancellation && statusValue !== "confirmed" && !isTerminalStatus
   const canComplete = statusValue !== "pending" && !isAwaitingCancellation && !isTerminalStatus
   const canCancel = statusValue !== "confirmed" && !isTerminalStatus
+  const relationship = String(appointment.relationship ?? "").trim()
+  const isSomeoneElseAppointment = relationship.toLowerCase().startsWith("someone else")
+  const actualPatientName = isSomeoneElseAppointment
+    ? relationship.split("—").slice(1).join("—").trim()
+    : ""
+  const labPatientName = isSomeoneElseAppointment && actualPatientName
+    ? actualPatientName
+    : appointment.patientName || "Patient"
 
   const renderLabCheckbox = (id: string, label: string) => {
     const checked = Boolean(selectedLabTests[id])
@@ -582,7 +590,7 @@ export function DoctorAppointmentActionsCell({
     const clinicHeader = `<header class="clinic-header"><img src="${escapeHtml(`${window.location.origin}${CLINIC_DETAILS.logo}`)}" alt="${escapeHtml(CLINIC_DETAILS.name)} logo"/><div class="clinic-info"><strong>${escapeHtml(CLINIC_DETAILS.name)}</strong><span>${escapeHtml(CLINIC_DETAILS.tagline)}</span><span>${escapeHtml(CLINIC_DETAILS.address)}</span><span>${escapeHtml(CLINIC_DETAILS.email)} · ${escapeHtml(CLINIC_DETAILS.facebookName)}</span></div><div class="clinic-title">PRESCRIPTION</div></header>`
     const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Prescription</title><style>
       @page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}body{margin:0;font:14px Arial,sans-serif;color:#171717}.rx-page{min-height:277mm;border:1px solid #ddd;padding:18px 24px;position:relative}.clinic-header{display:grid;grid-template-columns:64px minmax(0,1fr) 150px;gap:12px 14px;align-items:start;background:#eaf5f2;color:#153b3a;padding:12px 14px;border-bottom:4px solid #0f766e}.clinic-header img{width:64px;height:64px;object-fit:contain}.clinic-info{display:grid;gap:3px;font-size:9px}.clinic-info strong{font-size:19px;line-height:1.1}.clinic-info span:first-of-type{color:#376866}.clinic-title{text-align:right;font-size:20px;font-weight:900;line-height:1.1}.patient{display:grid;grid-template-columns:1fr 100px 100px;gap:20px;margin-top:20px}.address-date{display:grid;grid-template-columns:1fr 190px;gap:18px;margin-top:12px}.line{border-bottom:1px solid #777;min-height:25px}.rx-mark{font-family:Georgia,serif;font-size:88px;font-weight:bold;line-height:1;margin-top:32px}.prescription{min-height:145mm;white-space:pre-wrap;line-height:1.6;padding:12px 8px}.footer{position:absolute;right:28px;bottom:24px;width:270px;line-height:2}.footer-line{border-bottom:1px solid #777;display:inline-block;min-width:160px}.rx-page b{font-weight:600}
-    </style></head><body><main class="rx-page">${clinicHeader}<div class="patient"><div class="line">Patient's Name: <b>${escapeHtml(appointment.patientName || "")}</b></div><div class="line">Age: <b>${escapeHtml(appointment.patientAge || "")}</b></div><div class="line">Sex: <b>${escapeHtml(appointment.patientGender || "")}</b></div></div><div class="address-date"><div class="line">Address: <b>${escapeHtml(appointment.patientAddress || "—")}</b></div><div class="line">Date: <b>${escapeHtml(appointment.date || todayIso())}</b></div></div><div class="rx-mark">Rx</div><div class="prescription">${prescription}</div><div class="footer">Lic. No.: <span class="footer-line"></span><br/>PTR No.: <span class="footer-line"></span></div></main></body></html>`
+    </style></head><body><main class="rx-page">${clinicHeader}<div class="patient"><div class="line">Patient's Name: <b>${escapeHtml(labPatientName)}</b></div><div class="line">Age: <b>${escapeHtml(appointment.patientAge || "")}</b></div><div class="line">Sex: <b>${escapeHtml(appointment.patientGender || "")}</b></div></div><div class="address-date"><div class="line">Address: <b>${escapeHtml(appointment.patientAddress || "—")}</b></div><div class="line">Date: <b>${escapeHtml(appointment.date || todayIso())}</b></div></div><div class="rx-mark">Rx</div><div class="prescription">${prescription}</div><div class="footer">Lic. No.: <span class="footer-line"></span><br/>PTR No.: <span class="footer-line"></span></div></main></body></html>`
     const preview = window.open("", "_blank", "width=900,height=760")
     if (!preview) {
       toast.error("Allow pop-ups to open the prescription print preview.")
@@ -604,7 +612,7 @@ export function DoctorAppointmentActionsCell({
   }
 
   const printLabRequest = () => {
-    const patient = appointment.patientName || "Patient"
+    const patient = labPatientName
     const age = appointment.patientAge || "—"
     const sex = appointment.patientGender || "—"
     const date = appointment.date || todayIso()
@@ -799,7 +807,7 @@ export function DoctorAppointmentActionsCell({
                   }
                 `}</style>
                 <div className="grid grid-cols-[1fr_90px_90px] gap-4">
-                  <div className="border-b border-slate-500 pb-1">Patient: <strong>{appointment.patientName || "—"}</strong></div>
+                  <div className="border-b border-slate-500 pb-1">Patient: <strong>{labPatientName}</strong></div>
                   <div className="border-b border-slate-500 pb-1">Age: <strong>{appointment.patientAge || "—"}</strong></div>
                   <div className="border-b border-slate-500 pb-1">Sex: <strong>{appointment.patientGender || "—"}</strong></div>
                 </div>
@@ -865,7 +873,7 @@ export function DoctorAppointmentActionsCell({
                 <p className="col-span-2 text-right text-lg font-black uppercase leading-tight sm:col-span-1 sm:pt-1 sm:text-xl">Prescription</p>
               </div>
               <div className="grid grid-cols-[1fr_90px_90px] gap-4 text-[11px]">
-                <div className="border-b border-slate-500 pb-1">Patient's Name: <strong>{appointment.patientName || "—"}</strong></div>
+                <div className="border-b border-slate-500 pb-1">Patient's Name: <strong>{labPatientName}</strong></div>
                 <div className="border-b border-slate-500 pb-1">Age: <strong>{appointment.patientAge || "—"}</strong></div>
                 <div className="border-b border-slate-500 pb-1">Sex: <strong>{appointment.patientGender || "—"}</strong></div>
               </div>

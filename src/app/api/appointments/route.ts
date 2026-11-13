@@ -8,6 +8,8 @@ import { logActivity } from "@/lib/activity-log"
 import { normalizeUserRole } from "@/lib/user-role"
 import { ensureWalkInAddressColumn } from "@/lib/walk-in"
 
+const DAILY_APPOINTMENT_LIMIT = 3
+
 // Date and time columns come back as UTC-anchored Date objects, so the calendar
 // parts have to be read off the ISO string rather than local getters.
 const isoDatePart = (value: Date | null | undefined) => (value ? value.toISOString().slice(0, 10) : null)
@@ -87,6 +89,7 @@ export async function GET(request: NextRequest) {
     let bookedTimes: string[] = []
     let patientConflictTimes: string[] = []
     let patientConflictMessage = ""
+    let patientAppointmentCount = 0
     let sameDoctorConflict = false
     try {
       const userBookedTimeRows = await prisma.$queryRawUnsafe<any[]>(
@@ -155,6 +158,7 @@ export async function GET(request: NextRequest) {
         Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0 ? excludeAppointmentId : null,
       )
 
+      patientAppointmentCount = userConflictRows.length
       sameDoctorConflict = Boolean(sameDoctorConflictRows?.length)
 
       const bookedTimeSet = new Set<string>()
@@ -189,8 +193,8 @@ export async function GET(request: NextRequest) {
         return aMinutes - bMinutes
       })
 
-      if (sameDoctorConflict && patientConflictTimes.length > 0) {
-        patientConflictMessage = "You already have an appointment on this date that overlaps with this time. Please choose another slot."
+      if (patientAppointmentCount >= DAILY_APPOINTMENT_LIMIT) {
+        patientConflictMessage = `You already have ${DAILY_APPOINTMENT_LIMIT} appointments on this date. Choose another date.`
       }
 
       // Only actual patient-selected appointment times should be marked as booked.
@@ -204,6 +208,7 @@ export async function GET(request: NextRequest) {
       bookedTimes = []
       patientConflictTimes = []
       patientConflictMessage = ""
+      patientAppointmentCount = 0
     }
 
     return NextResponse.json({
@@ -217,6 +222,8 @@ export async function GET(request: NextRequest) {
       patientConflictTimes,
       sameDoctorConflict,
       patientConflictMessage,
+      patientAppointmentCount,
+      dailyAppointmentLimit: DAILY_APPOINTMENT_LIMIT,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -429,6 +436,13 @@ export async function POST(request: NextRequest) {
     let savedContactNumber: string | null = contactNumber
 
     await prisma.$transaction(async (tx) => {
+      if (!walkInPatient) {
+        await tx.$queryRawUnsafe(
+          `SELECT id FROM "user" WHERE id = $1 FOR UPDATE`,
+          user.id,
+        )
+      }
+
       const session = await tx.$queryRawUnsafe<any[]>(
         `SELECT session_id, slots, status, to_char(session_date, 'YYYY-MM-DD') AS session_date, to_char(start_time, 'HH24:MI') AS start_time, to_char(end_time, 'HH24:MI') AS end_time
          FROM "session_tbl"
@@ -489,6 +503,10 @@ export async function POST(request: NextRequest) {
           user.id,
           selectedAppointmentDate,
         )
+
+        if (patientConflictRows.length >= DAILY_APPOINTMENT_LIMIT) {
+          throw new Error(`You already have ${DAILY_APPOINTMENT_LIMIT} appointments on this date. Please choose another date.`)
+        }
 
         const candidateStartMinutes = selectedAppointmentTimeValue ? parseTimeToMinutes(selectedAppointmentTimeValue) : null
         if (candidateStartMinutes !== null) {
@@ -609,7 +627,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, smsSent: smsResult.success, emailSent: emailResult.success })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const status = message.includes("already have an appointment") ? 409 : 500
+    const status = message.includes("already have an appointment") || message.includes("appointments on this date") ? 409 : 500
     return NextResponse.json({ success: false, error: message }, { status })
   }
 }

@@ -1,6 +1,9 @@
 import { BookAppointmentContent } from "./content"
+import { getSession } from "@/lib/auth-utils"
 
-export default function BookAppointmentPage() {
+export default async function BookAppointmentPage() {
+  const session = await getSession()
+
   return (
     <div className="min-h-screen w-full bg-background p-6 text-foreground">
       <div className="mb-8">
@@ -10,7 +13,7 @@ export default function BookAppointmentPage() {
         </p>
       </div>
 
-      <BookAppointmentContent />
+      <BookAppointmentContent currentUserName={session?.name ?? ""} />
     </div>
   )
 }
