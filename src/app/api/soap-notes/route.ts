@@ -2,9 +2,21 @@ import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { normalizeNextFollowUp } from "@/lib/utils"
 import { logCurrentUserActivity } from "@/lib/activity-log"
+import { getSession } from "@/lib/auth-utils"
+import { normalizeUserRole } from "@/lib/user-role"
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession()
+    if (!session?.id) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
+    const role = normalizeUserRole(session.role)
+    if (role !== "ADMIN" && role !== "DOCTOR") {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 })
+    }
+
     const body = await request.json()
     const {
       appointmentId,
@@ -15,7 +27,8 @@ export async function POST(request: Request) {
       nextFollowUp,
     } = body || {}
 
-    if (!appointmentId || !chiefComplaints || !diagnosis) {
+    const parsedAppointmentId = Number(appointmentId)
+    if (!Number.isInteger(parsedAppointmentId) || parsedAppointmentId <= 0 || !chiefComplaints || !diagnosis) {
       return NextResponse.json(
         { success: false, error: "Appointment ID, chief complaints, and diagnosis are required." },
         { status: 400 }
@@ -36,39 +49,85 @@ export async function POST(request: Request) {
       )
     `)
 
-    // Normalize nextFollowUp as free text (DB column is VARCHAR)
     const nextFollowUpValue = normalizeNextFollowUp(nextFollowUp)
+    const note = await prisma.$transaction(async (tx) => {
+      const appointments = await tx.$queryRawUnsafe<{
+        appointment_status: string | null
+        relationship: string | null
+      }[]>(
+        `SELECT a.appointment_status, a.relationship
+         FROM public.appointment a
+         INNER JOIN public.doctor d ON d.doctor_id = a.doctor_id
+         WHERE a.appointment_id = $1
+           AND ($2 = 'ADMIN' OR d.user_id = $3)
+         FOR UPDATE OF a`,
+        parsedAppointmentId,
+        role,
+        session.id,
+      )
 
-    const note = await prisma.$executeRawUnsafe(
-      `
-        INSERT INTO public.soap_notes (
-          appointment_id,
-          chief_complaints,
-          physical_examination,
-          diagnosis,
-          prescription,
-          next_follow_up,
-          created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
-      `,
-      Number(appointmentId),
-      String(chiefComplaints),
-      physicalExamination ? String(physicalExamination) : null,
-      String(diagnosis),
-      prescription ? String(prescription) : null,
-      nextFollowUpValue
-    )
+      const appointment = appointments[0]
+      if (!appointment) {
+        throw new Error("Appointment not found or you do not have permission to add a SOAP note.")
+      }
 
-    await logCurrentUserActivity("Saved SOAP note", `Appointment #${appointmentId}`, {
-      type: "appointment",
-      id: appointmentId,
+      const isWalkIn = String(appointment.relationship ?? "").trim().toLowerCase().startsWith("walk-in")
+      if (!isWalkIn && String(appointment.appointment_status ?? "").trim().toLowerCase() !== "confirmed") {
+        throw new Error("A SOAP note can only be added after the appointment is confirmed.")
+      }
+
+      const existingNotes = await tx.$queryRawUnsafe<{ soap_id: number }[]>(
+        `SELECT soap_id
+         FROM public.soap_notes
+         WHERE appointment_id = $1
+         LIMIT 1`,
+        parsedAppointmentId,
+      )
+      if (existingNotes.length) {
+        throw new Error("A SOAP note already exists for this appointment.")
+      }
+
+      await tx.$executeRawUnsafe(
+        `INSERT INTO public.soap_notes (
+           appointment_id,
+           chief_complaints,
+           physical_examination,
+           diagnosis,
+           prescription,
+           next_follow_up,
+           created_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+        parsedAppointmentId,
+        String(chiefComplaints),
+        physicalExamination ? String(physicalExamination) : null,
+        String(diagnosis),
+        prescription ? String(prescription) : null,
+        nextFollowUpValue,
+      )
+
+      return { appointmentId: parsedAppointmentId }
     })
 
-    return NextResponse.json({ success: true, note })
+    await logCurrentUserActivity("Saved SOAP note", `Appointment #${note.appointmentId}`, {
+      type: "appointment",
+      id: note.appointmentId,
+    })
+
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("SOAP note save failed", error)
+    const message = error instanceof Error ? error.message : "Unable to save SOAP note"
+    if (message === "A SOAP note already exists for this appointment.") {
+      return NextResponse.json({ success: false, error: message }, { status: 409 })
+    }
+    if (message === "A SOAP note can only be added after the appointment is confirmed.") {
+      return NextResponse.json({ success: false, error: message }, { status: 409 })
+    }
+    if (message.startsWith("Appointment not found")) {
+      return NextResponse.json({ success: false, error: message }, { status: 404 })
+    }
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Unable to save SOAP note" },
+      { success: false, error: message },
       { status: 500 }
     )
   }
@@ -115,7 +174,7 @@ export async function POST(request: Request) {
          return NextResponse.json({ success: false, error: "No existing SOAP note found for appointment" }, { status: 404 })
        }
      }
- 
+
      const nextFollowUpValue = normalizeNextFollowUp(nextFollowUp)
  
      await prisma.$executeRawUnsafe(
@@ -138,4 +197,55 @@ export async function POST(request: Request) {
      console.error("SOAP note update failed", error)
      return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Unable to update SOAP note" }, { status: 500 })
    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+      const session = await getSession()
+      if (!session?.id) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+      }
+
+      const role = normalizeUserRole(session.role)
+      if (role !== "ADMIN" && role !== "DOCTOR") {
+        return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 })
+      }
+
+      const id = Number(new URL(request.url).searchParams.get("id"))
+      if (!Number.isInteger(id) || id <= 0) {
+        return NextResponse.json({ success: false, error: "A valid SOAP note ID is required." }, { status: 400 })
+      }
+
+      const notes = await prisma.$queryRawUnsafe<{ appointment_id: number }[]>(
+        `SELECT sn.appointment_id
+         FROM public.soap_notes sn
+         INNER JOIN public.appointment a ON a.appointment_id = sn.appointment_id
+         LEFT JOIN public.doctor d ON d.doctor_id = a.doctor_id
+         WHERE sn.soap_id = $1
+           AND ($2 = 'ADMIN' OR d.user_id = $3)
+         LIMIT 1`,
+        id,
+        role,
+        session.id,
+      )
+
+      if (!notes.length) {
+        return NextResponse.json({ success: false, error: "SOAP note not found." }, { status: 404 })
+      }
+
+      await prisma.$executeRawUnsafe(`DELETE FROM public.soap_notes WHERE soap_id = $1`, id)
+
+      await logCurrentUserActivity("Deleted SOAP note", `Appointment #${notes[0].appointment_id}`, {
+        type: "soap_note",
+        id,
+      })
+
+      return NextResponse.json({ success: true })
+    } catch (error) {
+      console.error("SOAP note deletion failed", error)
+      return NextResponse.json(
+        { success: false, error: error instanceof Error ? error.message : "Unable to delete SOAP note." },
+        { status: 500 },
+      )
+    }
  }

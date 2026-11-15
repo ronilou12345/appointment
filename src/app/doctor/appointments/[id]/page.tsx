@@ -80,26 +80,6 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
     notFound()
   }
 
-  const soapNoteRows = await prisma.$queryRawUnsafe<any[]>(
-    `SELECT * FROM soap_notes WHERE appointment_id = $1 ORDER BY created_at DESC LIMIT 1`,
-    appointmentId
-  )
-  const soapNote = soapNoteRows[0]
-  const soapNotes = await prisma.$queryRawUnsafe<WalkInSoapNote[]>(
-    `SELECT
-       soap_id::text AS id,
-       chief_complaints,
-       physical_examination,
-       diagnosis,
-       prescription,
-       next_follow_up,
-       to_char(created_at, 'YYYY-MM-DD HH12:MI AM') AS "createdAt"
-     FROM public.soap_notes
-     WHERE appointment_id = $1
-     ORDER BY created_at DESC, soap_id DESC`,
-    appointmentId,
-  )
-
   const bookedByName = String(appointment.user_name ?? "Unknown patient")
   const relationship = String(appointment.relationship ?? "").trim()
   const isSomeoneElseAppointment = relationship.toLowerCase().startsWith("someone else")
@@ -107,13 +87,180 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
     ? relationship.split("—").slice(1).join("—").trim()
     : ""
   const actualPatientDisplayName = isSomeoneElseAppointment ? actualPatientName || "—" : "—"
-  const medicalHistoryRows: MedicalHistoryEntry[] = [
-    { label: "Past illnesses", value: appointment.additional_notes?.trim() || "No past illnesses documented." },
-    { label: "Current medications", value: "No current medications documented." },
-    { label: "Allergies", value: "No allergies documented." },
-    { label: "Family history", value: "No family history documented." },
-    { label: "Surgical history", value: "No surgical history documented." },
-  ]
+  const soapNotes = await prisma.$queryRawUnsafe<WalkInSoapNote[]>(
+    `SELECT
+       sn.soap_id::text AS id,
+       sn.appointment_id AS "appointmentId",
+       sn.chief_complaints,
+       sn.physical_examination,
+       sn.diagnosis,
+       sn.prescription,
+       sn.next_follow_up,
+       to_char(sn.created_at, 'Mon. DD, YYYY : FMHH12:MI AM') AS "createdAt",
+       vitals.summary AS "objectiveVitals"
+     FROM public.soap_notes sn
+     LEFT JOIN LATERAL (
+       SELECT concat_ws(E'\\n',
+         NULLIF(concat('Temperature: ', v.body_temperature::text, ' °C'), 'Temperature:  °C'),
+         NULLIF(concat('Blood pressure: ', NULLIF(v.blood_pressure, '')), 'Blood pressure: '),
+         NULLIF(concat('Heart rate: ', v.heart_rate::text, ' bpm'), 'Heart rate:  bpm'),
+         NULLIF(concat('Oxygen saturation: ', v.oxygen_saturation::text, '%'), 'Oxygen saturation: %'),
+         NULLIF(concat('Blood sugar: ', v.blood_sugar::text), 'Blood sugar: '),
+         NULLIF(concat('Weight: ', v.weight::text, ' kg'), 'Weight:  kg'),
+         NULLIF(concat('Height: ', v.height::text, ' cm'), 'Height:  cm')
+       ) AS summary
+       FROM public.vital_signs v
+       WHERE v.appointment_id = sn.appointment_id
+       ORDER BY v.created_at DESC NULLS LAST, v.vital_id DESC
+       LIMIT 1
+     ) vitals ON TRUE
+     INNER JOIN public.appointment a ON a.appointment_id = sn.appointment_id
+     WHERE a.user_id = $1
+       AND (
+         ($2::boolean
+           AND LOWER(COALESCE(a.relationship, '')) LIKE 'someone else%'
+           AND LOWER(TRIM(CASE
+             WHEN POSITION('—' IN COALESCE(a.relationship, '')) > 0
+               THEN SUBSTRING(a.relationship FROM POSITION('—' IN a.relationship) + 1)
+             ELSE ''
+           END)) = LOWER(TRIM($3)))
+         OR (
+           NOT $2::boolean
+           AND LOWER(COALESCE(a.relationship, '')) NOT LIKE 'someone else%'
+         )
+       )
+       ORDER BY sn.created_at DESC, sn.soap_id DESC`,
+    appointment.user_id,
+    isSomeoneElseAppointment,
+    actualPatientName,
+  )
+  const currentAppointmentHasSoap = soapNotes.some(
+    (note) => Number(note.appointmentId) === appointmentId,
+  )
+  const medicalHistoryRows = await prisma.$queryRawUnsafe<MedicalHistoryEntry[]>(
+    `WITH history_records AS (
+       SELECT
+         a.appointment_id,
+         COALESCE(v.created_at::date, a.appointment_date, s.session_date) AS record_date,
+         COALESCE(v.created_at, a.appointment_date + a.appointment_time, s.session_date + s.start_time, a.appointment_date::timestamp) AS record_timestamp,
+         COALESCE(NULLIF(concat_ws(' ', d.prefix, d.first_name, d.middle_name, d.last_name), ''), 'Doctor') AS doctor_name,
+         CASE
+           WHEN LOWER(COALESCE(a.relationship, '')) LIKE 'someone else%'
+             AND POSITION('—' IN COALESCE(a.relationship, '')) > 0
+             THEN COALESCE(NULLIF(BTRIM(SUBSTRING(a.relationship FROM POSITION('—' IN a.relationship) + 1)), ''), u.name)
+           ELSE COALESCE(u.name, 'Unknown patient')
+         END AS patient_name,
+         COALESCE(concat_ws(' / ', CASE WHEN a.age IS NOT NULL THEN concat(a.age::text, ' years') END, NULLIF(a.gender, '')), '—') AS age_gender,
+         CASE
+           WHEN v.weight > 0 AND v.height > 0 THEN ROUND(v.weight / POWER(v.height / 100, 2), 1)::text
+           ELSE ''
+         END AS bmi,
+         CASE
+           WHEN v.weight > 0 AND v.height > 0 AND v.weight / POWER(v.height / 100, 2) < 18.5 THEN 'Underweight'
+           WHEN v.weight > 0 AND v.height > 0 AND v.weight / POWER(v.height / 100, 2) < 25 THEN 'Normal weight'
+           WHEN v.weight > 0 AND v.height > 0 AND v.weight / POWER(v.height / 100, 2) < 30 THEN 'Overweight'
+           WHEN v.weight > 0 AND v.height > 0 AND v.weight / POWER(v.height / 100, 2) >= 30 THEN 'Obese'
+           ELSE ''
+         END AS bmi_category,
+         concat_ws(E'\\n',
+           NULLIF(concat('Medical history — Chief complaint: ', NULLIF(TRIM(a.reason_for_visit), '')), 'Medical history — Chief complaint: '),
+           NULLIF(concat('Medical history — Symptoms: ', NULLIF(TRIM(a.symptoms), '')), 'Medical history — Symptoms: '),
+           'Vital signs:',
+           concat('BMI: ',
+             CASE
+               WHEN v.weight > 0 AND v.height > 0
+                 THEN ROUND(v.weight / POWER(v.height / 100, 2), 1)::text
+               ELSE '—'
+             END, ' kg/m²'),
+           concat('Weight: ', COALESCE(v.weight::text, '—'), ' kg'),
+           concat('Height: ', COALESCE(v.height::text, '—'), ' cm'),
+           concat('Blood pressure: ', COALESCE(v.blood_pressure, '—')),
+           concat('Heart rate: ', COALESCE(v.heart_rate::text, '—'), ' bpm'),
+           concat('Temperature: ', COALESCE(v.body_temperature::text, '—'), ' °C'),
+           concat('Oxygen saturation: ', COALESCE(v.oxygen_saturation::text, '—'), '%'),
+           concat('Blood sugar: ', COALESCE(v.blood_sugar::text, '—'))
+         ) AS details,
+         0 AS sort_order
+       FROM public.appointment a
+       INNER JOIN public.doctor d ON d.doctor_id = a.doctor_id
+       INNER JOIN public."user" u ON u.id = a.user_id
+       LEFT JOIN public.session_tbl s ON s.session_id = a.session_id
+       INNER JOIN public.vital_signs v ON v.appointment_id = a.appointment_id
+       WHERE a.user_id = $1
+         AND (
+           v.weight IS NOT NULL OR v.height IS NOT NULL OR v.blood_pressure IS NOT NULL
+           OR v.heart_rate IS NOT NULL OR v.body_temperature IS NOT NULL
+           OR v.oxygen_saturation IS NOT NULL OR v.blood_sugar IS NOT NULL
+         )
+         AND (
+           ($2::boolean
+             AND LOWER(COALESCE(a.relationship, '')) LIKE 'someone else%'
+             AND LOWER(TRIM(CASE
+               WHEN POSITION('—' IN COALESCE(a.relationship, '')) > 0
+                 THEN SUBSTRING(a.relationship FROM POSITION('—' IN a.relationship) + 1)
+               ELSE ''
+             END)) = LOWER(TRIM($3)))
+           OR (NOT $2::boolean AND LOWER(COALESCE(a.relationship, '')) NOT LIKE 'someone else%')
+         )
+       UNION ALL
+       SELECT
+         a.appointment_id,
+         COALESCE(sn.created_at::date, a.appointment_date, s.session_date) AS record_date,
+         COALESCE(sn.created_at, a.appointment_date + a.appointment_time, s.session_date + s.start_time, a.appointment_date::timestamp) AS record_timestamp,
+         COALESCE(NULLIF(concat_ws(' ', d.prefix, d.first_name, d.middle_name, d.last_name), ''), 'Doctor') AS doctor_name,
+         CASE
+           WHEN LOWER(COALESCE(a.relationship, '')) LIKE 'someone else%'
+             AND POSITION('—' IN COALESCE(a.relationship, '')) > 0
+             THEN COALESCE(NULLIF(BTRIM(SUBSTRING(a.relationship FROM POSITION('—' IN a.relationship) + 1)), ''), u.name)
+           ELSE COALESCE(u.name, 'Unknown patient')
+         END AS patient_name,
+         COALESCE(concat_ws(' / ', CASE WHEN a.age IS NOT NULL THEN concat(a.age::text, ' years') END, NULLIF(a.gender, '')), '—') AS age_gender,
+         '' AS bmi,
+         '' AS bmi_category,
+         concat_ws(E'\\n',
+           NULLIF(concat('Medical history — Chief complaint: ', NULLIF(TRIM(a.reason_for_visit), '')), 'Medical history — Chief complaint: '),
+           NULLIF(concat('Medical history — Symptoms: ', NULLIF(TRIM(a.symptoms), '')), 'Medical history — Symptoms: '),
+           NULLIF(concat('SOAP — Chief complaints: ', NULLIF(TRIM(sn.chief_complaints), '')), 'SOAP — Chief complaints: '),
+           NULLIF(concat('SOAP — Physical examination: ', NULLIF(TRIM(sn.physical_examination), '')), 'SOAP — Physical examination: '),
+           NULLIF(concat('SOAP — Diagnosis: ', NULLIF(TRIM(sn.diagnosis), '')), 'SOAP — Diagnosis: '),
+           NULLIF(concat('SOAP — Plan: ', NULLIF(TRIM(sn.prescription), '')), 'SOAP — Plan: '),
+           NULLIF(concat('SOAP — Next follow-up: ', NULLIF(TRIM(sn.next_follow_up), '')), 'SOAP — Next follow-up: '),
+           NULLIF(concat('Prescription: ', NULLIF(TRIM(sn.prescription), '')), 'Prescription: ')
+         ) AS details,
+         1 AS sort_order
+       FROM public.appointment a
+       INNER JOIN public.doctor d ON d.doctor_id = a.doctor_id
+       INNER JOIN public."user" u ON u.id = a.user_id
+       LEFT JOIN public.session_tbl s ON s.session_id = a.session_id
+       INNER JOIN public.soap_notes sn ON sn.appointment_id = a.appointment_id
+       WHERE a.user_id = $1
+         AND (
+           ($2::boolean
+             AND LOWER(COALESCE(a.relationship, '')) LIKE 'someone else%'
+             AND LOWER(TRIM(CASE
+               WHEN POSITION('—' IN COALESCE(a.relationship, '')) > 0
+                 THEN SUBSTRING(a.relationship FROM POSITION('—' IN a.relationship) + 1)
+               ELSE ''
+             END)) = LOWER(TRIM($3)))
+           OR (NOT $2::boolean AND LOWER(COALESCE(a.relationship, '')) NOT LIKE 'someone else%')
+         )
+     )
+     SELECT
+       concat(appointment_id::text, '-', record_date::text) AS id,
+       to_char(MAX(record_timestamp), 'Mon. DD, YYYY : FMHH12:MI AM') AS date,
+       doctor_name AS "doctorName",
+       MAX(patient_name) AS "patientName",
+       COALESCE(MAX(age_gender), '—') AS "ageGender",
+       COALESCE(NULLIF(MAX(bmi), ''), '—') AS bmi,
+       COALESCE(NULLIF(MAX(bmi_category), ''), '—') AS "bmiCategory",
+       string_agg(details, E'\\n\\n' ORDER BY sort_order) AS details
+     FROM history_records
+     GROUP BY appointment_id, record_date, doctor_name
+     ORDER BY record_date DESC, appointment_id DESC`,
+    appointment.user_id,
+    isSomeoneElseAppointment,
+    actualPatientName,
+  )
   const initials = getInitials(bookedByName)
   const patientAvatar = resolveProfileAvatar(appointment.user_id, appointment.user_profile_image)
   const doctorName = [appointment.doctor_prefix, appointment.doctor_first_name, appointment.doctor_middle_name, appointment.doctor_last_name]
@@ -126,11 +273,12 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   const patientNotes = appointment.reason_for_visit ?? "No patient notes recorded."
   const doctorNotes = appointment.additional_notes?.trim() || "-"
   const followUp = appointment.symptoms?.trim() || "-"
-  const prescriptionText = soapNote?.prescription || "-"
-  const chiefComplaints = soapNote?.chief_complaints || "-"
-  const physicalExamination = soapNote?.physical_examination || "-"
-  const diagnosis = soapNote?.diagnosis || "-"
-  const followUpNote = soapNote?.next_follow_up || "-"
+  const latestSoapNote = soapNotes[0]
+  const prescriptionText = latestSoapNote?.prescription || "-"
+  const chiefComplaints = latestSoapNote?.chief_complaints || "-"
+  const physicalExamination = latestSoapNote?.physical_examination || "-"
+  const diagnosis = latestSoapNote?.diagnosis || "-"
+  const followUpNote = latestSoapNote?.next_follow_up || "-"
   const specialty =
     appointment.appointment_type ||
     appointment.session_appointment_type ||
@@ -306,7 +454,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
         <section className="space-y-5 rounded-2xl border border-border bg-background p-5">
           <div>
             <h2 className="text-2xl font-semibold">Medical history</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Patient history recorded for this appointment.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Patient history from previous and current appointments.</p>
           </div>
           <MedicalHistoryTable entries={medicalHistoryRows} />
         </section>
@@ -315,9 +463,13 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-semibold">SOAP summary</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Clinical notes and follow-ups recorded for this appointment.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Clinical notes and follow-ups across this patient’s appointments.</p>
             </div>
-            <SOAPSheet appointmentId={appointment.appointment_id} mode="add" />
+            <SOAPSheet
+              appointmentId={appointment.appointment_id}
+              mode="add"
+              disabled={String(appointment.appointment_status ?? "").trim().toLowerCase() !== "confirmed" || currentAppointmentHasSoap}
+            />
           </div>
           {soapNotes.length ? (
             <SoapSummaryTable notes={soapNotes} appointmentId={appointment.appointment_id} />

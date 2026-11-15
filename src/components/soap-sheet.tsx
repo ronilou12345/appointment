@@ -21,7 +21,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, PenLine } from "lucide-react"
+import { MoreHorizontal, PenLine, Trash2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 type SOAPNote = {
   id: string | number
@@ -36,9 +44,10 @@ type SOAPSheetProps = {
   appointmentId?: number | string
   mode?: "full" | "add" | "row-edit"
   note?: SOAPNote
+  disabled?: boolean
 }
 
-export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSheetProps) {
+export default function SOAPSheet({ appointmentId, mode = "full", note, disabled = false }: SOAPSheetProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [prefill, setPrefill] = React.useState(false)
@@ -49,6 +58,8 @@ export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSh
   const [nextFollowUp, setNextFollowUp] = React.useState("")
   const [isSaving, setIsSaving] = React.useState(false)
   const [editingId, setEditingId] = React.useState<number | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState(false)
 
   const openNoteForEditing = (n: SOAPNote) => {
     setSubjective(n.chief_complaints || "")
@@ -123,9 +134,36 @@ export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSh
     }
   }
 
+  const handleDelete = async () => {
+    if (!note) {
+      toast.error("SOAP note is not available.")
+      return
+    }
+
+    try {
+      setIsDeleting(true)
+      const response = await fetch(`/api/soap-notes?id=${encodeURIComponent(String(note.id))}`, {
+        method: "DELETE",
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to delete SOAP note.")
+      }
+
+      toast.success("SOAP note deleted.")
+      setDeleteConfirmOpen(false)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete SOAP note.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // Fetching for Edit is handled directly in the Edit button click handler
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(v) => {
       setOpen(v)
       if (!v) {
@@ -178,7 +216,15 @@ export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSh
                 }}
               >
                 <PenLine className="mr-2 h-4 w-4" />
-                Edit SOAP
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!note}
+                className="text-destructive focus:text-destructive"
+                onSelect={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -187,6 +233,7 @@ export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSh
           <Button
             variant="secondary"
             className="w-full sm:w-auto"
+            disabled={disabled}
             onClick={() => {
               resetForm()
               setPrefill(false)
@@ -197,70 +244,70 @@ export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSh
           </Button>
         ) : null}
       </div>
-      <SheetContent side="right" className="max-w-lg">
-        <SheetHeader>
+      <SheetContent side="right" className="w-full sm:max-w-xl">
+        <SheetHeader className="border-b border-border px-5 py-5 pr-14">
           <SheetTitle>{prefill || editingId ? "Edit SOAP Note" : "Add SOAP Note"}</SheetTitle>
-          <SheetDescription>
+          <SheetDescription className="max-w-prose leading-relaxed">
             {prefill || editingId
               ? "Edit the existing SOAP entry for this appointment. Update subjective, objective, assessment, and plan details. "
               : "Create a new SOAP entry for this appointment with subjective, objective, assessment, and plan details."}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="grid gap-6 py-4">
-          <div>
+        <div className="grid min-w-0 gap-5 px-5 py-5">
+          <div className="min-w-0">
             <label className="mb-2 block text-sm font-medium text-foreground">Subjective (Chief Complaints)</label>
             <Textarea
               value={subjective}
               onChange={(event) => setSubjective(event.target.value)}
               rows={4}
               placeholder="Patient description of symptoms, history, and complaints."
-              className="min-h-[120px]"
+              className="min-h-[100px] resize-y"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-sm font-medium text-foreground">Objective (Physical Examination)</label>
             <Textarea
               value={objective}
               onChange={(event) => setObjective(event.target.value)}
               rows={4}
               placeholder="Physical exam findings, vital signs, and observable data."
-              className="min-h-[120px]"
+              className="min-h-[100px] resize-y"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-sm font-medium text-foreground">Assessment (Diagnosis)</label>
             <Textarea
               value={assessment}
               onChange={(event) => setAssessment(event.target.value)}
               rows={4}
               placeholder="Clinical impressions, diagnoses, and differential considerations."
-              className="min-h-[120px]"
+              className="min-h-[100px] resize-y"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-sm font-medium text-foreground">Plan</label>
             <Textarea
               value={plan}
               onChange={(event) => setPlan(event.target.value)}
               rows={4}
               placeholder="Treatment plan, medications, and next steps."
-              className="min-h-[120px]"
+              className="min-h-[100px] resize-y"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-sm font-medium text-foreground">Prescription</label>
             <Textarea
               value={nextFollowUp}
               onChange={(event) => setNextFollowUp(event.target.value)}
               rows={3}
               placeholder="Suggested date, timing, or instructions for the next follow-up."
-              className="min-h-[100px]"
+              className="min-h-[88px] resize-y"
             />
           </div>
         </div>
 
-        <SheetFooter className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <SheetFooter className="mt-0 flex flex-col gap-3 border-t border-border bg-background px-5 py-4 sm:flex-row sm:justify-end">
           <SheetClose asChild>
             <Button variant="outline" className="w-full sm:w-auto">
               Cancel
@@ -272,5 +319,26 @@ export default function SOAPSheet({ appointmentId, mode = "full", note }: SOAPSh
         </SheetFooter>
       </SheetContent>
     </Sheet>
+    <Dialog open={deleteConfirmOpen} onOpenChange={(nextOpen) => {
+      if (!isDeleting) setDeleteConfirmOpen(nextOpen)
+    }}>
+      <DialogContent className="w-full max-w-md min-w-0 overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>Delete SOAP note</DialogTitle>
+          <DialogDescription className="break-words [overflow-wrap:anywhere]">
+            Are you sure you want to delete this SOAP note?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

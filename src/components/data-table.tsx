@@ -37,7 +37,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowUpDown, GripVertical } from "lucide-react"
+import { ArrowUpDown, ChevronDown, ChevronRight, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const NON_SORTABLE_COLUMN_IDS = new Set(["drag", "select", "actions", "addToCart", "image"])
@@ -125,6 +125,8 @@ interface DataTableProps<TData, TValue> {
   showRowControls?: boolean
   dateFilterColumnIds?: string[]
   autoResetPageIndex?: boolean
+  renderExpandedRow?: (row: TData) => React.ReactNode
+  tableClassName?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -136,6 +138,8 @@ export function DataTable<TData, TValue>({
   showRowControls = true,
   dateFilterColumnIds = [],
   autoResetPageIndex = true,
+  renderExpandedRow,
+  tableClassName,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -146,6 +150,7 @@ export function DataTable<TData, TValue>({
     pageIndex: 0,
     pageSize: 10,
   })
+  const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
 
   const tableColumns = React.useMemo<ColumnDef<TData, TValue>[]>(() => {
     const baseColumns = (() => {
@@ -267,7 +272,7 @@ export function DataTable<TData, TValue>({
       />
 
       <div className="overflow-hidden rounded-md border border-border bg-card">
-        <Table>
+        <Table className={tableClassName}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="bg-muted hover:bg-muted">
@@ -283,7 +288,7 @@ export function DataTable<TData, TValue>({
                     {header.isPlaceholder ? null : header.column.getCanSort() ? (
                       <button
                         type="button"
-                        className="inline-flex cursor-pointer items-center gap-1.5 text-foreground select-none"
+                        className="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-foreground select-none"
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
@@ -294,35 +299,70 @@ export function DataTable<TData, TValue>({
                     )}
                   </TableHead>
                 ))}
+                {renderExpandedRow ? <TableHead className="w-10" /> : null}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                  className="border-b border-border last:border-b-0 hover:bg-muted/50 data-[state=selected]:bg-muted/60"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={
-                        cell.column.id === "drag" || cell.column.id === "select"
-                          ? "w-8 px-1.5 text-foreground"
-                          : "text-foreground"
-                      }
+              table.getRowModel().rows.map((row) => {
+                const expanded = expandedRows.has(row.id)
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsSelected() ? "selected" : undefined}
+                      aria-expanded={renderExpandedRow ? expanded : undefined}
+                      className="border-b border-border last:border-b-0 hover:bg-muted/50 data-[state=selected]:bg-muted/60"
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={
+                            cell.column.id === "drag" || cell.column.id === "select"
+                              ? "w-8 px-1.5 text-foreground"
+                              : "text-foreground"
+                          }
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                      {renderExpandedRow ? (
+                        <TableCell className="w-10 text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label={expanded ? "Collapse row details" : "Expand row details"}
+                            aria-expanded={expanded}
+                            onClick={() => {
+                              setExpandedRows((current) => {
+                                const next = new Set(current)
+                                if (next.has(row.id)) next.delete(row.id)
+                                else next.add(row.id)
+                                return next
+                              })
+                            }}
+                          >
+                            {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                          </Button>
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                    {renderExpandedRow && expanded ? (
+                      <TableRow className="bg-muted/20 hover:bg-muted/20">
+                        <TableCell colSpan={row.getVisibleCells().length + 1} className="p-3">
+                          {renderExpandedRow(row.original)}
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </React.Fragment>
+                )
+              })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={tableColumns.length}
+                  colSpan={tableColumns.length + (renderExpandedRow ? 1 : 0)}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No results.

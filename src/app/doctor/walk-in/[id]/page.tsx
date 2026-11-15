@@ -96,27 +96,130 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
   const patient = rows[0]
   if (!patient) notFound()
 
-  const medicalHistoryRows: MedicalHistoryEntry[] = [
-    { label: "Past illnesses", value: patient.additionalNotes || "No documented past illnesses." },
-    { label: "Current medications", value: "No current medications documented." },
-    { label: "Allergies", value: "No known allergies documented." },
-    { label: "Family history", value: "No family history documented." },
-    { label: "Surgical history", value: "No surgical history documented." },
-  ]
-
   const soapNotes = await prisma.$queryRawUnsafe<WalkInSoapNote[]>(
     `SELECT
-       soap_id::text AS id,
-       chief_complaints,
-       physical_examination,
-       diagnosis,
-       prescription,
-       next_follow_up,
-       to_char(created_at, 'YYYY-MM-DD HH12:MI AM') AS "createdAt"
-     FROM public.soap_notes
-     WHERE appointment_id = $1
-     ORDER BY created_at DESC, soap_id DESC`,
+       sn.soap_id::text AS id,
+       sn.appointment_id AS "appointmentId",
+       sn.chief_complaints,
+       sn.physical_examination,
+       sn.diagnosis,
+       sn.prescription,
+       sn.next_follow_up,
+       to_char(sn.created_at, 'Mon. DD, YYYY : FMHH12:MI AM') AS "createdAt",
+       concat_ws(E'\\n',
+         NULLIF(concat('Temperature: ', w.temperature::text, ' °C'), 'Temperature:  °C'),
+         NULLIF(concat('Blood pressure: ', NULLIF(w.blood_pressure, '')), 'Blood pressure: '),
+         NULLIF(concat('Pulse rate: ', w.pulse_rate::text, ' bpm'), 'Pulse rate:  bpm'),
+         NULLIF(concat('Oxygen saturation: ', w.oxygen_saturation::text, '%'), 'Oxygen saturation: %'),
+         NULLIF(concat('Weight: ', w.weight::text, ' kg'), 'Weight:  kg'),
+         NULLIF(concat('Height: ', w.height::text, ' cm'), 'Height:  cm')
+       ) AS "objectiveVitals"
+     FROM public.soap_notes sn
+     LEFT JOIN public.walk_in w ON w.appointment_id = sn.appointment_id
+     WHERE sn.appointment_id = $1
+     ORDER BY sn.created_at DESC, sn.soap_id DESC`,
     appointmentId,
+  )
+  const appointmentHasSoap = soapNotes.some(
+    (note) => Number(note.appointmentId) === appointmentId,
+  )
+
+  const medicalHistoryRows = await prisma.$queryRawUnsafe<MedicalHistoryEntry[]>(
+    `WITH history_records AS (
+       SELECT
+         w.appointment_id,
+         COALESCE(w.created_at::date, w.appointment_date) AS record_date,
+         COALESCE(w.created_at, w.appointment_date + a.appointment_time, w.appointment_date::timestamp) AS record_timestamp,
+         COALESCE(NULLIF(concat_ws(' ', d.prefix, d.first_name, d.middle_name, d.last_name), ''), 'Doctor') AS doctor_name,
+         w.patient_name AS patient_name,
+         concat_ws(' / ', CASE WHEN a.age IS NOT NULL THEN concat(a.age::text, ' years') END, NULLIF(a.gender, '')) AS age_gender,
+         COALESCE(w.bmi::text, CASE WHEN w.weight > 0 AND w.height > 0 THEN ROUND(w.weight / POWER(w.height / 100, 2), 1)::text END) AS bmi,
+         CASE
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) < 18.5 THEN 'Underweight'
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) < 25 THEN 'Normal weight'
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) < 30 THEN 'Overweight'
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) >= 30 THEN 'Obese'
+           ELSE ''
+         END AS bmi_category,
+         concat_ws(E'\\n',
+           NULLIF(concat('Medical history — Chief complaint: ', NULLIF(TRIM(a.reason_for_visit), '')), 'Medical history — Chief complaint: '),
+           NULLIF(concat('Medical history — Symptoms: ', NULLIF(TRIM(a.symptoms), '')), 'Medical history — Symptoms: '),
+           'Vital signs:',
+           concat('BMI: ', COALESCE(w.bmi::text, CASE WHEN w.weight > 0 AND w.height > 0 THEN ROUND(w.weight / POWER(w.height / 100, 2), 1)::text END, '—'), ' kg/m²'),
+           concat('Weight: ', COALESCE(w.weight::text, '—'), ' kg'),
+           concat('Height: ', COALESCE(w.height::text, '—'), ' cm'),
+           concat('Blood pressure: ', COALESCE(w.blood_pressure, '—')),
+           concat('Temperature: ', COALESCE(w.temperature::text, '—'), ' °C'),
+           concat('Oxygen saturation: ', COALESCE(w.oxygen_saturation::text, '—'), '%'),
+           concat('Pulse rate: ', COALESCE(w.pulse_rate::text, '—'), ' bpm')
+         ) AS details,
+         0 AS sort_order
+       FROM public.walk_in w
+       INNER JOIN appointment a ON a.appointment_id = w.appointment_id
+       INNER JOIN doctor d ON d.doctor_id = a.doctor_id
+       WHERE d.user_id = $1
+         AND (
+           w.bmi IS NOT NULL OR w.weight IS NOT NULL OR w.height IS NOT NULL
+           OR w.blood_pressure IS NOT NULL OR w.temperature IS NOT NULL
+           OR w.oxygen_saturation IS NOT NULL OR w.pulse_rate IS NOT NULL
+         )
+         AND (
+           ($2 <> '' AND LOWER(TRIM(COALESCE(w.email, ''))) = LOWER(TRIM($2)))
+           OR ($2 = '' AND LOWER(TRIM(w.patient_name)) = LOWER(TRIM($3)))
+         )
+       UNION ALL
+       SELECT
+         a.appointment_id,
+         COALESCE(sn.created_at::date, a.appointment_date, s.session_date) AS record_date,
+         COALESCE(sn.created_at, a.appointment_date + a.appointment_time, s.session_date + s.start_time, a.appointment_date::timestamp) AS record_timestamp,
+         COALESCE(NULLIF(concat_ws(' ', d.prefix, d.first_name, d.middle_name, d.last_name), ''), 'Doctor') AS doctor_name,
+         w.patient_name AS patient_name,
+         concat_ws(' / ', CASE WHEN a.age IS NOT NULL THEN concat(a.age::text, ' years') END, NULLIF(a.gender, '')) AS age_gender,
+         COALESCE(w.bmi::text, CASE WHEN w.weight > 0 AND w.height > 0 THEN ROUND(w.weight / POWER(w.height / 100, 2), 1)::text END) AS bmi,
+         CASE
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) < 18.5 THEN 'Underweight'
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) < 25 THEN 'Normal weight'
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) < 30 THEN 'Overweight'
+           WHEN COALESCE(w.bmi, CASE WHEN w.weight > 0 AND w.height > 0 THEN w.weight / POWER(w.height / 100, 2) END) >= 30 THEN 'Obese'
+           ELSE ''
+         END AS bmi_category,
+         concat_ws(E'\\n',
+           NULLIF(concat('Medical history — Chief complaint: ', NULLIF(TRIM(a.reason_for_visit), '')), 'Medical history — Chief complaint: '),
+           NULLIF(concat('Medical history — Symptoms: ', NULLIF(TRIM(a.symptoms), '')), 'Medical history — Symptoms: '),
+           NULLIF(concat('SOAP — Chief complaints: ', NULLIF(TRIM(sn.chief_complaints), '')), 'SOAP — Chief complaints: '),
+           NULLIF(concat('SOAP — Physical examination: ', NULLIF(TRIM(sn.physical_examination), '')), 'SOAP — Physical examination: '),
+           NULLIF(concat('SOAP — Diagnosis: ', NULLIF(TRIM(sn.diagnosis), '')), 'SOAP — Diagnosis: '),
+           NULLIF(concat('SOAP — Plan: ', NULLIF(TRIM(sn.prescription), '')), 'SOAP — Plan: '),
+           NULLIF(concat('SOAP — Next follow-up: ', NULLIF(TRIM(sn.next_follow_up), '')), 'SOAP — Next follow-up: '),
+           NULLIF(concat('Prescription: ', NULLIF(TRIM(sn.prescription), '')), 'Prescription: ')
+         ) AS details,
+         1 AS sort_order
+       FROM public.walk_in w
+       INNER JOIN appointment a ON a.appointment_id = w.appointment_id
+       INNER JOIN doctor d ON d.doctor_id = a.doctor_id
+       LEFT JOIN session_tbl s ON s.session_id = a.session_id
+       INNER JOIN public.soap_notes sn ON sn.appointment_id = a.appointment_id
+       WHERE d.user_id = $1
+         AND (
+           ($2 <> '' AND LOWER(TRIM(COALESCE(w.email, ''))) = LOWER(TRIM($2)))
+           OR ($2 = '' AND LOWER(TRIM(w.patient_name)) = LOWER(TRIM($3)))
+         )
+     )
+     SELECT
+       concat(appointment_id::text, '-', record_date::text) AS id,
+       to_char(MAX(record_timestamp), 'Mon. DD, YYYY : FMHH12:MI AM') AS date,
+       doctor_name AS "doctorName",
+       MAX(patient_name) AS "patientName",
+       COALESCE(MAX(age_gender), '—') AS "ageGender",
+       COALESCE(MAX(bmi), '—') AS bmi,
+       COALESCE(MAX(NULLIF(bmi_category, '')), '—') AS "bmiCategory",
+       string_agg(details, E'\\n\\n' ORDER BY sort_order) AS details
+     FROM history_records
+     GROUP BY appointment_id, record_date, doctor_name
+     ORDER BY record_date DESC, appointment_id DESC`,
+    session.id,
+    patient.email,
+    patient.patientName,
   )
 
   return (
@@ -197,7 +300,7 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
               <h2 className="text-2xl font-semibold">SOAP summary</h2>
               <p className="mt-1 text-sm text-muted-foreground">Clinical notes and follow-ups recorded for this visit</p>
             </div>
-            <SOAPSheet appointmentId={appointmentId} mode="add" />
+            <SOAPSheet appointmentId={appointmentId} mode="add" disabled={appointmentHasSoap} />
           </div>
           {soapNotes.length ? (
             <SoapSummaryTable notes={soapNotes} appointmentId={appointmentId} />
