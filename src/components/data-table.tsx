@@ -127,6 +127,7 @@ interface DataTableProps<TData, TValue> {
   autoResetPageIndex?: boolean
   renderExpandedRow?: (row: TData) => React.ReactNode
   tableClassName?: string
+  wrapCellContent?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -140,6 +141,7 @@ export function DataTable<TData, TValue>({
   autoResetPageIndex = true,
   renderExpandedRow,
   tableClassName,
+  wrapCellContent = false,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -344,7 +346,10 @@ export function DataTable<TData, TValue>({
                           className={
                             cell.column.id === "drag" || cell.column.id === "select"
                               ? "w-8 px-1.5 text-foreground"
-                              : "text-foreground"
+                              : cn(
+                                  "text-foreground",
+                                  wrapCellContent && "whitespace-normal break-words [overflow-wrap:anywhere]",
+                                )
                           }
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}

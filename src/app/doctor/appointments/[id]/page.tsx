@@ -204,12 +204,12 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
          concat_ws(E'\\n',
            NULLIF(concat('Medical history — Chief complaint: ', NULLIF(TRIM(a.reason_for_visit), '')), 'Medical history — Chief complaint: '),
            NULLIF(concat('Medical history — Symptoms: ', NULLIF(TRIM(a.symptoms), '')), 'Medical history — Symptoms: '),
+           concat('SOAP — Added: ', to_char(sn.created_at + INTERVAL '8 hours', 'Mon. DD, YYYY : FMHH12:MI AM')),
            NULLIF(concat('SOAP — Chief complaints: ', NULLIF(TRIM(sn.chief_complaints), '')), 'SOAP — Chief complaints: '),
            NULLIF(concat('SOAP — Physical examination: ', NULLIF(TRIM(sn.physical_examination), '')), 'SOAP — Physical examination: '),
            NULLIF(concat('SOAP — Diagnosis: ', NULLIF(TRIM(sn.diagnosis), '')), 'SOAP — Diagnosis: '),
            NULLIF(concat('SOAP — Plan: ', NULLIF(TRIM(sn.prescription), '')), 'SOAP — Plan: '),
-           NULLIF(concat('SOAP — Next follow-up: ', NULLIF(TRIM(sn.next_follow_up), '')), 'SOAP — Next follow-up: '),
-           NULLIF(concat('Prescription: ', NULLIF(TRIM(sn.prescription), '')), 'Prescription: ')
+           NULLIF(concat('Prescription: ', NULLIF(TRIM(sn.next_follow_up), '')), 'Prescription: ')
          ) AS details,
          1 AS sort_order
        FROM public.appointment a
@@ -258,7 +258,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
   const doctorNotes = appointment.additional_notes?.trim() || "-"
   const followUp = appointment.symptoms?.trim() || "-"
   const latestSoapNote = soapNotes[0]
-  const prescriptionText = latestSoapNote?.prescription || "-"
+  const planText = latestSoapNote?.prescription || "-"
+  const prescriptionText = latestSoapNote?.next_follow_up || "-"
   const chiefComplaints = latestSoapNote?.chief_complaints || "-"
   const physicalExamination = latestSoapNote?.physical_examination || "-"
   const diagnosis = latestSoapNote?.diagnosis || "-"
@@ -429,7 +430,7 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
               </div>
               <div className="rounded-3xl border border-border bg-muted/50 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Plan</p>
-                <p className="mt-2 text-base font-semibold">{prescriptionText}</p>
+                <p className="mt-2 text-base font-semibold">{planText}</p>
               </div>
             </div>
           </aside>

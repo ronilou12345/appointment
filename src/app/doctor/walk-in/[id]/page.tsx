@@ -181,8 +181,7 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
            NULLIF(concat('SOAP — Physical examination: ', NULLIF(TRIM(sn.physical_examination), '')), 'SOAP — Physical examination: '),
            NULLIF(concat('SOAP — Diagnosis: ', NULLIF(TRIM(sn.diagnosis), '')), 'SOAP — Diagnosis: '),
            NULLIF(concat('SOAP — Plan: ', NULLIF(TRIM(sn.prescription), '')), 'SOAP — Plan: '),
-           NULLIF(concat('SOAP — Next follow-up: ', NULLIF(TRIM(sn.next_follow_up), '')), 'SOAP — Next follow-up: '),
-           NULLIF(concat('Prescription: ', NULLIF(TRIM(sn.prescription), '')), 'Prescription: ')
+           NULLIF(concat('Prescription: ', NULLIF(TRIM(sn.next_follow_up), '')), 'Prescription: ')
          ) AS details,
          1 AS sort_order
        FROM public.walk_in w

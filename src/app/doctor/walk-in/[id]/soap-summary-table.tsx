@@ -39,6 +39,16 @@ function SoapDetailCard({
   )
 }
 
+function getSoapPreview(value: string | null | undefined) {
+  const text = value?.trim().replace(/\s+/g, " ")
+  if (!text) return "—"
+
+  const firstSentence = text.match(/^(.+?[.!?])\s+.+$/)?.[1]
+  if (!firstSentence) return text
+
+  return `${firstSentence.replace(/[.!?]+$/, "")}....`
+}
+
 export function SoapSummaryTable({ notes, appointmentId }: { notes: WalkInSoapNote[]; appointmentId: number }) {
   const columns = useMemo<ColumnDef<WalkInSoapNote>[]>(
     () => [
@@ -50,37 +60,27 @@ export function SoapSummaryTable({ notes, appointmentId }: { notes: WalkInSoapNo
       {
         accessorKey: "chief_complaints",
         header: "Chief complaints",
-        cell: ({ row }) => (
-          <div className="whitespace-pre-wrap break-words">{row.original.chief_complaints || "—"}</div>
-        ),
+        cell: ({ row }) => <div className="break-words">{getSoapPreview(row.original.chief_complaints)}</div>,
       },
       {
         accessorKey: "physical_examination",
         header: "Physical examination",
-        cell: ({ row }) => (
-          <div className="whitespace-pre-wrap break-words">{row.original.physical_examination || "—"}</div>
-        ),
+        cell: ({ row }) => <div className="break-words">{getSoapPreview(row.original.physical_examination)}</div>,
       },
       {
         accessorKey: "diagnosis",
         header: "Diagnosis",
-        cell: ({ row }) => (
-          <div className="whitespace-pre-wrap break-words">{row.original.diagnosis || "—"}</div>
-        ),
+        cell: ({ row }) => <div className="break-words">{getSoapPreview(row.original.diagnosis)}</div>,
       },
       {
         accessorKey: "prescription",
         header: "Plan",
-        cell: ({ row }) => (
-          <div className="whitespace-pre-wrap break-words">{row.original.prescription || "—"}</div>
-        ),
+        cell: ({ row }) => <div className="break-words">{getSoapPreview(row.original.prescription)}</div>,
       },
       {
         accessorKey: "next_follow_up",
         header: "Prescription",
-        cell: ({ row }) => (
-          <div className="whitespace-pre-wrap break-words">{row.original.next_follow_up || "—"}</div>
-        ),
+        cell: ({ row }) => <div className="break-words">{getSoapPreview(row.original.next_follow_up)}</div>,
       },
       {
         id: "actions",
@@ -102,6 +102,7 @@ export function SoapSummaryTable({ notes, appointmentId }: { notes: WalkInSoapNo
       getRowId={(note) => note.id}
       showRowControls={false}
       tableClassName="table-fixed"
+      wrapCellContent
       renderExpandedRow={(note) => {
         const objective = note.physical_examination?.trim()
         return (
@@ -121,17 +122,11 @@ export function SoapSummaryTable({ notes, appointmentId }: { notes: WalkInSoapNo
             </SoapDetailCard>
             <SoapDetailCard icon={<span className="font-semibold">P</span>} title="P – Plan">
               <p className="whitespace-pre-wrap text-sm">{note.prescription || "—"}</p>
-              {note.next_follow_up ? (
-                <p className="mt-3 border-t border-border pt-2 text-sm">
-                  <span className="text-muted-foreground">Next follow-up: </span>
-                  <span className="font-medium">{note.next_follow_up}</span>
-                </p>
-              ) : null}
             </SoapDetailCard>
             <SoapDetailCard icon={<Pill />} title="Prescription">
               <dl className="space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-2">
-                  <dt className="text-muted-foreground">Medication</dt>
+                  <dt className="text-muted-foreground">Prescription</dt>
                   <dd className="break-words font-medium">{note.next_follow_up || "—"}</dd>
                 </div>
               </dl>

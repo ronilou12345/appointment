@@ -38,7 +38,7 @@ function getHistorySections(details: string) {
         soapField === "Physical examination" ? "O (Objective)" :
         soapField === "Diagnosis" ? "A (Assessment)" :
         soapField === "Plan" ? "P (Plan):" :
-        soapField === "Prescription" || soapField === "Next follow-up" ? "Prescription" :
+        soapField === "Next follow-up" ? "Next follow-up" :
         soapField
       sections.medicalHistory.push({ label: historyLabel, value })
     } else if (rawLabel === "Prescription") {
@@ -88,15 +88,15 @@ export function MedicalHistoryTable({ entries }: { entries: MedicalHistoryEntry[
 
   return (
     <div className="overflow-x-auto rounded-md border border-border bg-card">
-      <Table className="min-w-[900px]">
+      <Table className="min-w-[900px] table-fixed">
         <TableHeader>
           <TableRow className="bg-muted hover:bg-muted">
-            <TableHead><SortableHeading>Date</SortableHeading></TableHead>
-            <TableHead><SortableHeading>Patient</SortableHeading></TableHead>
-            <TableHead><SortableHeading>Age / Gender</SortableHeading></TableHead>
-            <TableHead><SortableHeading>Doctor</SortableHeading></TableHead>
-            <TableHead><SortableHeading>BMI</SortableHeading></TableHead>
-            <TableHead><SortableHeading>BMI Category</SortableHeading></TableHead>
+            <TableHead className="w-[18%]"><SortableHeading>Date</SortableHeading></TableHead>
+            <TableHead className="w-[24%]"><SortableHeading>Patient</SortableHeading></TableHead>
+            <TableHead className="w-[14%]"><SortableHeading>Age / Gender</SortableHeading></TableHead>
+            <TableHead className="w-[18%]"><SortableHeading>Doctor</SortableHeading></TableHead>
+            <TableHead className="w-[10%]"><SortableHeading>BMI</SortableHeading></TableHead>
+            <TableHead className="w-[12%]"><SortableHeading>BMI Category</SortableHeading></TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -126,8 +126,8 @@ export function MedicalHistoryTable({ entries }: { entries: MedicalHistoryEntry[
                       {displayDate}
                     </button>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
+                  <TableCell className="whitespace-normal">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
                         {(entry.patientName || "—")
                           .split(/\s+/)
@@ -136,14 +136,18 @@ export function MedicalHistoryTable({ entries }: { entries: MedicalHistoryEntry[
                           .map((part) => part[0]?.toUpperCase())
                           .join("") || "—"}
                       </span>
-                      <span className="font-medium">{entry.patientName || "—"}</span>
+                      <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere] font-medium">
+                        {entry.patientName || "—"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>{entry.ageGender || "—"}</TableCell>
-                  <TableCell className="font-medium">{entry.doctorName || "—"}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{entry.bmi || "—"}</div>
-                    <div className="text-xs text-muted-foreground">{sections.vitalSigns
+                  <TableCell className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere] font-medium">
+                    {entry.doctorName || "—"}
+                  </TableCell>
+                  <TableCell className="min-w-0 whitespace-normal">
+                    <div className="break-words [overflow-wrap:anywhere] font-medium">{entry.bmi || "—"}</div>
+                    <div className="break-words [overflow-wrap:anywhere] text-xs text-muted-foreground">{sections.vitalSigns
                       .filter(({ label }) => label === "Height" || label === "Weight")
                       .map(({ value }) => value)
                       .join(" / ")}</div>
@@ -161,7 +165,7 @@ export function MedicalHistoryTable({ entries }: { entries: MedicalHistoryEntry[
                 </TableRow>
                 {expanded ? (
                   <TableRow className="bg-muted/20 hover:bg-muted/20">
-                    <TableCell colSpan={7} className="p-3">
+                    <TableCell colSpan={7} className="whitespace-normal p-3">
                       <div className="grid gap-3 lg:grid-cols-3">
                         <HistorySection icon={<ClipboardList />} title="Medical History" rows={sections.medicalHistory} />
                         <HistorySection icon={<Heart />} title="Vital Signs" rows={sections.vitalSigns} />
@@ -189,7 +193,7 @@ function HistorySection({
   rows: { label: string; value: string }[]
 }) {
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-background p-4">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-border bg-background p-4">
       <h3 className="mb-4 flex items-center gap-2 font-semibold">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary [&>svg]:size-4">
           {icon}
@@ -197,11 +201,11 @@ function HistorySection({
         {title}
       </h3>
       {rows.length ? (
-        <dl className="space-y-3">
+        <dl className="min-w-0 space-y-3">
           {rows.map(({ label, value }, index) => (
-            <div key={`${label}-${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm">
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className="break-words font-medium">{value}</dd>
+            <div key={`${label}-${index}`} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm">
+              <dt className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere] text-muted-foreground">{label}</dt>
+              <dd className="min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-medium">{value}</dd>
             </div>
           ))}
         </dl>
