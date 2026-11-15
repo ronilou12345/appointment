@@ -14,7 +14,6 @@ export type WalkInSoapNote = {
   prescription: string | null
   next_follow_up: string | null
   createdAt: string
-  objectiveVitals?: string | null
   appointmentId?: number | string
 }
 
@@ -65,7 +64,6 @@ export function SoapSummaryTable({ notes, appointmentId }: { notes: WalkInSoapNo
       {
         accessorKey: "diagnosis",
         header: "Diagnosis",
-        enableSorting: false,
         cell: ({ row }) => (
           <div className="whitespace-pre-wrap break-words">{row.original.diagnosis || "—"}</div>
         ),
@@ -105,24 +103,17 @@ export function SoapSummaryTable({ notes, appointmentId }: { notes: WalkInSoapNo
       showRowControls={false}
       tableClassName="table-fixed"
       renderExpandedRow={(note) => {
-        const objectiveDetails = [
-          ...(note.objectiveVitals?.split("\n").filter(Boolean) ?? []),
-          ...(note.physical_examination?.trim() ? [note.physical_examination.trim()] : []),
-        ]
+        const objective = note.physical_examination?.trim()
         return (
           <div className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-2 lg:grid-cols-5">
             <SoapDetailCard icon={<span className="font-semibold">S</span>} title="S – Subjective">
               <p className="whitespace-pre-wrap text-sm">{note.chief_complaints || "—"}</p>
             </SoapDetailCard>
             <SoapDetailCard icon={<Heart />} title="O – Objective">
-              {objectiveDetails.length ? (
-                <ul className="space-y-1 text-sm">
-                  {objectiveDetails.map((detail, index) => (
-                    <li key={index} className="whitespace-pre-wrap">{detail}</li>
-                  ))}
-                </ul>
+              {objective ? (
+                <p className="whitespace-pre-wrap text-sm">{objective}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">No objective findings recorded.</p>
+                <p className="text-sm text-muted-foreground">No objective findings added to the SOAP note.</p>
               )}
             </SoapDetailCard>
             <SoapDetailCard icon={<Activity />} title="A – Assessment">
@@ -142,10 +133,6 @@ export function SoapSummaryTable({ notes, appointmentId }: { notes: WalkInSoapNo
                 <div className="grid grid-cols-2 gap-2">
                   <dt className="text-muted-foreground">Medication</dt>
                   <dd className="break-words font-medium">{note.next_follow_up || "—"}</dd>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <dt className="text-muted-foreground">Instructions</dt>
-                  <dd className="break-words font-medium">{note.prescription || "—"}</dd>
                 </div>
               </dl>
             </SoapDetailCard>

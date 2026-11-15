@@ -105,17 +105,8 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
        sn.diagnosis,
        sn.prescription,
        sn.next_follow_up,
-       to_char(sn.created_at, 'Mon. DD, YYYY : FMHH12:MI AM') AS "createdAt",
-       concat_ws(E'\\n',
-         NULLIF(concat('Temperature: ', w.temperature::text, ' °C'), 'Temperature:  °C'),
-         NULLIF(concat('Blood pressure: ', NULLIF(w.blood_pressure, '')), 'Blood pressure: '),
-         NULLIF(concat('Pulse rate: ', w.pulse_rate::text, ' bpm'), 'Pulse rate:  bpm'),
-         NULLIF(concat('Oxygen saturation: ', w.oxygen_saturation::text, '%'), 'Oxygen saturation: %'),
-         NULLIF(concat('Weight: ', w.weight::text, ' kg'), 'Weight:  kg'),
-         NULLIF(concat('Height: ', w.height::text, ' cm'), 'Height:  cm')
-       ) AS "objectiveVitals"
+       to_char(sn.created_at + INTERVAL '8 hours', 'Mon. DD, YYYY : FMHH12:MI AM') AS "createdAt"
      FROM public.soap_notes sn
-     LEFT JOIN public.walk_in w ON w.appointment_id = sn.appointment_id
      WHERE sn.appointment_id = $1
      ORDER BY sn.created_at DESC, sn.soap_id DESC`,
     appointmentId,
@@ -170,8 +161,8 @@ export default async function DoctorWalkInDetailsPage({ params }: Props) {
        UNION ALL
        SELECT
          a.appointment_id,
-         COALESCE(sn.created_at::date, a.appointment_date, s.session_date) AS record_date,
-         COALESCE(sn.created_at, a.appointment_date + a.appointment_time, s.session_date + s.start_time, a.appointment_date::timestamp) AS record_timestamp,
+         COALESCE((sn.created_at + INTERVAL '8 hours')::date, a.appointment_date, s.session_date) AS record_date,
+         COALESCE(sn.created_at + INTERVAL '8 hours', a.appointment_date + a.appointment_time, s.session_date + s.start_time, a.appointment_date::timestamp) AS record_timestamp,
          COALESCE(NULLIF(concat_ws(' ', d.prefix, d.first_name, d.middle_name, d.last_name), ''), 'Doctor') AS doctor_name,
          w.patient_name AS patient_name,
          concat_ws(' / ', CASE WHEN a.age IS NOT NULL THEN concat(a.age::text, ' years') END, NULLIF(a.gender, '')) AS age_gender,

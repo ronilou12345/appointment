@@ -119,6 +119,13 @@ export const columns: ColumnDef<SessionRow>[] = [
   {
     accessorKey: "appointmentTypes",
     header: "Appointment Type",
+    filterFn: (row, columnId, filterValue) => {
+      const query = String(filterValue ?? "").trim().toLocaleLowerCase()
+      if (!query) return true
+
+      const types = row.getValue<string[]>(columnId) ?? []
+      return types.some((type) => String(type).toLocaleLowerCase().includes(query))
+    },
     cell: ({ row }) => {
       const value = row.getValue("appointmentTypes") as string[] | undefined
       return <span className="whitespace-normal break-words text-sm">{formatAppointmentTypeSummary(value)}</span>

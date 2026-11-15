@@ -288,7 +288,7 @@ export function DataTable<TData, TValue>({
                     {header.isPlaceholder ? null : header.column.getCanSort() ? (
                       <button
                         type="button"
-                        className="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-foreground select-none"
+                        className="inline-flex max-w-full cursor-pointer items-center gap-1.5 whitespace-normal text-left text-foreground select-none"
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
@@ -307,12 +307,36 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => {
                 const expanded = expandedRows.has(row.id)
+                const toggleExpandedRow = () => {
+                  setExpandedRows((current) => {
+                    const next = new Set(current)
+                    if (next.has(row.id)) next.delete(row.id)
+                    else next.add(row.id)
+                    return next
+                  })
+                }
                 return (
                   <React.Fragment key={row.id}>
                     <TableRow
                       data-state={row.getIsSelected() ? "selected" : undefined}
                       aria-expanded={renderExpandedRow ? expanded : undefined}
-                      className="border-b border-border last:border-b-0 hover:bg-muted/50 data-[state=selected]:bg-muted/60"
+                      className={cn(
+                        "border-b border-border last:border-b-0 hover:bg-muted/50 data-[state=selected]:bg-muted/60",
+                        renderExpandedRow && "cursor-pointer",
+                      )}
+                      tabIndex={renderExpandedRow ? 0 : undefined}
+                      onClick={(event) => {
+                        if (!renderExpandedRow) return
+                        const target = event.target
+                        if (target instanceof Element && target.closest("button, a, input, [role='button'], [role='checkbox']")) return
+                        toggleExpandedRow()
+                      }}
+                      onKeyDown={(event) => {
+                        if (renderExpandedRow && (event.key === "Enter" || event.key === " ")) {
+                          event.preventDefault()
+                          toggleExpandedRow()
+                        }
+                      }}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell
@@ -335,13 +359,9 @@ export function DataTable<TData, TValue>({
                             className="size-8"
                             aria-label={expanded ? "Collapse row details" : "Expand row details"}
                             aria-expanded={expanded}
-                            onClick={() => {
-                              setExpandedRows((current) => {
-                                const next = new Set(current)
-                                if (next.has(row.id)) next.delete(row.id)
-                                else next.add(row.id)
-                                return next
-                              })
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              toggleExpandedRow()
                             }}
                           >
                             {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}

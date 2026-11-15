@@ -38,7 +38,7 @@ function getHistorySections(details: string) {
         soapField === "Physical examination" ? "O (Objective)" :
         soapField === "Diagnosis" ? "A (Assessment)" :
         soapField === "Plan" ? "P (Plan):" :
-        soapField === "Next follow-up" ? "Next follow-up" :
+        soapField === "Prescription" || soapField === "Next follow-up" ? "Prescription" :
         soapField
       sections.medicalHistory.push({ label: historyLabel, value })
     } else if (rawLabel === "Prescription") {

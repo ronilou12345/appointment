@@ -96,24 +96,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
        sn.diagnosis,
        sn.prescription,
        sn.next_follow_up,
-       to_char(sn.created_at, 'Mon. DD, YYYY : FMHH12:MI AM') AS "createdAt",
-       vitals.summary AS "objectiveVitals"
+       to_char(sn.created_at + INTERVAL '8 hours', 'Mon. DD, YYYY : FMHH12:MI AM') AS "createdAt"
      FROM public.soap_notes sn
-     LEFT JOIN LATERAL (
-       SELECT concat_ws(E'\\n',
-         NULLIF(concat('Temperature: ', v.body_temperature::text, ' °C'), 'Temperature:  °C'),
-         NULLIF(concat('Blood pressure: ', NULLIF(v.blood_pressure, '')), 'Blood pressure: '),
-         NULLIF(concat('Heart rate: ', v.heart_rate::text, ' bpm'), 'Heart rate:  bpm'),
-         NULLIF(concat('Oxygen saturation: ', v.oxygen_saturation::text, '%'), 'Oxygen saturation: %'),
-         NULLIF(concat('Blood sugar: ', v.blood_sugar::text), 'Blood sugar: '),
-         NULLIF(concat('Weight: ', v.weight::text, ' kg'), 'Weight:  kg'),
-         NULLIF(concat('Height: ', v.height::text, ' cm'), 'Height:  cm')
-       ) AS summary
-       FROM public.vital_signs v
-       WHERE v.appointment_id = sn.appointment_id
-       ORDER BY v.created_at DESC NULLS LAST, v.vital_id DESC
-       LIMIT 1
-     ) vitals ON TRUE
      INNER JOIN public.appointment a ON a.appointment_id = sn.appointment_id
      WHERE a.user_id = $1
        AND (
@@ -205,8 +189,8 @@ export default async function DoctorAppointmentDetailPage({ params }: Props) {
        UNION ALL
        SELECT
          a.appointment_id,
-         COALESCE(sn.created_at::date, a.appointment_date, s.session_date) AS record_date,
-         COALESCE(sn.created_at, a.appointment_date + a.appointment_time, s.session_date + s.start_time, a.appointment_date::timestamp) AS record_timestamp,
+         COALESCE((sn.created_at + INTERVAL '8 hours')::date, a.appointment_date, s.session_date) AS record_date,
+         COALESCE(sn.created_at + INTERVAL '8 hours', a.appointment_date + a.appointment_time, s.session_date + s.start_time, a.appointment_date::timestamp) AS record_timestamp,
          COALESCE(NULLIF(concat_ws(' ', d.prefix, d.first_name, d.middle_name, d.last_name), ''), 'Doctor') AS doctor_name,
          CASE
            WHEN LOWER(COALESCE(a.relationship, '')) LIKE 'someone else%'

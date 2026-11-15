@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { FilterFn } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { DataTable } from "@/components/data-table"
@@ -59,6 +60,25 @@ const formatAppointmentTypeSummary = (types: string[] | undefined) => {
 }
 
 type SessionDraft = Omit<SessionRow, "id"> & { tempId: string }
+
+const sessionGlobalFilter: FilterFn<SessionRow> = (row, _columnId, filterValue) => {
+  const query = String(filterValue ?? "").trim().toLocaleLowerCase()
+  if (!query) return true
+
+  const session = row.original
+  const searchableValues = [
+    session.id,
+    session.date,
+    session.startTime,
+    session.endTime,
+    session.duration,
+    session.slots,
+    session.status,
+    ...session.appointmentTypes,
+  ]
+
+  return searchableValues.some((value) => String(value ?? "").toLocaleLowerCase().includes(query))
+}
 
 const formatDateValue = (date: Date) => {
   const year = date.getFullYear()
@@ -640,7 +660,13 @@ export function AddSessionManager({ hasAssignedSpecialty = true }: { hasAssigned
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {loading ? renderSessionsSkeleton() : <DataTable columns={columns} data={data} />}
+        {loading ? renderSessionsSkeleton() : (
+          <DataTable
+            columns={columns}
+            data={data}
+            globalFilterFn={sessionGlobalFilter}
+          />
+        )}
       </div>
 
       <Dialog open={specialtyAlertOpen} onOpenChange={setSpecialtyAlertOpen}>
